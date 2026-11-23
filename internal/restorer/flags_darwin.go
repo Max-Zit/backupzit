@@ -136,31 +136,6 @@ func lockAfterRename(d *fsutil.Dir, name string, id fsutil.FileID, n *repo.Node)
 	return nil
 }
 
-// pathExtra sets creation time and file flags of the entry p without
-// following it, by path: for device nodes, which are never opened (see
-// deviceMeta). cur are the entry's flags now.
-func pathExtra(p string, n *repo.Node, cur uint32) []error {
-	if n.Unix == nil {
-		return nil
-	}
-	var errs []error
-	if !n.Unix.Birthtime.IsZero() {
-		al, buf := crtimeBuf(n.Unix.Birthtime)
-		if err := unix.Setattrlist(p, al, buf, unix.FSOPT_NOFOLLOW); err != nil {
-			errs = append(errs, &fs.PathError{Op: "set creation time", Path: p, Err: err})
-		}
-	}
-	if want := wantFlags(n.Unix.Flags, cur, os.Geteuid() == 0, ^uint32(0)); want != cur {
-		al := &unix.Attrlist{Bitmapcount: unix.ATTR_BIT_MAP_COUNT, Commonattr: unix.ATTR_CMN_FLAGS}
-		// #nosec G103 -- setattrlist takes the flags as raw bytes
-		buf := unsafe.Slice((*byte)(unsafe.Pointer(&want)), unsafe.Sizeof(want))
-		if err := unix.Setattrlist(p, al, buf, unix.FSOPT_NOFOLLOW); err != nil {
-			errs = append(errs, &fs.PathError{Op: "chflags", Path: p, Err: err})
-		}
-	}
-	return errs
-}
-
 // unlockDir clears the immutable and append-only flags of the folder d
 // opened for restoring into it: a folder locked by an earlier restore (or
 // in Finder) takes no new entries and lets none be removed or replaced, so

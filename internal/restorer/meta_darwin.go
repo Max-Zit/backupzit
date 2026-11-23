@@ -153,84 +153,29 @@ func applyLinkMeta(d *fsutil.Dir, name string, n *repo.Node) []error {
 	return append(errs, applyFdExtra(fd, d.Join(name), n, true, ^uint32(0))...)
 }
 
-// makeSpecialAt creates the device node or named pipe name in d and sets
-// its metadata. A named pipe is set through its own handle; a device node
-// is not opened (that would talk to the device): it is checked through the
-// folder and set relative to it without following it.
+// makeSpecialAt creates the named pipe name in d, relative to the folder
+// (mkfifoat), and sets its metadata through its own handle.
+//
+// Device nodes are not restored on a Mac: macOS keeps its devices in devfs
+// (/dev, which backups leave out), a device number of another system means
+// nothing here, and a device node cannot be opened to set its metadata
+// through a handle (that would talk to the device): it could only be
+// changed by path, which a restore never does.
 func makeSpecialAt(d *fsutil.Dir, name string, n *repo.Node) []error {
-	mode := unixMode(fs.FileMode(n.Mode))
-	dev := 0
-	switch n.Type {
-	case repo.NodeFifo:
-		mode |= unix.S_IFIFO
-	case repo.NodeDev:
-		if n.Unix == nil {
-			return []error{errors.New("device without device number")}
-		}
-		if n.Unix.Char {
-			mode |= unix.S_IFCHR
-		} else {
-			mode |= unix.S_IFBLK
-		}
-		dev = int(n.Unix.Rdev) // #nosec G115 -- device number as stored in the snapshot
-	default:
+	if n.Type == repo.NodeDev {
+		return []error{fmt.Errorf("%s: device nodes are not restored on macOS (devices live in /dev)", d.Join(name))}
+	}
+	if n.Type != repo.NodeFifo {
 		return []error{errors.New("not a special file")}
 	}
-	if err := d.Mknod(name, mode, dev); err != nil {
+	if err := d.Mknod(name, unixMode(fs.FileMode(n.Mode))|unix.S_IFIFO, 0); err != nil {
 		return []error{err}
 	}
-	if n.Type == repo.NodeFifo {
-		fd, err := openRestored(d, name, unix.S_IFIFO)
-		if err != nil {
-			return []error{err}
-		}
-		defer unix.Close(fd) //nolint:errcheck // metadata only
-		errs := applyFdMeta(fd, d.Join(name), n, true, false)
-		return append(errs, applyFdExtra(fd, d.Join(name), n, false, ^uint32(0))...)
-	}
-	return deviceMeta(d, name, n, mode)
-}
-
-// deviceMeta sets owner, mode, extended attributes, times, creation time
-// and file flags of the device node name in d, relative to the folder and
-// without following it (the last ones and the attributes by path).
-func deviceMeta(d *fsutil.Dir, name string, n *repo.Node, mode uint32) []error {
-	dfd, err := d.Fd()
+	fd, err := openRestored(d, name, unix.S_IFIFO)
 	if err != nil {
 		return []error{err}
 	}
-	p := d.Join(name)
-	var st unix.Stat_t
-	if err := unix.Fstatat(dfd, name, &st, unix.AT_SYMLINK_NOFOLLOW); err != nil {
-		return []error{err}
-	}
-	if uint32(st.Mode)&unix.S_IFMT != mode&unix.S_IFMT || int(st.Uid) != os.Geteuid() || st.Nlink != 1 {
-		return []error{fmt.Errorf("%s changed while it was restored", p)}
-	}
-	var errs []error
-	if n.Unix != nil && os.Geteuid() == 0 {
-		if err := unix.Fchownat(dfd, name, int(n.Unix.UID), int(n.Unix.GID), unix.AT_SYMLINK_NOFOLLOW); err != nil {
-			errs = append(errs, &fs.PathError{Op: "chown", Path: p, Err: err})
-		}
-	}
-	if n.Unix != nil {
-		for k, val := range n.Unix.Xattrs {
-			if kernelXattrs[k] {
-				continue
-			}
-			if err := unix.Lsetxattr(p, k, val, 0); err != nil && !errors.Is(err, unix.ENOTSUP) {
-				errs = append(errs, &fs.PathError{Op: "setxattr " + k, Path: p, Err: err})
-			}
-		}
-	}
-	if err := unix.Fchmodat(dfd, name, unixMode(fs.FileMode(n.Mode)), unix.AT_SYMLINK_NOFOLLOW); err != nil {
-		errs = append(errs, &fs.PathError{Op: "chmod", Path: p, Err: err})
-	}
-	if !n.ModTime.IsZero() {
-		ts := []unix.Timespec{unix.NsecToTimespec(n.ModTime.UnixNano()), unix.NsecToTimespec(n.ModTime.UnixNano())}
-		if err := unix.UtimesNanoAt(dfd, name, ts, unix.AT_SYMLINK_NOFOLLOW); err != nil {
-			errs = append(errs, &fs.PathError{Op: "set times", Path: p, Err: err})
-		}
-	}
-	return append(errs, pathExtra(p, n, st.Flags)...)
+	defer unix.Close(fd) //nolint:errcheck // metadata only
+	errs := applyFdMeta(fd, d.Join(name), n, true, false)
+	return append(errs, applyFdExtra(fd, d.Join(name), n, false, ^uint32(0))...)
 }

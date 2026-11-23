@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"unsafe"
 
 	"golang.org/x/sys/unix"
 )
@@ -68,8 +67,13 @@ func (d *Dir) lstat(name string) (entry, error) {
 		// Owned by root (or the agent's user) is not enough when another
 		// user may rename such a link into this folder or remove it to put
 		// his own there: the folder must be theirs too and not writable by
-		// others (or sticky).
-		e.trusted = trustedUID(lst.Uid) && parentProtected(dfd)
+		// others (or sticky). And the link must have one name: macOS has no
+		// protected_hardlinks rule, so any user may hard-link a root-owned
+		// symbolic link (one with an absolute target such as a system
+		// folder) into a sticky folder like /Users/Shared, where it would
+		// pass for root's own link and be followed by an original-location
+		// restore.
+		e.trusted = trustedUID(lst.Uid) && lst.Nlink == 1 && parentProtected(dfd)
 		buf := make([]byte, 4096)
 		n, err := unix.Readlinkat(dfd, name, buf)
 		if err != nil {
@@ -146,21 +150,25 @@ func (d *Dir) LinkFrom(src *Dir, srcName, name string, want FileID) error {
 	return nil
 }
 
-// Mknod creates the device node or named pipe name (mode with its type).
-// macOS has no mknodat: the node is created by name and the caller checks
-// it through the folder before setting anything on it.
+// Mknod creates the device node or named pipe name (mode with its type)
+// relative to the opened folder (mknodat / mkfifoat of libSystem, see
+// mknodat_darwin.go), like every other entry of a restore: created by
+// path, a folder above swapped for a link meanwhile would send root's node
+// somewhere else.
 func (d *Dir) Mknod(name string, mode uint32, dev int) error {
+	dfd, err := d.Fd()
+	if err != nil {
+		return err
+	}
 	d.ClearLocks(name) // a locked entry of an earlier restore refuses its removal
 	_ = d.root.Remove(name)
-	p := d.Join(name)
-	var err error
 	if mode&unix.S_IFMT == unix.S_IFIFO {
-		err = unix.Mkfifo(p, mode&^unix.S_IFMT)
+		err = mkfifoat(dfd, name, mode&^unix.S_IFMT)
 	} else {
-		err = unix.Mknod(p, mode, dev)
+		err = mknodat(dfd, name, mode, dev)
 	}
 	if err != nil {
-		return &os.PathError{Op: "mknod", Path: p, Err: err}
+		return &os.PathError{Op: "mknod", Path: d.Join(name), Err: err}
 	}
 	return nil
 }
@@ -179,8 +187,9 @@ func (d *Dir) ClearReadOnly(name string) { d.ClearLocks(name) }
 // and create it again (a restore sets them, Finder's "Locked" sets
 // UF_IMMUTABLE on folders too). The entry is changed through its own
 // handle opened relative to the folder and checked to be the entry looked
-// at; a device node is never opened (that would talk to the device) and is
-// changed by path without following it. The kernel only lets the owner or
+// at; a device node is never opened (that would talk to the device) and,
+// as a restore never changes anything by path, is left as it is (restores
+// on a Mac create no device nodes). The kernel only lets the owner or
 // root clear the UF_ flags (SF_ ones only in single-user mode): a refusal
 // is left to the removal that follows to report.
 func (d *Dir) ClearLocks(name string) {
@@ -196,7 +205,6 @@ func (d *Dir) ClearLocks(name string) {
 	flags := unix.O_RDONLY | unix.O_NOFOLLOW | unix.O_NONBLOCK | unix.O_CLOEXEC
 	switch st.Mode & unix.S_IFMT {
 	case unix.S_IFCHR, unix.S_IFBLK:
-		_ = setFlagsByPath(d.Join(name), want)
 		return
 	case unix.S_IFLNK:
 		flags = unix.O_RDONLY | unix.O_SYMLINK | unix.O_CLOEXEC
@@ -213,22 +221,18 @@ func (d *Dir) ClearLocks(name string) {
 	_ = unix.Fchflags(fd, int(want))
 }
 
-// setFlagsByPath sets the file flags of p without following it
-// (setattrlist ATTR_CMN_FLAGS with FSOPT_NOFOLLOW).
-func setFlagsByPath(p string, flags uint32) error {
-	al := &unix.Attrlist{Bitmapcount: unix.ATTR_BIT_MAP_COUNT, Commonattr: unix.ATTR_CMN_FLAGS}
-	// #nosec G103 -- setattrlist takes the flags as raw bytes
-	buf := unsafe.Slice((*byte)(unsafe.Pointer(&flags)), unsafe.Sizeof(flags))
-	return unix.Setattrlist(p, al, buf, unix.FSOPT_NOFOLLOW)
-}
-
 func trustedUID(uid uint32) bool { return uid == 0 || int(uid) == os.Geteuid() }
 
 // parentProtected reports whether only root (or the agent's user) may
-// remove or add entries in the folder dfd.
+// remove or add entries in the folder dfd. On macOS an access control list
+// can let another user do so whatever the mode says, so a folder whose ACL
+// allows changing its entries is not protected (an unreadable ACL neither).
 func parentProtected(dfd int) bool {
 	var st unix.Stat_t
 	if err := unix.Fstat(dfd, &st); err != nil || !trustedUID(st.Uid) {
+		return false
+	}
+	if acl, err := aclText(dfd); err != nil || aclLetsOthersChange(acl) {
 		return false
 	}
 	if st.Mode&unix.S_ISVTX != 0 {
