@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/max-zit/backupzit/internal/imaging"
@@ -133,3 +134,32 @@ func barSpans(parts []span, disk uint64, width, minW int) []pix {
 // gib converts bytes to GiB for size fields, and back.
 func gib(b uint64) float64     { return float64(b) / (1 << 30) }
 func fromGiB(g float64) uint64 { return uint64(g * (1 << 30)) }
+
+// chooseBackupDir picks the folder for the boot data saved before a
+// repair: ackupzit on the first root that is not on the disk being
+// repaired (avoid) and can be written (not the CD the recovery medium
+// may be), else the temp folder.
+func chooseBackupDir(roots []string, avoid map[string]bool, writable func(dir string) bool) string {
+	for _, r := range roots {
+		if avoid[r] {
+			continue
+		}
+		d := filepath.Join(r, "backupzit")
+		if fi, err := os.Stat(d); err == nil && fi.IsDir() && writable(d) {
+			return d
+		}
+	}
+	return os.TempDir()
+}
+
+// writableDir tells whether a file can be created in dir.
+func writableDir(dir string) bool {
+	f, err := os.CreateTemp(dir, ".bz-write-test-*")
+	if err != nil {
+		return false
+	}
+	name := f.Name()
+	_ = f.Close()
+	_ = os.Remove(name)
+	return true
+}

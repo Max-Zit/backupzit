@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -74,5 +76,26 @@ func TestBarSpansKeepSmallPartitionsVisible(t *testing.T) {
 	half := []span{{0, 20 << 30}}
 	if g := barSpans(half, 40<<30, 800, 60); g[0].x != 0 || g[0].w != 400 {
 		t.Errorf("half the disk: %v", g)
+	}
+}
+
+func TestChooseBackupDir(t *testing.T) {
+	cd, target, stick, other := t.TempDir(), t.TempDir(), t.TempDir(), t.TempDir()
+	for _, r := range []string{cd, target, stick} {
+		if err := os.Mkdir(filepath.Join(r, "backupzit"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	readOnly := filepath.Join(cd, "backupzit")
+	writable := func(dir string) bool { return dir != readOnly }
+	avoid := map[string]bool{target: true}
+
+	// The CD is read-only and the target is the disk being repaired: the stick wins.
+	if got := chooseBackupDir([]string{cd, target, stick, other}, avoid, writable); got != filepath.Join(stick, "backupzit") {
+		t.Errorf("got %q", got)
+	}
+	// Nothing suitable: the temp folder.
+	if got := chooseBackupDir([]string{cd, target, other}, avoid, writable); got != os.TempDir() {
+		t.Errorf("fallback: got %q", got)
 	}
 }

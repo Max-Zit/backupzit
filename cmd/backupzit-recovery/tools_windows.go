@@ -7,9 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/lxn/walk"
@@ -72,7 +70,7 @@ func runBootRepair(owner walk.Form) {
 				CheckBox{AssignTo: &active, Text: t("Systempartition aktiv setzen (nur MBR)", "Mark the system partition active (MBR only)"), Checked: true},
 				CheckBox{AssignTo: &mbr, Text: t("Windows-Bootcode in den MBR schreiben (nur MBR)", "Write the Windows boot code to the MBR (MBR only)")},
 			}},
-			Label{Text: t("Vorher werden der Anfang der Disk und der BCD gesichert (Ordner \\backupzit auf dem Stick).", "The start of the disk and the BCD are backed up first (folder \\backupzit on the stick).")},
+			Label{Text: t("Vorher werden der Anfang der Disk und der BCD gesichert (Ordner \\backupzit auf dem Stick oder der Backup-Disk, nie auf der reparierten Disk).", "The start of the disk and the BCD are backed up first (folder \\backupzit on the stick or the backup disk, never on the disk being repaired).")},
 			Composite{Layout: HBox{MarginsZero: true}, Children: []Widget{
 				HSpacer{},
 				PushButton{Text: t("Reparieren", "Repair"), OnClicked: func() {
@@ -81,7 +79,7 @@ func runBootRepair(owner walk.Form) {
 						errorBox(dlg, errors.New(t("Bitte eine Windows-Installation wählen.", "Choose a Windows installation.")))
 						return
 					}
-					opts := imaging.BootRepairOptions{BootDrivers: drivers.Checked(), SetActive: active.Checked(), MBRCode: mbr.Checked(), BackupDir: backupDir()}
+					opts := imaging.BootRepairOptions{BootDrivers: drivers.Checked(), SetActive: active.Checked(), MBRCode: mbr.Checked(), BackupDir: backupDir(installs[i].Disk)}
 					opts.BootFiles = []string{"", "UEFI", "BIOS", "ALL"}[files.CurrentIndex()]
 					var rep *imaging.BootReport
 					var lines []string
@@ -156,16 +154,28 @@ func unlockBitLocker(owner walk.Form) bool {
 	return true
 }
 
-// backupDir is where boot repairs save the old boot data: \backupzit on
-// the first drive that has it (the recovery stick), else the temp folder.
-func backupDir() string {
-	for _, r := range recovery.DriveRoots() {
-		d := filepath.Join(r, "backupzit")
-		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
-			return d
+// backupDir is where a boot repair of disk saves the old boot data:
+// ackupzit on a writable drive that is not on that disk (the stick or the
+// backup disk), else the temp folder.
+func backupDir(disk int) string {
+	avoid := map[string]bool{}
+	if disks, err := imaging.ListDisks(); err == nil {
+		for _, d := range disks {
+			if d.Number != disk {
+				continue
+			}
+			for _, p := range d.Partitions {
+				for _, m := range p.MountPoints {
+					avoid[strings.ToUpper(m)] = true
+				}
+			}
 		}
 	}
-	return os.TempDir()
+	roots := recovery.DriveRoots()
+	for i, r := range roots {
+		roots[i] = strings.ToUpper(r)
+	}
+	return chooseBackupDir(roots, avoid, writableDir)
 }
 
 // --- Drivers -----------------------------------------------------------------
