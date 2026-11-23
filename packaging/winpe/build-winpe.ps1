@@ -176,11 +176,15 @@ try {
     }
 
     Copy-Item $AgentExe (Join-Path $mount "Windows\System32\backupzit-agent.exe")
-    # bootsect.exe (ADK, not part of Windows PE) writes the Windows MBR boot
-    # code for "boot-repair --mbr".
+    # bootsect.exe writes the Windows MBR boot code ("boot-repair --mbr").
+    # Current Windows PE images have it (write-protected); older ones get
+    # the ADK's copy.
+    $inImage = Join-Path $mount "Windows\System32\bootsect.exe"
     $bootsect = Join-Path $adk "Deployment Tools\amd64\BCDBoot\bootsect.exe"
-    if (Test-Path $bootsect) { Copy-Item $bootsect (Join-Path $mount "Windows\System32\bootsect.exe") }
-    else { Write-Warning "bootsect.exe not found in the ADK; boot-repair --mbr will not work" }
+    if (-not (Test-Path $inImage)) {
+        if (Test-Path $bootsect) { Copy-Item $bootsect $inImage }
+        else { Write-Warning "bootsect.exe is neither in Windows PE nor in the ADK; boot-repair --mbr will not work" }
+    }
     if ($UiExe) {
         Copy-Item $UiExe (Join-Path $mount "Windows\System32\backupzit-recovery.exe")
         # The program needs common controls 6: its manifest lies next to it.
