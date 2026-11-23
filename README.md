@@ -512,7 +512,7 @@ BackupZit is meant for organizations that want one free backup product for a mix
 | | BackupZit | Veeam Backup & Replication, NAKIVO | Proxmox Backup Server |
 |---|---|---|---|
 | License | AGPLv3, free without limits on machines or storage | commercial; Veeam Community Edition is free for up to 10 workloads | AGPLv3, free |
-| What it backs up | Windows and Linux machines, Proxmox VE, VMware ESXi, Hyper-V, SQL Server, PostgreSQL, MySQL, NAS shares, Microsoft 365 | a very wide range of platforms and applications | Proxmox VE VMs and containers, Linux hosts |
+| What it backs up | Windows, Linux and macOS (preview) machines, Proxmox VE, VMware ESXi, Hyper-V, SQL Server, PostgreSQL, MySQL, NAS shares, Microsoft 365 | a very wide range of platforms and applications | Proxmox VE VMs and containers, Linux hosts |
 | Maturity | young project (first release October 2026) | established for many years, certified support | established, backed by Proxmox |
 
 Where the others are the better choice:
@@ -536,7 +536,7 @@ The complete reference is the guide built into the console (*Documentation*).
 
 ## Project status and limits
 
-BackupZit is a young project: the first public release was 4 October 2026, and new versions come out often. Every release is tested in a lab with Proxmox VE, VMware ESXi, Hyper-V, Windows and Linux machines before it is published; release candidates are offered on a separate *testing* update channel first. Please [report](https://github.com/Max-Zit/backupzit/issues/new/choose) anything that does not work for you.
+BackupZit is a young project: the first public release was 4 October 2026, and new versions come out often. Every release is tested in a lab with Proxmox VE, VMware ESXi, Hyper-V, Windows and Linux machines (the macOS agent by its contributor on Macs and in our build pipeline on macOS) before it is published; release candidates are offered on a separate *testing* update channel first. Please [report](https://github.com/Max-Zit/backupzit/issues/new/choose) anything that does not work for you.
 
 Not supported yet (see *Not yet included* in each chapter of the built-in guide):
 - macOS: the agent is new. NAS share jobs are not available on a Mac yet (use a Windows or Linux agent), PostgreSQL and MySQL jobs have not been validated on macOS, and packages signed with an Apple Developer ID (which keep Full Disk Access across updates) have not been tested in the field yet; unsigned builds lose Full Disk Access with each update.
