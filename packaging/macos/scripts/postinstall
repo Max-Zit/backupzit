@@ -59,33 +59,52 @@ read_code() {
 # owned by root counts: the code decides which console controls the Mac.
 mdm_code() {
     [ -f "$MDM_CODE" ] || return 0
-    if [ "$(stat -f %u "$MDM_CODE")" != 0 ]; then
-        log "ignoring $MDM_CODE: not owned by root"
+    if [ -L "$MDM_CODE" ] || [ "$(stat -f %u "$MDM_CODE")" != 0 ]; then
+        log "ignoring $MDM_CODE: not a file owned by root"
+        return 0
+    fi
+    # One name: a second one may be a user's hard link to another file.
+    if [ "$(stat -f %l "$MDM_CODE")" != 1 ]; then
+        log "ignoring $MDM_CODE: it has several names (hard links)"
         return 0
     fi
     read_code "$MDM_CODE"
 }
 
-# trusted_side_file succeeds when file $1, found next to package $2, can
-# only have been written by root or by the owner of the package: a regular
-# file, not a symbolic link, owned by one of them, in a folder owned by one
-# of them that no other user can write to, or that has the sticky bit (as
-# /Users/Shared), where other users cannot replace a file they do not own.
-# Without this rule, anyone able to write next to the .pkg would choose the
-# console that drives this root agent.
+# is_admin succeeds when user id $1 is root or a member of the admin group
+# (an administrator of the Mac, who may install packages anyway).
+is_admin() {
+    [ "$1" = 0 ] && return 0
+    name=$(id -un "$1" 2>/dev/null) || return 1
+    dseditgroup -o checkmember -m "$name" admin >/dev/null 2>&1
+}
+
+# trusted_side_file succeeds when file $1 (next to the package) can only
+# have been written by an administrator of the Mac: a regular file with one
+# name, not a symbolic link, owned by root or an administrator, in a folder
+# owned by root or an administrator that no other user can write to, or
+# that has the sticky bit (as /Users/Shared), where other users cannot
+# replace a file they do not own.
+#
+# Why not the owner of the package (as before): a standard user may own the
+# official package (downloaded it), put his own backupzit-enroll.txt next to
+# it and ask IT to install it; the Mac would then be enrolled into his
+# console, which can restore any file as root. One name only: macOS lets any
+# user hard-link a file he can read (there is no protected_hardlinks rule),
+# so a second name says nothing about who wrote the file.
 trusted_side_file() {
     if [ -L "$1" ] || [ ! -f "$1" ]; then
         log "ignoring $1: not a regular file"
         return 1
     fi
-    pkg_uid=$(stat -f %u "$2" 2>/dev/null) || pkg_uid=
     file_uid=$(stat -f %u "$1" 2>/dev/null) || file_uid=
+    links=$(stat -f %l "$1" 2>/dev/null) || links=
     dir=$(dirname "$1")
     dir_uid=$(stat -f %u "$dir" 2>/dev/null) || dir_uid=
     # %Lp alone leaves out the sticky bit: %Mp holds it (1777, 0755).
     dir_mode=$(stat -f %Mp%Lp "$dir" 2>/dev/null) || dir_mode=
     # Numbers only: the mode goes into shell arithmetic below.
-    for v in "$pkg_uid" "$file_uid" "$dir_uid" "$dir_mode"; do
+    for v in "$file_uid" "$links" "$dir_uid" "$dir_mode"; do
         case $v in
             '' | *[!0-9]*) log "ignoring $1: cannot read who owns it"; return 1 ;;
         esac
@@ -93,12 +112,16 @@ trusted_side_file() {
     case $dir_mode in
         *[89]*) log "ignoring $1: cannot read the permissions of its folder"; return 1 ;;
     esac
-    if [ "$file_uid" != 0 ] && [ "$file_uid" != "$pkg_uid" ]; then
-        log "ignoring $1: owned neither by root nor by the owner of the package"
+    if [ "$links" != 1 ]; then
+        log "ignoring $1: it has several names (hard links)"
         return 1
     fi
-    if [ "$dir_uid" != 0 ] && [ "$dir_uid" != "$pkg_uid" ]; then
-        log "ignoring $1: its folder is owned neither by root nor by the owner of the package"
+    if ! is_admin "$file_uid"; then
+        log "ignoring $1: not owned by root or an administrator of this Mac"
+        return 1
+    fi
+    if ! is_admin "$dir_uid"; then
+        log "ignoring $1: its folder is not owned by root or an administrator of this Mac"
         return 1
     fi
     # Octal mode: 022 = writable by group or others, 01000 = sticky bit.
@@ -122,7 +145,7 @@ side_code() {
         log "ignoring $f: this Mac is already enrolled (to move it to another console, use $MDM_CODE)"
         return 0
     fi
-    trusted_side_file "$f" "$pkg" || return 0
+    trusted_side_file "$f" || return 0
     read_code "$f"
 }
 
@@ -134,13 +157,15 @@ enroll() {
         src="$(dirname "$pkg")/backupzit-enroll.txt"
         code=$(side_code "$1")
     fi
+    # The MDM file goes once read, whatever happens next: the code enrolls
+    # any number of Macs for 7 days and must not stay on the disk; a failed
+    # enrollment is retried with a new code (or by the service, for a
+    # console that cannot be reached now: --pending-ok keeps the code in
+    # the root-only configuration folder).
+    [ -e "$MDM_CODE" ] && rm -f "$MDM_CODE"
     [ -n "$code" ] || return 0
     log "enrolling with the code from $src"
-    if "$AGENT" enroll --code "$code" --if-not-enrolled --pending-ok; then
-        if [ "$src" = "$MDM_CODE" ]; then
-            rm -f "$MDM_CODE"
-        fi
-    else
+    if ! "$AGENT" enroll --code "$code" --if-not-enrolled --pending-ok; then
         log "enrollment failed (reason in $CFG_DIR/enroll-error.log); enroll later in Terminal: sudo $AGENT enroll --code BZ1-..."
     fi
 }

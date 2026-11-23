@@ -9,7 +9,7 @@ cd "$(dirname "$0")"
 # The functions under test, taken from postinstall itself (running it would
 # install the agent).
 log() { :; }
-for fn in read_code trusted_side_file side_code; do
+for fn in read_code is_admin trusted_side_file side_code; do
     eval "$(sed -n '/^'"$fn"'() {$/,/^}$/p' scripts/postinstall)"
     command -v "$fn" >/dev/null || { echo "$fn not found in scripts/postinstall" >&2; exit 1; }
 done
@@ -41,19 +41,22 @@ check "empty file" '' ''
 got=$(read_code "$tmp/missing")
 [ -z "$got" ] && echo "ok   missing file" || { echo "FAIL missing file: got '$got'"; failed=1; }
 
-# The ownership tests replace stat with a stub: the files of a test belong
-# to whoever runs it, and only root could give them to another user.
-# STAT_<role>_UID / STAT_DIR_MODE hold what stat answers for the package,
-# the side file and its folder.
+# The ownership tests replace stat and the admin lookup with stubs: the
+# files of a test belong to whoever runs it, and only root could give them
+# to another user. STAT_FILE_UID / STAT_LINKS / STAT_DIR_UID / STAT_DIR_MODE
+# hold what stat answers for the side file and its folder; user 501 is an
+# administrator, 502 a standard user.
 stat() {
     case $2:$3 in
-        %u:"$tmp/pkg/BackupZit.pkg") echo "$STAT_PKG_UID" ;;
         %u:"$tmp/pkg/backupzit-enroll.txt") echo "$STAT_FILE_UID" ;;
+        %l:"$tmp/pkg/backupzit-enroll.txt") echo "$STAT_LINKS" ;;
         %u:"$tmp/pkg") echo "$STAT_DIR_UID" ;;
         %Mp%Lp:"$tmp/pkg") echo "$STAT_DIR_MODE" ;;
         *) return 1 ;;
     esac
 }
+id() { case $2 in 501) echo admin1 ;; 502) echo bob ;; *) return 1 ;; esac; }
+dseditgroup() { [ "$4" = admin1 ] && [ "$5" = admin ]; }
 
 code='BZ1-abc_DEF-123'
 mkdir "$tmp/pkg" "$tmp/etc"
@@ -61,10 +64,10 @@ mkdir "$tmp/pkg" "$tmp/etc"
 AGENT_CFG=$tmp/etc/agent.json
 MDM_CODE=/nonexistent/enroll-code
 
-# side PKG_UID FILE_UID DIR_UID DIR_MODE NAME WANT: side_code prints WANT
-# when stat answers these owners and folder mode.
+# side FILE_UID LINKS DIR_UID DIR_MODE NAME WANT: side_code prints WANT when
+# stat answers these owners, link count and folder mode.
 side() {
-    STAT_PKG_UID=$1 STAT_FILE_UID=$2 STAT_DIR_UID=$3 STAT_DIR_MODE=$4
+    STAT_FILE_UID=$1 STAT_LINKS=$2 STAT_DIR_UID=$3 STAT_DIR_MODE=$4
     got=$(side_code "$tmp/pkg/BackupZit.pkg#inner.pkg")
     if [ "$got" != "$6" ]; then
         echo "FAIL side file, $5: got '$got', want '$6'"
@@ -75,33 +78,39 @@ side() {
 }
 
 printf '%s\n' "$code" > "$tmp/pkg/backupzit-enroll.txt"
-side 501 501 501 0755  "all owned by the package owner" "$code"
-side 501 0 0 0755      "file and folder owned by root" "$code"
-side 0 0 0 0755        "all owned by root" "$code"
-side 501 502 501 0755  "file owned by another user" ''
-side 501 501 502 0755  "folder owned by another user" ''
-side 501 501 501 0775  "folder writable by its group" ''
-side 501 501 0 0777    "folder writable by everyone" ''
-side 501 501 0 1777   "sticky folder (/Users/Shared), file of the package owner" "$code"
-side 501 502 0 1777   "sticky folder, file of another user" ''
-side 501 '' 501 0755   "owner unreadable" ''
-side 501 501 501 'x'  "mode unreadable" ''
-side 501 501 501 0758  "mode not octal" ''
+side 0 1 0 0755       "all owned by root" "$code"
+side 501 1 501 0755   "all owned by an administrator" "$code"
+side 501 1 0 0755     "administrator's file in root's folder" "$code"
+side 502 1 502 0755   "all owned by a standard user (who may own the package)" ''
+side 502 1 0 0755     "file of a standard user" ''
+side 501 1 502 0755   "folder of a standard user" ''
+side 501 2 501 0755   "file with a second name (hard link)" ''
+side 0 2 0 0755       "root's file with a second name" ''
+side 501 1 501 0775   "folder writable by its group" ''
+side 501 1 0 0777     "folder writable by everyone" ''
+side 501 1 0 1777     "sticky folder (/Users/Shared), administrator's file" "$code"
+side 502 1 0 1777     "sticky folder, file of a standard user" ''
+side '' 1 501 0755    "owner unreadable" ''
+side 501 '' 501 0755  "link count unreadable" ''
+side 501 1 501 'x'    "mode unreadable" ''
+side 501 1 501 0758   "mode not octal" ''
 
 : > "$AGENT_CFG"
-side 501 501 501 0755  "Mac already enrolled" ''
+side 501 1 501 0755   "Mac already enrolled" ''
 rm -f "$AGENT_CFG"
 
 rm -f "$tmp/pkg/backupzit-enroll.txt"
 printf '%s\n' "$code" > "$tmp/elsewhere"
 ln -s "$tmp/elsewhere" "$tmp/pkg/backupzit-enroll.txt"
-side 501 501 501 0755  "symbolic link" ''
+side 501 1 501 0755   "symbolic link" ''
 rm -f "$tmp/pkg/backupzit-enroll.txt"
-side 501 501 501 0755  "no side file" ''
+side 501 1 501 0755   "no side file" ''
 
-# The same rule with the real stat, on files of the user running the test:
-# what matters here is that stat reports the sticky bit.
-unset -f stat
+# The same rule with the real stat, on files of the user running the test
+# (taken as an administrator here): what matters is that stat reports the
+# sticky bit and the link count.
+unset -f stat id dseditgroup
+is_admin() { [ "$1" = "$(command id -u)" ] || [ "$1" = 0 ]; }
 mkdir "$tmp/real"
 : > "$tmp/real/BackupZit.pkg"
 printf '%s\n' "$code" > "$tmp/real/backupzit-enroll.txt"
@@ -119,6 +128,8 @@ real() {
 real 0755 "private folder" "$code"
 real 1777 "sticky folder" "$code"
 real 0777 "folder writable by everyone" ''
+ln "$tmp/real/backupzit-enroll.txt" "$tmp/real/second-name"
+real 0755 "file with a second name" ''
 chmod 0700 "$tmp/real"
 
 exit "$failed"
