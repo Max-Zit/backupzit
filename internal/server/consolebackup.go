@@ -267,7 +267,12 @@ func (s *Server) backupConsole(ctx context.Context, cfg *ConsoleBackupSettings) 
 		return fmt.Errorf("extend immutability: %w", err)
 	}
 	cfg.LastSnapshot, cfg.LastBytes, cfg.LastRepo = sn.ID.String(), sn.Stats.Bytes, ar.URL
-	// Keep the newest backups.
+	return keepNewestConsoleBackups(ctx, r, cfg.Keep)
+}
+
+// keepNewestConsoleBackups removes the console backups beyond the newest
+// keep and frees their space.
+func keepNewestConsoleBackups(ctx context.Context, r *repo.Repository, keep int) error {
 	sns, err := r.ListSnapshots(ctx)
 	if err != nil {
 		return err
@@ -280,13 +285,18 @@ func (s *Server) backupConsole(ctx context.Context, cfg *ConsoleBackupSettings) 
 			}
 		}
 	}
-	_, remove := repo.ApplyPolicy(mine, repo.RetentionPolicy{KeepLast: cfg.Keep}, time.Local)
+	_, remove := repo.ApplyPolicy(mine, repo.RetentionPolicy{KeepLast: keep}, time.Local)
 	if len(remove) > 0 {
 		lock, err := r.Lock(ctx, true, 10*time.Minute)
 		if err != nil {
 			return err
 		}
 		defer lock.Unlock()
+		// The lock refreshed the index: with a damaged index file the older
+		// backups stay until repair has run (prune refuses as well).
+		if bad := r.DamagedIndexFiles(); len(bad) > 0 {
+			return fmt.Errorf("the new backup is stored, but the older console backups were kept: the repository has %d damaged index files; run repair on it", len(bad))
+		}
 		for _, x := range remove {
 			if err := r.RemoveSnapshot(ctx, x.ID); err != nil {
 				return err

@@ -551,6 +551,9 @@ func cmdRepair(ctx context.Context, args []string) error {
 	// In a dry run the damaged index files stay, and the check lists them
 	// again: they are not errors that repair leaves.
 	indexErrs := 0
+	// Packs the rebuild leaves out are reported like those DropDamagedPacks
+	// takes out, with the backups that need their data.
+	rep := &repo.RepairResult{}
 	if bad := r.DamagedIndexFiles(); len(bad) > 0 {
 		if *dry {
 			indexErrs = len(bad)
@@ -565,10 +568,11 @@ func cmdRepair(ctx context.Context, args []string) error {
 			if err != nil {
 				return fmt.Errorf("rebuild index: %w", err)
 			}
-			fmt.Printf("wrote a new index for %d packs and removed the damaged index files\n", rb.Packs)
+			fmt.Printf("wrote a new index for %d packs and moved the damaged index files to index-damaged/\n", rb.Packs)
 			for _, p := range rb.Left {
 				fmt.Printf("pack %s is damaged and stays out of the index\n", p.Short())
 			}
+			rep = rb.Repair()
 		}
 	}
 	fmt.Println("reading all data (this takes as long as a data check) ...")
@@ -581,6 +585,10 @@ func cmdRepair(ctx context.Context, args []string) error {
 	}
 	for _, p := range res.Unreadable {
 		fmt.Println("not readable from here (left alone; check the network path):", p.String())
+	}
+	if len(res.Damaged) == 0 && rep.Packs > 0 {
+		printTakenOut(rep)
+		return nil
 	}
 	if len(res.Damaged) == 0 {
 		fmt.Printf("read %d packs: no damaged pack, nothing to repair\n", res.PacksRead)
@@ -599,13 +607,23 @@ func cmdRepair(ctx context.Context, args []string) error {
 		fmt.Printf("%d damaged packs; run without --dry-run to take them out of the index\n", len(res.Damaged))
 		return nil
 	}
-	rep, err := r.DropDamagedPacks(ctx, res.Damaged)
+	dropped, err := r.DropDamagedPacks(ctx, res.Damaged)
 	if err != nil {
 		return err
 	}
+	rep.Merge(dropped)
+	printTakenOut(rep)
+	return nil
+}
+
+// printTakenOut says which packs are out of the index (dropped, or left out
+// of the rebuilt index) and which backups need their data.
+func printTakenOut(rep *repo.RepairResult) {
 	fmt.Printf("took %d packs (%d blobs) out of the index (their files go with the next cleanup); the next backups store that data again\n", rep.Packs, rep.Blobs)
 	for _, sn := range rep.Snapshots {
 		fmt.Printf("snapshot %s of %s from %s needs lost data\n", sn.ID.Short(), sn.Hostname, sn.Time.Local().Format("2006-01-02 15:04"))
 	}
-	return nil
+	if n := len(rep.Unchecked); n > 0 {
+		fmt.Printf("%d snapshots could not be read completely from here and are kept (not counted as affected)\n", n)
+	}
 }

@@ -77,16 +77,17 @@ func (a *Agent) repoRepair(ctx context.Context, run api.Run) api.RunResult {
 	defer lock.Unlock()
 	// Damaged index files: their packs were read from the pack headers when
 	// the repository was opened; a new index replaces them.
+	// Packs it leaves out (proven damaged) are reported like those that
+	// DropDamagedPacks takes out: with the backups that need their data.
 	rebuilt := ""
+	rep := &repo.RepairResult{}
 	if bad := r.DamagedIndexFiles(); len(bad) > 0 {
 		rb, err := r.RebuildIndex(ctx)
 		if err != nil {
 			return failed(fmt.Errorf("rebuild index: %w", err))
 		}
-		rebuilt = fmt.Sprintf("Replaced %s by a new index for %d data packs. ", count(len(bad), "damaged index file", "damaged index files"), rb.Packs)
-		if len(rb.Left) > 0 {
-			rebuilt += fmt.Sprintf("%s failed the check and stay out of the index. ", count(len(rb.Left), "data pack", "data packs"))
-		}
+		rebuilt = fmt.Sprintf("Replaced %s by a new index for %d data packs (the damaged files are kept in index-damaged/). ", count(len(bad), "damaged index file", "damaged index files"), rb.Packs)
+		rep = rb.Repair()
 	}
 	res, err := checker.Run(ctx, r, checker.Options{ReadData: true, Progress: func(done, total int) {
 		a.progress(ctx, uint64(done), uint64(total), 0) // #nosec G115 -- counts for display
@@ -101,7 +102,7 @@ func (a *Agent) repoRepair(ctx context.Context, run api.Run) api.RunResult {
 		unreadable = fmt.Sprintf(". %s could not be read from this agent and %s left alone: the storage may be fine, check the network path (proxy, firewall, IPS, NAT)",
 			count(n, "data pack", "data packs"), map[bool]string{true: "was", false: "were"}[n == 1])
 	}
-	if len(res.Damaged) == 0 {
+	if len(res.Damaged) == 0 && rep.Packs == 0 {
 		if unreadable != "" {
 			return api.RunResult{Status: api.StatusWarning, Errors: res.Errors,
 				Message: rebuilt + fmt.Sprintf("No data pack is proven damaged, nothing was taken out%s", unreadable)}
@@ -112,9 +113,12 @@ func (a *Agent) repoRepair(ctx context.Context, run api.Run) api.RunResult {
 		}
 		return api.RunResult{Status: api.StatusSuccess, Message: rebuilt + fmt.Sprintf("Read all %d data packs again: none is damaged now, nothing to repair", res.PacksRead)}
 	}
-	rep, err := r.DropDamagedPacks(ctx, res.Damaged)
-	if err != nil {
-		return failed(fmt.Errorf("repair: %w", err))
+	if len(res.Damaged) > 0 {
+		dropped, err := r.DropDamagedPacks(ctx, res.Damaged)
+		if err != nil {
+			return failed(fmt.Errorf("repair: %w", err))
+		}
+		rep.Merge(dropped)
 	}
 	out := api.RunResult{Status: api.StatusWarning}
 	out.Message = rebuilt + fmt.Sprintf("Took %d damaged data packs (%d blocks) out of the index: the next backups store that data again. %d backups need the lost data and cannot be restored completely",
