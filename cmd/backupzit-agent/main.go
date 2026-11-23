@@ -212,6 +212,8 @@ func run(ctx context.Context, args []string) error {
 		return cmdDrivers(ctx, rest)
 	case "bitlocker":
 		return cmdBitLocker(ctx, rest)
+	case "ntfs-check":
+		return cmdNTFSCheck(rest)
 	case "boot-repair":
 		return cmdBootRepair(ctx, rest)
 	case "partition-restore":

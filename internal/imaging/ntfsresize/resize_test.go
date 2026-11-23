@@ -385,3 +385,25 @@ func TestShrinkMovesMFT(t *testing.T) {
 		t.Errorf("files differ after moving $MFT back:\n%v\n%v", orig, got)
 	}
 }
+
+// Base records have a zero base reference just like extensions of $MFT
+// (record 0) have record number 0 in theirs: only the sequence number
+// tells them apart. Plan must keep only $MFT's own runs as $MFT.
+func TestPlanKeepsMFTRuns(t *testing.T) {
+	src := testImage(t)
+	v, err := Open(bytes.NewReader(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := fmt.Sprint(v.mftRuns)
+	p, err := v.Plan(5 << 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.MovedClusters == 0 {
+		t.Fatal("test needs moved clusters")
+	}
+	if got := fmt.Sprint(v.mftRuns); got != want {
+		t.Errorf("$MFT runs changed although $MFT did not move:\n got %s\nwant %s", got, want)
+	}
+}

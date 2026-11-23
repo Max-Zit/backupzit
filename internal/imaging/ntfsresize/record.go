@@ -37,11 +37,15 @@ type Attribute struct {
 type Record struct {
 	Number uint64
 	InUse  bool
-	Base   uint64 // base record of an extension record, 0 for base records
-	header []byte // bytes before the first attribute
-	Attrs  []*Attribute
-	size   int
-	dirty  bool
+	// Extension is set for extension records; Base is then the number of
+	// their base record. Base records have a zero base reference, so Base
+	// alone cannot tell them from extensions of $MFT (record 0).
+	Extension bool
+	Base      uint64
+	header    []byte // bytes before the first attribute
+	Attrs     []*Attribute
+	size      int
+	dirty     bool
 }
 
 // removeFixups checks and removes the update sequence of a multi-sector
@@ -89,7 +93,9 @@ func parseRecord(num uint64, b []byte) (*Record, error) {
 	r := &Record{Number: num, size: len(b)}
 	flags := binary.LittleEndian.Uint16(b[0x16:])
 	r.InUse = flags&1 != 0
-	r.Base = binary.LittleEndian.Uint64(b[0x20:]) & 0xFFFFFFFFFFFF
+	ref := binary.LittleEndian.Uint64(b[0x20:])
+	r.Extension = ref != 0
+	r.Base = ref & 0xFFFFFFFFFFFF
 	first := int(binary.LittleEndian.Uint16(b[0x14:]))
 	used := int(binary.LittleEndian.Uint32(b[0x18:]))
 	if first < 0x30 || first >= len(b) || used > len(b) || used < first {

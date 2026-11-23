@@ -426,7 +426,7 @@ func (v *Volume) Plan(newSize uint64) (*Plan, error) {
 	var marked uint64 // clusters behind the end that belong to a file
 	mftExt := map[uint64]*Record{}
 	err := v.scanRecords(func(rec *Record) error {
-		if rec.Base == recMFT && rec.Number != recMFT {
+		if rec.Extension && rec.Base == recMFT {
 			mftExt[rec.Number] = rec
 		}
 		for _, a := range rec.Attrs {
@@ -493,6 +493,16 @@ func (v *Volume) Plan(newSize uint64) (*Plan, error) {
 		}
 		sort.Slice(runs, func(i, j int) bool { return runs[i].VCN < runs[j].VCN })
 		v.mftRuns = runs
+	}
+
+	// The runs of $MFT must still describe exactly $MFT: as many clusters
+	// as before, and its first cluster where record 0 says.
+	var mftClusters uint64
+	for _, r := range v.mftRuns {
+		mftClusters += r.Len
+	}
+	if mftClusters*v.ClusterSize/v.RecordSize != v.mftRecords {
+		return nil, fmt.Errorf("internal error: $MFT would have %d clusters, it has %d records of %d bytes", mftClusters, v.mftRecords, v.RecordSize)
 	}
 
 	// $Bitmap: shorter, covering the new cluster count.
@@ -657,4 +667,47 @@ func (p *Plan) Apply(dst io.WriterAt, progress func(done, total uint64)) error {
 		return fmt.Errorf("write backup boot sector: %w", err)
 	}
 	return nil
+}
+
+// Check reads every file record and reports inconsistencies: runs that
+// reach past the end of the volume, clusters in use by a file but free in
+// $Bitmap, and clusters used by two files. A healthy volume returns none.
+// max limits the number of problems reported.
+func (v *Volume) Check(max int) ([]string, error) {
+	var out []string
+	add := func(f string, a ...any) {
+		if len(out) < max {
+			out = append(out, fmt.Sprintf(f, a...))
+		}
+	}
+	owner := map[uint64]uint64{}
+	err := v.scanRecords(func(rec *Record) error {
+		for _, a := range rec.Attrs {
+			if !a.NonResident || (rec.Number == recBadClus && a.Name == "$Bad") {
+				continue
+			}
+			for _, r := range a.Runs {
+				if r.Sparse {
+					continue
+				}
+				if r.LCN+r.Len > v.Clusters {
+					add("record %d attribute %#x %q: run %d+%d ends past the volume (%d clusters)", rec.Number, a.Type, a.Name, r.LCN, r.Len, v.Clusters)
+					continue
+				}
+				for c := r.LCN; c < r.LCN+r.Len; c++ {
+					if !v.used(c) {
+						add("record %d attribute %#x: cluster %d free in $Bitmap", rec.Number, a.Type, c)
+						break
+					}
+					if o, ok := owner[c]; ok && o != rec.Number {
+						add("cluster %d used by records %d and %d", c, o, rec.Number)
+						break
+					}
+					owner[c] = rec.Number
+				}
+			}
+		}
+		return nil
+	})
+	return out, err
 }
