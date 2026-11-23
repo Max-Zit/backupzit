@@ -103,13 +103,23 @@ $wanted = @("WinPE-WMI", "WinPE-Scripting", "WinPE-StorageWMI", "WinPE-SecureSta
 if ($PowerShell) { $wanted += @("WinPE-NetFx", "WinPE-PowerShell", "WinPE-DismCmdlets", "WinPE-SecureBootCmdlets") }
 $wanted += $Components
 
+# Native programs write progress to stderr; with "Stop" and a redirected
+# error stream Windows PowerShell 5.1 would treat that as an error. They
+# are judged by their exit code only.
+function Invoke-Native([string]$exe, [string[]]$argv) {
+    $eap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try { & $exe @argv 2>&1 | ForEach-Object { "$_" } }
+    finally { $ErrorActionPreference = $eap }
+}
+
 function Invoke-AdkCmd([string]$cmd) {
-    & cmd.exe /c "`"$setEnv`" >nul && $cmd"
+    Invoke-Native cmd.exe @("/c", "`"$setEnv`" >nul && $cmd")
     if ($LASTEXITCODE -ne 0) { throw "failed ($LASTEXITCODE): $cmd" }
 }
 
 function Invoke-Dism([string[]]$dismArgs, [string]$what) {
-    & dism.exe @dismArgs
+    Invoke-Native dism.exe $dismArgs
     if ($LASTEXITCODE -ne 0) { throw "$what failed ($LASTEXITCODE)" }
 }
 
@@ -256,7 +266,7 @@ if (Test-Path $Out) { Remove-Item -Force $Out }
 # MakeWinPEMedia always uses the prompting loader.
 $oscdimg = Join-Path $adk "Deployment Tools\amd64\Oscdimg"
 $bootdata = "2#p0,e,b`"$oscdimg\etfsboot.com`"#pEF,e,b`"$oscdimg\efisys_noprompt.bin`""
-& "$oscdimg\oscdimg.exe" -m -o -u2 -udfver102 "-bootdata:$bootdata" "$WorkDir\media" "$Out"
+Invoke-Native "$oscdimg\oscdimg.exe" @("-m", "-o", "-u2", "-udfver102", "-bootdata:$bootdata", "$WorkDir\media", "$Out") | Select-Object -Last 3
 if ($LASTEXITCODE -ne 0) { throw "oscdimg failed ($LASTEXITCODE)" }
 Write-Output "built $Out ($([math]::Round((Get-Item $Out).Length / 1MB)) MB)"
 
