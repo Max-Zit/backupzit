@@ -119,6 +119,15 @@ func TestACLLetsOthersChange(t *testing.T) {
 		"!#acl 1\ngroup:ABCDEFAB-CDEF-ABCD-EFAB-CDEF0000000C:everyone:12:allow:add_file\n":     true,
 		"!#acl 1\nuser:FFFFEEEE-DDDD-CCCC-BBBB-AAAA000001F5:bob:501:allow:list,delete_child\n": true,
 		"!#acl 1\nuser:FFFFEEEE-DDDD-CCCC-BBBB-AAAA000001F5:bob:501:allow:add_subdirectory\n":  true,
+		// Entry flags follow the type (0.59 review): inherited entries are
+		// the usual ACL of shared folders.
+		"!#acl 1\ngroup:ABCDEFAB-CDEF-ABCD-EFAB-CDEF0000000C:everyone:12:allow,inherited:add_file,add_subdirectory\n":     true,
+		"!#acl 1\ngroup:ABCDEFAB-CDEF-ABCD-EFAB-CDEF0000000C:everyone:12:allow,file_inherit,directory_inherit:add_file\n": true,
+		"!#acl 1\ngroup:ABCDEFAB-CDEF-ABCD-EFAB-CDEF0000000C:everyone:12:allow,inherited:list,search,read\n":              false,
+		"!#acl 1\ngroup:ABCDEFAB-CDEF-ABCD-EFAB-CDEF0000000C:everyone:12:deny,inherited:delete\n":                         false,
+		"!#acl 1\n":                      false,
+		"!#acl 1\nnot an entry\n":        true,
+		"!#acl 1\na:b:c:d:grant:write\n": true,
 	} {
 		if got := aclLetsOthersChange(text); got != want {
 			t.Errorf("%q: %v", text, got)

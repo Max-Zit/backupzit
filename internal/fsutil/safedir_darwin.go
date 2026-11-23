@@ -150,23 +150,23 @@ func (d *Dir) LinkFrom(src *Dir, srcName, name string, want FileID) error {
 	return nil
 }
 
-// Mknod creates the device node or named pipe name (mode with its type)
-// relative to the opened folder (mknodat / mkfifoat of libSystem, see
-// mknodat_darwin.go), like every other entry of a restore: created by
-// path, a folder above swapped for a link meanwhile would send root's node
-// somewhere else.
-func (d *Dir) Mknod(name string, mode uint32, dev int) error {
+// Mknod creates the named pipe name (mode with its type) relative to the
+// opened folder (mkfifoat of libSystem, see libc_darwin.go), like every
+// other entry of a restore: created by path, a folder above swapped for a
+// link meanwhile would send root's pipe somewhere else.
+func (d *Dir) Mknod(name string, mode uint32, _ int) error {
 	dfd, err := d.Fd()
 	if err != nil {
 		return err
 	}
 	d.ClearLocks(name) // a locked entry of an earlier restore refuses its removal
 	_ = d.root.Remove(name)
-	if mode&unix.S_IFMT == unix.S_IFIFO {
-		err = mkfifoat(dfd, name, mode&^unix.S_IFMT)
-	} else {
-		err = mknodat(dfd, name, mode, dev)
+	if mode&unix.S_IFMT != unix.S_IFIFO {
+		// Device nodes are not restored on a Mac (they belong in /dev, and
+		// a device number of another system means nothing here).
+		return &os.PathError{Op: "mknod", Path: d.Join(name), Err: errors.ErrUnsupported}
 	}
+	err = mkfifoat(dfd, name, mode&^unix.S_IFMT)
 	if err != nil {
 		return &os.PathError{Op: "mknod", Path: d.Join(name), Err: err}
 	}

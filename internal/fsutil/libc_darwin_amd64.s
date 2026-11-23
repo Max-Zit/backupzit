@@ -3,11 +3,6 @@
 
 #include "textflag.h"
 
-TEXT libc_mknodat_trampoline<>(SB),NOSPLIT,$0-0
-	JMP	libc_mknodat(SB)
-GLOBL	·libc_mknodat_trampoline_addr(SB), RODATA, $8
-DATA	·libc_mknodat_trampoline_addr(SB)/8, $libc_mknodat_trampoline<>(SB)
-
 TEXT libc_mkfifoat_trampoline<>(SB),NOSPLIT,$0-0
 	JMP	libc_mkfifoat(SB)
 GLOBL	·libc_mkfifoat_trampoline_addr(SB), RODATA, $8
