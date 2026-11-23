@@ -59,7 +59,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li><b>Guest</b> — one of the guests in that backup.</li>
   <li><b>Restore on Proxmox node</b> — any node with the BackupZit agent; also a node of another cluster.</li>
   <li><b>As a new guest with the next free ID</b> (default) or <b>with ID …</b> — the original keeps running. Because both exist, the network cards of the copy get new MAC addresses.</li>
-  <li><b>With its original ID</b> — after the guest was deleted. If it still exists, tick <b>stop and delete it</b> to replace it with the backup; the existing guest and its disks are deleted first.</li>
+  <li><b>With its original ID</b> — after the guest was deleted. If it still exists, tick <b>stop and delete it</b> to replace it with the backup. Since 0.59 the existing guest keeps running while the disks of the backup are written, and is stopped and deleted with its disks only when all of them are restored: if the restore fails before (storage full, data missing), the guest stays as it was and the new disks are removed. That needs room for both for a while; with <b>Delete it before the disks are written</b> the guest is deleted first, as before 0.59 (agents before 0.59 always do so).</li>
   <li><b>Name</b> and <b>Storage for the disks</b> — e.g. restore to a different storage than the original.</li>
   <li><b>Start the guest after the restore</b>.</li>
 </ul>
@@ -89,7 +89,7 @@ systemctl enable --now backupzit-agent</pre></li>
 <pre>backupzit-agent pve list
 backupzit-agent pve backup  --repo ... [--vmid 100,200] [--exclude 300]
 backupzit-agent pve show    --repo ... latest
-backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite] [--start] SNAPSHOT|latest
+backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite [--remove-first]] [--start] SNAPSHOT|latest
 backupzit-agent pve instant --repo ... --vmid 100 [--new-vmid N] [--name X] SNAPSHOT|latest
 backupzit-agent pve instant-finish --vmid 101 --storage local-lvm
 backupzit-agent pve instant-discard --vmid 101</pre>

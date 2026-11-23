@@ -159,6 +159,7 @@ textarea { min-height: 90px; font-family: var(--mono); font-size: 13px; }
 label.check { display: flex; gap: 10px; align-items: center; font-weight: 500; }
 label.check input { width: 16px; height: 16px; accent-color: var(--accent); flex: none; padding: 0; }
 label.check.muted { color: var(--muted); }
+label.check.sub { margin-left: 26px; }
 fieldset.sched { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px 16px; display: grid; gap: 12px; margin: 0; background: var(--panel-2); }
 fieldset.sched legend { font-weight: 650; font-size: 13px; padding: 0 6px; }
 .times, .days { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }

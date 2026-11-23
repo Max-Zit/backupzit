@@ -59,7 +59,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li><b>Host</b> — jeden z hostů v této záloze.</li>
   <li><b>Obnovit na uzlu Proxmox</b> — libovolný uzel s agentem BackupZit, i uzel jiného clusteru.</li>
   <li><b>Jako nového hosta s dalším volným ID</b> (výchozí) nebo <b>s ID …</b> — originál dál běží. Protože existují oba, síťové karty kopie dostanou nové MAC adresy.</li>
-  <li><b>S původním ID</b> — poté, co byl host smazán. Pokud ještě existuje, zaškrtněte <b>zastavit a smazat ho</b> a nahraďte ho zálohou; nejdřív se smaže existující host a jeho disky.</li>
+  <li><b>S původním ID</b> — poté, co byl host smazán. Pokud ještě existuje, zaškrtněte <b>zastavit a smazat ho</b> a nahraďte ho zálohou. Od verze 0.59 existující host běží dál, zatímco se zapisují disky ze zálohy, a zastaví se a smaže i se svými disky, až když jsou všechny obnovené: pokud obnova předtím selže (plné úložiště, chybějící data), host zůstane, jak byl, a nové disky se odstraní. Na čas je proto potřeba místo pro obojí; s volbou <b>Smazat jej před zápisem disků</b> se host smaže nejdřív, jako před verzí 0.59 (agenti před 0.59 to dělají vždy).</li>
   <li><b>Název</b> a <b>Úložiště pro disky</b> — např. obnova na jiné úložiště než originál.</li>
   <li><b>Po obnově spustit hosta</b>.</li>
 </ul>
@@ -89,7 +89,7 @@ systemctl enable --now backupzit-agent</pre></li>
 <pre>backupzit-agent pve list
 backupzit-agent pve backup  --repo ... [--vmid 100,200] [--exclude 300]
 backupzit-agent pve show    --repo ... latest
-backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite] [--start] SNAPSHOT|latest
+backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite [--remove-first]] [--start] SNAPSHOT|latest
 backupzit-agent pve instant --repo ... --vmid 100 [--new-vmid N] [--name X] SNAPSHOT|latest
 backupzit-agent pve instant-finish --vmid 101 --storage local-lvm
 backupzit-agent pve instant-discard --vmid 101</pre>

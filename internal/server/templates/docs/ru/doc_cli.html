@@ -79,7 +79,7 @@
   <tr><td><code>pve show SNAPSHOT|latest</code></td><td>Показывает гостей и диски в копии ВМ.</td></tr>
   <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Выводит разделы и логические тома диска гостя или файлы в папке (NTFS, ext4, XFS, в том числе на LVM).</td></tr>
   <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>Копирует файлы и папки с диска гостя без восстановления ВМ.</td></tr>
-  <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Воссоздаёт гостя; <code>--new-vmid -1</code> берёт следующий свободный ID, <code>--overwrite</code> заменяет существующего гостя с тем же ID. См. <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
+  <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite [--remove-first]] [--start] SNAPSHOT|latest</code></td><td>Воссоздаёт гостя; <code>--new-vmid -1</code> берёт следующий свободный ID, <code>--overwrite</code> заменяет существующего гостя с тем же ID. См. <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
   <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>Мгновенное восстановление: запускает ВМ за секунды, пока её диски читаются из копии (новая ВМ, по умолчанию следующий свободный ID).</td></tr>
   <tr><td><code>pve instant-finish --vmid N --storage S</code></td><td>Переносит диски мгновенной ВМ в хранилище на ходу; после этого она больше не использует копию.</td></tr>
   <tr><td><code>pve instant-discard --vmid N</code></td><td>Останавливает и удаляет мгновенную ВМ вместе с её изменениями.</td></tr>

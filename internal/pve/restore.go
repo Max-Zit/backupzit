@@ -29,8 +29,12 @@ type RestoreOptions struct {
 	// Storage puts all disks on this storage ("" = original storage).
 	Storage string
 	// Overwrite replaces an existing guest with the same ID (it is stopped
-	// and deleted together with its disks).
-	Overwrite bool
+	// and deleted together with its disks). Its disks are deleted only
+	// after all disks of the backup are written (C1, 0.59), unless
+	// RemoveFirst: then it is deleted before, as before 0.59, which needs
+	// room for one copy only but leaves no guest if the restore fails.
+	Overwrite   bool
+	RemoveFirst bool
 	// Start starts the guest after the restore.
 	Start    bool
 	Progress func(done, total uint64)
@@ -114,6 +118,7 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	res := &RestoreResult{VMID: target, Type: g.Type, Name: g.Name, Node: inv.Node}
 
 	// An existing guest with the target ID.
+	var old *Guest
 	for _, x := range inv.Guests {
 		// An ID from nextid is free; the cluster list can still show a guest just removed.
 		if x.VMID != target || opts.NewVMID < 0 {
@@ -128,17 +133,24 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		if x.Type != g.Type {
 			return nil, fmt.Errorf("guest %d is a %s, the backup is a %s", target, x.Type, g.Type)
 		}
-		opts.Log("removing existing guest", "vmid", target)
-		tool := guestTool(g.Type)
-		if x.Status == "running" {
-			if _, err := command(ctx, tool, "stop", strconv.Itoa(target)); err != nil {
+		old = &x
+	}
+	tool := guestTool(g.Type)
+	id := strconv.Itoa(target)
+	if old != nil && opts.RemoveFirst {
+		// As before 0.59: room for one copy only, but no guest if the
+		// restore fails.
+		opts.Log("removing existing guest before the restore", "vmid", target)
+		if old.Status == "running" {
+			if _, err := command(ctx, tool, "stop", id); err != nil {
 				return nil, fmt.Errorf("stop guest %d: %w", target, err)
 			}
 		}
-		if _, err := command(ctx, tool, "destroy", strconv.Itoa(target)); err != nil {
+		if _, err := command(ctx, tool, "destroy", id); err != nil {
 			return nil, fmt.Errorf("delete guest %d: %w", target, err)
 		}
-		res.Notes = append(res.Notes, fmt.Sprintf("existing guest %d was replaced", target))
+		res.Notes = append(res.Notes, fmt.Sprintf("existing guest %d was removed before the restore and replaced", target))
+		old = nil
 	}
 	// The original still exists: the restore is a second copy.
 	clone := false
@@ -192,11 +204,13 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		}
 	}
 
-	// Allocate and fill the disks; remove them again if anything fails.
+	// Allocate and fill the disks; remove them again if anything fails -
+	// unless the existing guest was deleted meanwhile: then they are the
+	// only copy and stay, and the error names them.
 	var allocated []string
-	ok := false
+	ok, keep := false, false
 	defer func() {
-		if ok {
+		if ok || keep {
 			return
 		}
 		c, cancel := bg()
@@ -205,19 +219,31 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 			_, _ = command(c, "pvesm", "free", v)
 		}
 	}()
+	// While the disks are written the existing guest stays as it is (and
+	// keeps running): a failure leaves it unchanged.
+	unchanged := func(err error) error {
+		if old == nil {
+			return err
+		}
+		hint := ""
+		if s := strings.ToLower(err.Error()); strings.Contains(s, "space") || strings.Contains(s, "enospc") || strings.Contains(s, "full") {
+			hint = "; if the storage has no room for both, choose to remove the existing guest first"
+		}
+		return fmt.Errorf("%w (the existing guest %d was not changed%s)", err, target, hint)
+	}
 	newVol := map[string]string{} // disk key -> new volume ID
 	for _, d := range g.Disks {
 		st, _ := storageFor(d)
 		if d.Files() {
 			volid, err := allocSubvol(ctx, st, target, d.Size)
 			if err != nil {
-				return nil, fmt.Errorf("%s: allocate a subvolume on %s: %w", d.Key, st.ID, err)
+				return nil, unchanged(fmt.Errorf("%s: allocate a subvolume on %s: %w", d.Key, st.ID, err))
 			}
 			allocated = append(allocated, volid)
 			newVol[d.Key] = volid
 			opts.Log("restoring volume files", "key", d.Key, "volume", volid)
-			if err := writeVolumeFiles(ctx, r, sn, d, volid, progress); err != nil {
-				return nil, fmt.Errorf("%s: restore files to %s: %w", d.Key, volid, err)
+			if err := writeVolumeFilesFn(ctx, r, sn, d, volid, progress); err != nil {
+				return nil, unchanged(fmt.Errorf("%s: restore files to %s: %w", d.Key, volid, err))
 			}
 			res.Disks = append(res.Disks, d.Key+" → "+volid)
 			res.Bytes += d.Bytes
@@ -225,16 +251,51 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		}
 		volid, err := allocDisk(ctx, st, target, d.Size)
 		if err != nil {
-			return nil, fmt.Errorf("%s: allocate %s on %s: %w", d.Key, formatSize(d.Size), st.ID, err)
+			return nil, unchanged(fmt.Errorf("%s: allocate %s on %s: %w", d.Key, formatSize(d.Size), st.ID, err))
 		}
 		allocated = append(allocated, volid)
 		newVol[d.Key] = volid
 		opts.Log("writing disk", "key", d.Key, "volume", volid)
-		if err := writeDisk(ctx, r, sn, d, st, volid, progress); err != nil {
-			return nil, fmt.Errorf("%s: write %s: %w", d.Key, volid, err)
+		if err := writeDiskFn(ctx, r, sn, d, st, volid, progress); err != nil {
+			return nil, unchanged(fmt.Errorf("%s: write %s: %w", d.Key, volid, err))
 		}
 		res.Disks = append(res.Disks, d.Key+" → "+volid)
 		res.Bytes += d.Size
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, unchanged(err)
+	}
+
+	// All data is restored: now the existing guest goes. destroy keeps the
+	// new volumes, which carry the same ID but are not in its configuration.
+	if old != nil {
+		opts.Log("replacing existing guest", "vmid", target)
+		stopped := false
+		if old.Status == "running" {
+			if _, err := command(ctx, tool, "stop", id); err != nil {
+				return nil, unchanged(fmt.Errorf("stop guest %d: %w", target, err))
+			}
+			stopped = true
+		}
+		if _, err := command(ctx, tool, "destroy", id, "--destroy-unreferenced-disks", "0"); err != nil {
+			if stopped {
+				c, cancel := bg()
+				_, serr := command(c, tool, "start", id)
+				cancel()
+				if serr != nil {
+					return nil, fmt.Errorf("delete guest %d: %w (it was stopped for the restore and could not be started again: %v; the restored disks were removed)", target, err, serr)
+				}
+			}
+			return nil, unchanged(fmt.Errorf("delete guest %d: %w", target, err))
+		}
+		keep = true
+		res.Notes = append(res.Notes, fmt.Sprintf("existing guest %d was replaced", target))
+	}
+	kept := func(err error) error {
+		if !keep {
+			return err
+		}
+		return fmt.Errorf("%w (the guest it replaced is deleted; the restored disks of ID %d are kept: %s - attach them to a new guest %d, or remove them with pvesm free)", err, target, strings.Join(allocated, ", "), target)
 	}
 
 	conf, cloudInit, notes := restoreConfig(g, newVol, opts.Name, clone)
@@ -250,16 +311,16 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	cfgFile := filepath.Join(ConfigDir, "nodes", inv.Node, dir, strconv.Itoa(target)+".conf")
 	f, err := os.OpenFile(cfgFile, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o640) // #nosec G302 G304 -- Proxmox guest configuration, 0640 as Proxmox writes it
 	if err != nil {
-		return nil, fmt.Errorf("create configuration: %w", err)
+		return nil, kept(fmt.Errorf("create configuration: %w", err))
 	}
 	if _, err := f.WriteString(conf); err != nil {
 		_ = f.Close()
 		_ = os.Remove(cfgFile)
-		return nil, fmt.Errorf("write configuration: %w", err)
+		return nil, kept(fmt.Errorf("write configuration: %w", err))
 	}
 	if err := f.Close(); err != nil {
 		_ = os.Remove(cfgFile)
-		return nil, fmt.Errorf("write configuration: %w", err)
+		return nil, kept(fmt.Errorf("write configuration: %w", err))
 	}
 	ok = true // the disks now belong to the guest
 
@@ -283,6 +344,12 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 }
 
 var createdRe = regexp.MustCompile(`successfully created '([^']+)'`)
+
+// The writers of a restore (tests replace them).
+var (
+	writeDiskFn        = writeDisk
+	writeVolumeFilesFn = writeVolumeFiles
+)
 
 func allocDisk(ctx context.Context, st storage, vmid int, size uint64) (string, error) {
 	kib := (size + 1023) / 1024

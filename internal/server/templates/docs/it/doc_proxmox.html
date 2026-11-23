@@ -59,7 +59,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li><b>Guest</b> — uno dei guest di quel backup.</li>
   <li><b>Ripristina sul nodo Proxmox</b> — qualsiasi nodo con l'agente BackupZit, anche un nodo di un altro cluster.</li>
   <li><b>Come nuovo guest con il primo ID libero</b> (predefinito) o <b>con ID …</b> — l'originale continua a funzionare. Poiché esistono entrambi, le schede di rete della copia ricevono nuovi indirizzi MAC.</li>
-  <li><b>Con il suo ID originale</b> — dopo che il guest è stato eliminato. Se esiste ancora, seleziona <b>arrestalo ed eliminalo</b> per sostituirlo con il backup; il guest esistente e i suoi dischi vengono eliminati per primi.</li>
+  <li><b>Con il suo ID originale</b> — dopo che il guest è stato eliminato. Se esiste ancora, seleziona <b>arrestalo ed eliminalo</b> per sostituirlo con il backup. Dalla 0.59 il guest esistente continua a funzionare mentre vengono scritti i dischi del backup, e viene arrestato ed eliminato con i suoi dischi solo quando sono stati tutti ripristinati: se il ripristino fallisce prima (storage pieno, dati mancanti), il guest resta com'era e i nuovi dischi vengono rimossi. Per un po' serve quindi spazio per entrambi; con <b>Eliminarlo prima di scrivere i dischi</b> il guest viene eliminato per primo, come prima della 0.59 (gli agenti precedenti alla 0.59 fanno sempre così).</li>
   <li><b>Nome</b> e <b>Archiviazione per i dischi</b> — ad es. ripristinare su uno storage diverso dall'originale.</li>
   <li><b>Avvia il guest dopo il ripristino</b>.</li>
 </ul>
@@ -89,7 +89,7 @@ systemctl enable --now backupzit-agent</pre></li>
 <pre>backupzit-agent pve list
 backupzit-agent pve backup  --repo ... [--vmid 100,200] [--exclude 300]
 backupzit-agent pve show    --repo ... latest
-backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite] [--start] SNAPSHOT|latest
+backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite [--remove-first]] [--start] SNAPSHOT|latest
 backupzit-agent pve instant --repo ... --vmid 100 [--new-vmid N] [--name X] SNAPSHOT|latest
 backupzit-agent pve instant-finish --vmid 101 --storage local-lvm
 backupzit-agent pve instant-discard --vmid 101</pre>

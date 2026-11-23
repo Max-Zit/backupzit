@@ -117,7 +117,8 @@ func cmdPVE(ctx context.Context, args []string) error {
 		newID := fs.Int("new-vmid", 0, "ID for the restored guest (default: original ID; -1 = next free ID)")
 		name := fs.String("name", "", "name for the restored guest (default: original name)")
 		storage := fs.String("storage", "", "put all disks on this storage (default: original storage)")
-		overwrite := fs.Bool("overwrite", false, "replace an existing guest with the same ID (it is stopped and deleted)")
+		overwrite := fs.Bool("overwrite", false, "replace an existing guest with the same ID (it is stopped and deleted after all disks are restored)")
+		removeFirst := fs.Bool("remove-first", false, "with --overwrite: delete the existing guest before the disks are written (room for one copy only; no guest if the restore fails)")
 		start := fs.Bool("start", false, "start the guest after the restore")
 		fs.Usage = func() {
 			fmt.Fprintln(os.Stderr, "Usage: backupzit-agent pve restore [options] --vmid N <snapshot-id|latest>")
@@ -143,7 +144,7 @@ func cmdPVE(ctx context.Context, args []string) error {
 			return err
 		}
 		res, err := pve.Restore(ctx, r, sn, pve.RestoreOptions{VMID: *vmid, NewVMID: *newID, Name: *name, Storage: *storage,
-			Overwrite: *overwrite, Start: *start, Progress: progressPrinter("written"),
+			Overwrite: *overwrite, RemoveFirst: *removeFirst, Start: *start, Progress: progressPrinter("written"),
 			Log: func(msg string, kv ...any) { fmt.Println(append([]any{" ", msg}, kv...)...) }})
 		if err != nil {
 			return err

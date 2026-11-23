@@ -58,6 +58,7 @@ func (s *Server) handleVMRestore(w http.ResponseWriter, r *http.Request, runID i
 	switch r.FormValue("id_mode") {
 	case "original":
 		o.Overwrite = r.FormValue("overwrite") == "on"
+		o.RemoveFirst = o.Overwrite && r.FormValue("remove_first") == "on"
 	case "next":
 		o.NewVMID = -1
 	case "instant":
@@ -86,6 +87,7 @@ func (s *Server) handleVMRestore(w http.ResponseWriter, r *http.Request, runID i
 		if n == vmid {
 			o.NewVMID = 0
 			o.Overwrite = r.FormValue("overwrite") == "on"
+			o.RemoveFirst = o.Overwrite && r.FormValue("remove_first") == "on"
 		}
 	default:
 		redirectErr(w, r, back, errors.New("choose the ID of the restored guest"))
@@ -103,7 +105,7 @@ func (s *Server) handleVMRestore(w http.ResponseWriter, r *http.Request, runID i
 		redirectErr(w, r, back, err)
 		return
 	}
-	s.audit(r, "restore.vm", "run #%d: guest %d from backup #%d (new id %d, overwrite %v)", rid, vmid, runID, o.NewVMID, o.Overwrite)
+	s.audit(r, "restore.vm", "run #%d: guest %d from backup #%d (new id %d, overwrite %v, remove first %v)", rid, vmid, runID, o.NewVMID, o.Overwrite, o.RemoveFirst)
 	redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), "VM restore queued.")
 }
 

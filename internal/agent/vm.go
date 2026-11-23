@@ -159,7 +159,7 @@ func (a *Agent) vmRestore(ctx context.Context, run api.Run) api.RunResult {
 		return a.hypervRestore(ctx, run, r, sn)
 	}
 	res, err := pve.Restore(ctx, r, sn, pve.RestoreOptions{
-		VMID: o.VMID, NewVMID: o.NewVMID, Name: o.Name, Storage: o.Storage, Overwrite: o.Overwrite, Start: o.Start,
+		VMID: o.VMID, NewVMID: o.NewVMID, Name: o.Name, Storage: o.Storage, Overwrite: o.Overwrite, RemoveFirst: o.RemoveFirst, Start: o.Start,
 		Log: func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) },
 	})
 	if err != nil {

@@ -136,7 +136,8 @@ page data; .Data holds the keys built by restoreFormData. */}}
   <label class="check"><input type="radio" name="id_mode" value="custom"> {{T "As a new guest with ID"}} <input name="new_vmid" type="number" min="100" max="999999999" class="narrow"></label>
   <label class="check"><input type="radio" name="id_mode" value="original"> {{T "With its original ID"}} <small>{{T "when the guest was deleted, or to replace it"}}</small></label>
   <label class="check" data-vm-only><input type="radio" name="id_mode" value="instant"> {{T "Instantly, running from the backup"}} <small>{{T "VMs only: starts in seconds with the next free ID while its disks are read from the backup; then finish (move the disks to storage while it runs) or discard it on the run page"}}</small></label>
-  <label class="check"><input type="checkbox" name="overwrite"> {{T "If a guest with that ID exists,"}} <b>{{T "stop and delete it"}}</b> {{T "and replace it with the backup"}}</label>
+  <label class="check"><input type="checkbox" name="overwrite"> {{T "If a guest with that ID exists,"}} <b>{{T "stop and delete it"}}</b> {{T "and replace it with the backup"}} <small>{{T "after all disks of the backup are restored; until then it keeps running"}}</small></label>
+  <label class="check sub"><input type="checkbox" name="remove_first"> {{T "Delete it before the disks are written"}} <small>{{T "needs room for one copy only, but if the restore fails the guest is gone (agents before 0.59 always do this)"}}</small></label>
   <div class="row">
     <label>{{T "Name"}} <small>{{T "optional, default: original name"}}</small><input name="name" maxlength="63"></label>
     <label>{{T "Storage for the disks"}}

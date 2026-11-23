@@ -1805,6 +1805,41 @@ func TestProxmoxJobs(t *testing.T) {
 	if p := body("/agents"); !strings.Contains(p, "Proxmox VE · 3 guests") {
 		t.Error("agents page lacks the Proxmox badge")
 	}
+
+	// C1 (0.59): "delete it before the disks are written" goes to the agent
+	// only together with replacing the guest.
+	if p := body(fmt.Sprintf("/runs/%d", runID)); !strings.Contains(p, `name="remove_first"`) || !strings.Contains(p, "until then it keeps running") {
+		t.Error("restore form lacks the option to delete the existing guest first")
+	}
+	admin := newClient(t, e)
+	admin.login("admin", "admin-pass-123")
+	for _, c := range []struct {
+		form                url.Values
+		overwrite, delFirst bool
+	}{
+		{url.Values{"overwrite": {"on"}}, true, false},
+		{url.Values{"overwrite": {"on"}, "remove_first": {"on"}}, true, true},
+		{url.Values{"remove_first": {"on"}}, false, false},
+	} {
+		c.form.Set("kind", "vm")
+		c.form.Set("vmid", "100")
+		c.form.Set("agent_id", fmt.Sprint(a.ID))
+		c.form.Set("id_mode", "original")
+		if _, loc, _ := admin.do("POST", fmt.Sprintf("/runs/%d/restore", runID), c.form); !strings.Contains(loc, "/runs/") || strings.Contains(loc, "err=") {
+			t.Fatalf("queue restore %v: %s", c.form, loc)
+		}
+		got, err := e.store.ClaimRun(ctx, a.ID)
+		if err != nil || got == nil || got.VMRestore == nil {
+			t.Fatalf("claim: %+v %v", got, err)
+		}
+		var o api.VMRestore
+		if err := json.Unmarshal(got.VMRestore, &o); err != nil {
+			t.Fatal(err)
+		}
+		if o.Overwrite != c.overwrite || o.RemoveFirst != c.delFirst {
+			t.Errorf("form %v: overwrite %v, remove first %v", c.form, o.Overwrite, o.RemoveFirst)
+		}
+	}
 }
 
 func TestAgentUpdate(t *testing.T) {

@@ -59,7 +59,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li><b>Gość</b> — jeden z gości w tej kopii.</li>
   <li><b>Przywróć na węźle Proxmox</b> — dowolny węzeł z agentem BackupZit, także węzeł innego klastra.</li>
   <li><b>Jako nowy gość z następnym wolnym ID</b> (domyślnie) lub <b>z ID …</b> — oryginał działa dalej. Ponieważ istnieją oba, karty sieciowe kopii dostają nowe adresy MAC.</li>
-  <li><b>Z oryginalnym ID</b> — po usunięciu gościa. Jeśli nadal istnieje, zaznacz <b>zatrzymaj go i usuń</b>, aby zastąpić go kopią; najpierw usuwany jest istniejący gość i jego dyski.</li>
+  <li><b>Z oryginalnym ID</b> — po usunięciu gościa. Jeśli nadal istnieje, zaznacz <b>zatrzymaj go i usuń</b>, aby zastąpić go kopią. Od wersji 0.59 istniejący gość działa dalej podczas zapisywania dysków z kopii i jest zatrzymywany oraz usuwany wraz z dyskami dopiero po przywróceniu wszystkich: jeśli przywracanie wcześniej się nie powiedzie (pełny magazyn, brak danych), gość zostaje bez zmian, a nowe dyski są usuwane. Przez pewien czas potrzeba więc miejsca na oba; z opcją <b>Usuń go przed zapisaniem dysków</b> gość jest usuwany najpierw, jak przed 0.59 (agenci przed 0.59 robią tak zawsze).</li>
   <li><b>Nazwa</b> i <b>Magazyn dla dysków</b> — np. przywróć do innego magazynu niż oryginał.</li>
   <li><b>Uruchom gościa po przywróceniu</b>.</li>
 </ul>
@@ -89,7 +89,7 @@ systemctl enable --now backupzit-agent</pre></li>
 <pre>backupzit-agent pve list
 backupzit-agent pve backup  --repo ... [--vmid 100,200] [--exclude 300]
 backupzit-agent pve show    --repo ... latest
-backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite] [--start] SNAPSHOT|latest
+backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite [--remove-first]] [--start] SNAPSHOT|latest
 backupzit-agent pve instant --repo ... --vmid 100 [--new-vmid N] [--name X] SNAPSHOT|latest
 backupzit-agent pve instant-finish --vmid 101 --storage local-lvm
 backupzit-agent pve instant-discard --vmid 101</pre>

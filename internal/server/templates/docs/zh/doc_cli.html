@@ -79,7 +79,7 @@
   <tr><td><code>pve show SNAPSHOT|latest</code></td><td>显示虚拟机备份中的客户机和磁盘。</td></tr>
   <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>列出客户机磁盘的分区和逻辑卷，或文件夹中的文件（NTFS、ext4、XFS，也支持 LVM 上的）。</td></tr>
   <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>从客户机磁盘复制文件和文件夹，无需还原虚拟机。</td></tr>
-  <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>重建客户机；<code>--new-vmid -1</code> 使用下一个空闲 ID，<code>--overwrite</code> 替换具有相同 ID 的现有客户机。参见 <a href="/docs/proxmox">Proxmox VE</a>。</td></tr>
+  <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite [--remove-first]] [--start] SNAPSHOT|latest</code></td><td>重建客户机；<code>--new-vmid -1</code> 使用下一个空闲 ID，<code>--overwrite</code> 替换具有相同 ID 的现有客户机。参见 <a href="/docs/proxmox">Proxmox VE</a>。</td></tr>
   <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>即时恢复：在几秒钟内启动虚拟机，同时从备份读取其磁盘（新虚拟机，默认使用下一个空闲 ID）。</td></tr>
   <tr><td><code>pve instant-finish --vmid N --storage S</code></td><td>在运行时将即时虚拟机的磁盘迁移到存储；之后不再使用备份。</td></tr>
   <tr><td><code>pve instant-discard --vmid N</code></td><td>停止并删除即时虚拟机及其更改。</td></tr>

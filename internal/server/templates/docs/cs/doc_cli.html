@@ -79,7 +79,7 @@
   <tr><td><code>pve show SNAPSHOT|latest</code></td><td>Zobrazí hosty a disky v záloze VM.</td></tr>
   <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Vypíše oddíly a logické svazky disku hosta nebo soubory ve složce (NTFS, ext4, XFS, i na LVM).</td></tr>
   <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>Zkopíruje soubory a složky z disku hosta bez obnovy VM.</td></tr>
-  <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Znovu vytvoří hosta; <code>--new-vmid -1</code> vezme další volné ID, <code>--overwrite</code> nahradí existujícího hosta se stejným ID. Viz <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
+  <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite [--remove-first]] [--start] SNAPSHOT|latest</code></td><td>Znovu vytvoří hosta; <code>--new-vmid -1</code> vezme další volné ID, <code>--overwrite</code> nahradí existujícího hosta se stejným ID. Viz <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
   <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>Okamžitá obnova: spustí VM během několika sekund, zatímco se její disky čtou ze zálohy (nová VM, ve výchozím stavu další volné ID).</td></tr>
   <tr><td><code>pve instant-finish --vmid N --storage S</code></td><td>Přesune disky okamžité VM na úložiště za běhu; poté už zálohu nepoužívá.</td></tr>
   <tr><td><code>pve instant-discard --vmid N</code></td><td>Zastaví a smaže okamžitou VM i s jejími změnami.</td></tr>

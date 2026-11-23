@@ -451,7 +451,11 @@ type VMRestore struct {
 	Name      string `json:"name,omitempty"`
 	Storage   string `json:"storage,omitempty"` // "" = original storage
 	Overwrite bool   `json:"overwrite,omitempty"`
-	Start     bool   `json:"start,omitempty"`
+	// RemoveFirst (Proxmox, with Overwrite): delete the existing guest
+	// before the disks are written, as agents before 0.59 always did; by
+	// default it is deleted only after all disks are restored.
+	RemoveFirst bool `json:"remove_first,omitempty"`
+	Start       bool `json:"start,omitempty"`
 	// HVCluster: restore on a node of a Hyper-V failover cluster; the VM is
 	// stopped and started through the cluster and a new VM becomes a role.
 	HVCluster bool `json:"hv_cluster,omitempty"`

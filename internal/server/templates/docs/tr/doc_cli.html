@@ -79,7 +79,7 @@
   <tr><td><code>pve show SNAPSHOT|latest</code></td><td>Bir VM yedeğindeki konukları ve diskleri gösterir.</td></tr>
   <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Bir konuk diskinin bölümlerini ve mantıksal birimlerini ya da bir klasördeki dosyaları listeler (NTFS, ext4, XFS, LVM üzerinde de).</td></tr>
   <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>VM'yi geri yüklemeden bir konuk diskinden dosya ve klasörleri kopyalar.</td></tr>
-  <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Bir konuğu yeniden oluşturur; <code>--new-vmid -1</code> sonraki boş kimliği alır, <code>--overwrite</code> aynı kimliğe sahip mevcut konuğu değiştirir. Bkz. <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
+  <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite [--remove-first]] [--start] SNAPSHOT|latest</code></td><td>Bir konuğu yeniden oluşturur; <code>--new-vmid -1</code> sonraki boş kimliği alır, <code>--overwrite</code> aynı kimliğe sahip mevcut konuğu değiştirir. Bkz. <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
   <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>Anında kurtarma: diskleri yedekten okunurken bir VM'yi saniyeler içinde başlatır (yeni VM, varsayılan olarak sonraki boş kimlik).</td></tr>
   <tr><td><code>pve instant-finish --vmid N --storage S</code></td><td>Anında VM'nin disklerini çalışırken depolamaya taşır; sonrasında yedeği kullanmaz.</td></tr>
   <tr><td><code>pve instant-discard --vmid N</code></td><td>Anında VM'yi değişiklikleriyle birlikte durdurur ve siler.</td></tr>
