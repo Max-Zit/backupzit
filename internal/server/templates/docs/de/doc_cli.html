@@ -33,7 +33,9 @@
   <tr><th>Befehl</th><th>Was er tut</th></tr>
   <tr><td><code>disks [--json]</code></td><td>Zeigt Festplatten und Partitionen mit ihren Nummern.</td></tr>
   <tr><td><code>image-backup --disk N [--partitions 1,2] [--no-vss]</code><br><code>image-backup --all-disks</code></td><td>Sichert eine ganze Festplatte oder ausgewählte Partitionen, oder jede interne Festplatte in einem Snapshot.</td></tr>
-  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] SNAPSHOT|latest</code></td><td>Schreibt ein Abbild auf eine Festplatte; <b>löscht die Festplatte</b>. <code>--keep-offline</code>, wenn sich die Originalfestplatte in derselben Maschine befindet; <code>--source-disk</code> wählt die Festplatte einer Alle-Datenträger-Sicherung.</td></tr>
+  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] [--partitions 1,3] [--verify] [--fit [--resize 3=200G] [--drop-others]] [--style gpt|mbr] SNAPSHOT|latest</code></td><td>Schreibt ein Abbild auf eine Festplatte; <b>löscht die Festplatte</b>. <code>--keep-offline</code>, wenn sich die Originalfestplatte in derselben Maschine befindet; <code>--source-disk</code> wählt die Festplatte einer Alle-Datenträger-Sicherung. <code>--partitions</code> stellt nur einzelne Partitionen wieder her; <code>--verify</code> prüft vorher jeden Block des Snapshots; <code>--fit</code> passt die Partitionen an eine kleinere oder größere Festplatte an (NTFS wird verkleinert, auch mit Verschieben von Daten); <code>--style</code> wandelt die Partitionstabelle um.</td></tr>
+  <tr><td><code>image-layout [--target-disk N | --target-size 256G] [--partitions 1,3] [--drop-others] [--resize 3=40G] [--json] SNAPSHOT|latest</code></td><td>Zeigen, wie die Partitionen auf einer Zielfestplatte lägen und wie klein jede werden kann.</td></tr>
+  <tr><td><code>partition-restore --partition N --target-disk N [--replace N | --offset 120G] [--size 40G] [--verify] --yes-overwrite SNAPSHOT|latest</code></td><td>Eine Partition auf eine Festplatte zurückschreiben, deren übrige Partitionen bleiben: über eine vorhandene Partition oder in freien Platz.</td></tr>
   <tr><td><code>image-ls [--disk N] --partition N SNAPSHOT|latest [\path]</code></td><td>Listet Dateien in einer abgebildeten NTFS-Partition auf (<code>--disk</code>: die gesicherte Festplatte, bei Alle-Datenträger-Sicherungen).</td></tr>
   <tr><td><code>image-extract [--disk N] --partition N --target DIR SNAPSHOT|latest \path…</code></td><td>Kopiert Dateien und Ordner aus einer abgebildeten Partition.</td></tr>
 </table>
@@ -49,6 +51,15 @@
 <table>
   <tr><th>Befehl</th><th>Was er tut</th></tr>
   <tr><td><code>prepare-hardware --disk N [--drivers DIR]</code></td><td>Bereitet eine wiederhergestellte Windows-Festplatte für andere Hardware vor (Boot-Treiber, zusätzliche Treiber, Bootdateien) — dasselbe wie die Wiederherstellungsoption, z. B. um es vom Wiederherstellungs-ISO aus zu wiederholen.</td></tr>
+</table>
+<h2>Windows-Wiederherstellungswerkzeuge (Wiederherstellungs-ISO oder laufendes Windows)</h2>
+<table>
+  <tr><th>Befehl</th><th>Was er tut</th></tr>
+  <tr><td><code>boot-repair [--list] [--disk N --partition N] [--boot-files UEFI|BIOS|ALL] [--boot-drivers] [--active] [--mbr] [--backup-dir DIR]</code></td><td>Ein vorhandenes Windows wieder startfähig machen: Bootdateien und BCD für die Firmware dieses Rechners; Sektor 0 und BCD werden vorher gesichert.</td></tr>
+  <tr><td><code>drivers missing</code><br><code>drivers load DIR</code><br><code>drivers add --disk N --partition N DIR</code></td><td>Geräte ohne Treiber; Treiber in die Wiederherstellungsumgebung laden; Treiber in ein installiertes Windows einspielen.</td></tr>
+  <tr><td><code>bitlocker list</code><br><code>bitlocker unlock --disk N --partition N</code></td><td>Gesperrte BitLocker-Volumes; eines mit seinem Wiederherstellungsschlüssel entsperren (in <code>BACKUPZIT_BITLOCKER_KEY</code>).</td></tr>
+  <tr><td><code>access-package create --repo LOCATION --out FILE.bzaccess [--name NAME]</code><br><code>access-package show [--test] FILE.bzaccess</code></td><td>Zugangspaket: Speicherort und Zugangsdaten von Repositories, verschlüsselt mit einer Passphrase (<code>BACKUPZIT_ACCESS_PASSPHRASE</code>), für Wiederherstellungen ohne die Konsole.</td></tr>
+  <tr><td><code>ntfs-check --device \\.\PhysicalDriveN --offset BYTES</code></td><td>Die NTFS-Strukturen einer Partition prüfen (Diagnose).</td></tr>
 </table>
 
 <h2>VMware ESXi (jeder Agent als Proxy; Passwort in <code>BACKUPZIT_VMWARE_PASSWORD</code>)</h2>

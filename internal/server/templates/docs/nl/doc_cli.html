@@ -33,7 +33,9 @@
   <tr><th>Opdracht</th><th>Wat het doet</th></tr>
   <tr><td><code>disks [--json]</code></td><td>Toont schijven en partities met hun nummers.</td></tr>
   <tr><td><code>image-backup --disk N [--partitions 1,2] [--no-vss]</code><br><code>image-backup --all-disks</code></td><td>Maakt een back-up van een hele schijf of gekozen partities, of van alle interne schijven in één snapshot.</td></tr>
-  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] SNAPSHOT|latest</code></td><td>Schrijft een image naar een schijf; <b>wist de schijf</b>. <code>--keep-offline</code> wanneer de oorspronkelijke schijf in dezelfde machine zit; <code>--source-disk</code> kiest de schijf uit een back-up van alle schijven.</td></tr>
+  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] [--partitions 1,3] [--verify] [--fit [--resize 3=200G] [--drop-others]] [--style gpt|mbr] SNAPSHOT|latest</code></td><td>Schrijft een image naar een schijf; <b>wist de schijf</b>. <code>--keep-offline</code> wanneer de oorspronkelijke schijf in dezelfde machine zit; <code>--source-disk</code> kiest de schijf uit een back-up van alle schijven. <code>--partitions</code> herstelt alleen enkele partities; <code>--verify</code> controleert eerst elk blok van de snapshot; <code>--fit</code> past de partities aan een kleinere of grotere schijf aan (NTFS wordt verkleind, ook door gegevens te verplaatsen); <code>--style</code> zet de partitietabel om.</td></tr>
+  <tr><td><code>image-layout [--target-disk N | --target-size 256G] [--partitions 1,3] [--drop-others] [--resize 3=40G] [--json] SNAPSHOT|latest</code></td><td>Tonen hoe de partities op een doelschijf zouden komen te staan en hoe klein elk kan worden.</td></tr>
+  <tr><td><code>partition-restore --partition N --target-disk N [--replace N | --offset 120G] [--size 40G] [--verify] --yes-overwrite SNAPSHOT|latest</code></td><td>Eén partitie herstellen op een schijf waarvan de andere partities blijven: over een bestaande partitie of in vrije ruimte.</td></tr>
   <tr><td><code>image-ls [--disk N] --partition N SNAPSHOT|latest [\path]</code></td><td>Toont de bestanden in een NTFS-partitie in een image (<code>--disk</code>: de gebackupte schijf, bij back-ups van alle schijven).</td></tr>
   <tr><td><code>image-extract [--disk N] --partition N --target DIR SNAPSHOT|latest \path…</code></td><td>Kopieert bestanden en mappen uit een partitie in een image.</td></tr>
 </table>
@@ -49,6 +51,15 @@
 <table>
   <tr><th>Opdracht</th><th>Wat het doet</th></tr>
   <tr><td><code>prepare-hardware --disk N [--drivers DIR]</code></td><td>Bereidt een herstelde Windows-schijf voor op andere hardware (opstartstuurprogramma's, extra stuurprogramma's, opstartbestanden) — hetzelfde als de herstelfunctie, bijv. om het vanaf de herstel-ISO opnieuw te doen.</td></tr>
+</table>
+<h2>Windows-herstelhulpmiddelen (herstel-ISO of een draaiende Windows)</h2>
+<table>
+  <tr><th>Opdracht</th><th>Wat het doet</th></tr>
+  <tr><td><code>boot-repair [--list] [--disk N --partition N] [--boot-files UEFI|BIOS|ALL] [--boot-drivers] [--active] [--mbr] [--backup-dir DIR]</code></td><td>Een bestaande Windows weer opstartbaar maken: opstartbestanden en BCD voor de firmware van deze computer; sector 0 en de BCD worden eerst bewaard.</td></tr>
+  <tr><td><code>drivers missing</code><br><code>drivers load DIR</code><br><code>drivers add --disk N --partition N DIR</code></td><td>Apparaten zonder stuurprogramma; stuurprogramma's in de herstelomgeving laden; stuurprogramma's aan een geïnstalleerde Windows toevoegen.</td></tr>
+  <tr><td><code>bitlocker list</code><br><code>bitlocker unlock --disk N --partition N</code></td><td>Vergrendelde BitLocker-volumes; één ontgrendelen met zijn herstelsleutel (in <code>BACKUPZIT_BITLOCKER_KEY</code>).</td></tr>
+  <tr><td><code>access-package create --repo LOCATION --out FILE.bzaccess [--name NAME]</code><br><code>access-package show [--test] FILE.bzaccess</code></td><td>Toegangspakket: locatie en toegangsgegevens van repositories, versleuteld met een wachtzin (<code>BACKUPZIT_ACCESS_PASSPHRASE</code>), voor herstel zonder de console.</td></tr>
+  <tr><td><code>ntfs-check --device \\.\PhysicalDriveN --offset BYTES</code></td><td>De NTFS-structuren van een partitie controleren (diagnose).</td></tr>
 </table>
 
 <h2>VMware ESXi (elke agent als proxy; wachtwoord in <code>BACKUPZIT_VMWARE_PASSWORD</code>)</h2>

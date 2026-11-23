@@ -33,7 +33,9 @@
   <tr><th>Komanda</th><th>Šta radi</th></tr>
   <tr><td><code>disks [--json]</code></td><td>Prikazuje diskove i particije sa njihovim brojevima.</td></tr>
   <tr><td><code>image-backup --disk N [--partitions 1,2] [--no-vss]</code><br><code>image-backup --all-disks</code></td><td>Bekap celog diska ili izabranih particija, ili svih internih diskova u jedan snimak.</td></tr>
-  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] SNAPSHOT|latest</code></td><td>Upisuje sliku na disk; <b>briše disk</b>. <code>--keep-offline</code> kada je originalni disk u istoj mašini; <code>--source-disk</code> bira disk iz bekapa svih diskova.</td></tr>
+  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] [--partitions 1,3] [--verify] [--fit [--resize 3=200G] [--drop-others]] [--style gpt|mbr] SNAPSHOT|latest</code></td><td>Upisuje sliku na disk; <b>briše disk</b>. <code>--keep-offline</code> kada je originalni disk u istoj mašini; <code>--source-disk</code> bira disk iz bekapa svih diskova. <code>--partitions</code> vraća samo neke particije; <code>--verify</code> prvo proverava svaki blok snimka; <code>--fit</code> prilagođava particije manjem ili većem disku (NTFS se smanjuje, i premeštanjem podataka); <code>--style</code> pretvara tabelu particija.</td></tr>
+  <tr><td><code>image-layout [--target-disk N | --target-size 256G] [--partitions 1,3] [--drop-others] [--resize 3=40G] [--json] SNAPSHOT|latest</code></td><td>Prikazati kako bi particije bile raspoređene na ciljnom disku i koliko najmanje svaka može biti.</td></tr>
+  <tr><td><code>partition-restore --partition N --target-disk N [--replace N | --offset 120G] [--size 40G] [--verify] --yes-overwrite SNAPSHOT|latest</code></td><td>Vratiti jednu particiju na disk čije ostale particije ostaju: preko postojeće particije ili u slobodan prostor.</td></tr>
   <tr><td><code>image-ls [--disk N] --partition N SNAPSHOT|latest [\path]</code></td><td>Navodi fajlove unutar NTFS particije iz slike (<code>--disk</code>: disk iz bekapa, za bekape svih diskova).</td></tr>
   <tr><td><code>image-extract [--disk N] --partition N --target DIR SNAPSHOT|latest \path…</code></td><td>Kopira fajlove i foldere iz particije iz slike.</td></tr>
 </table>
@@ -49,6 +51,15 @@
 <table>
   <tr><th>Komanda</th><th>Šta radi</th></tr>
   <tr><td><code>prepare-hardware --disk N [--drivers DIR]</code></td><td>Priprema vraćeni Windows disk za drugi hardver (drajveri za podizanje, dodatni drajveri, boot fajlovi) — isto kao opcija vraćanja, npr. da se ponovi sa ISO-a za oporavak.</td></tr>
+</table>
+<h2>Windows alati za oporavak (ISO za oporavak ili Windows koji radi)</h2>
+<table>
+  <tr><th>Komanda</th><th>Šta radi</th></tr>
+  <tr><td><code>boot-repair [--list] [--disk N --partition N] [--boot-files UEFI|BIOS|ALL] [--boot-drivers] [--active] [--mbr] [--backup-dir DIR]</code></td><td>Ponovo omogućiti pokretanje postojećeg Windows-a: datoteke za pokretanje i BCD za firmver ovog računara; sektor 0 i BCD se prvo sačuvaju.</td></tr>
+  <tr><td><code>drivers missing</code><br><code>drivers load DIR</code><br><code>drivers add --disk N --partition N DIR</code></td><td>Uređaji bez drajvera; učitavanje drajvera u okruženje za oporavak; dodavanje drajvera instaliranom Windows-u.</td></tr>
+  <tr><td><code>bitlocker list</code><br><code>bitlocker unlock --disk N --partition N</code></td><td>Zaključani BitLocker volumeni; otključavanje jednog njegovim ključem za oporavak (u <code>BACKUPZIT_BITLOCKER_KEY</code>).</td></tr>
+  <tr><td><code>access-package create --repo LOCATION --out FILE.bzaccess [--name NAME]</code><br><code>access-package show [--test] FILE.bzaccess</code></td><td>Paket za pristup: lokacija i pristupni podaci repozitorijuma, šifrovani lozinkom (<code>BACKUPZIT_ACCESS_PASSPHRASE</code>), za vraćanje bez konzole.</td></tr>
+  <tr><td><code>ntfs-check --device \\.\PhysicalDriveN --offset BYTES</code></td><td>Proveriti NTFS strukture particije (dijagnostika).</td></tr>
 </table>
 
 <h2>VMware ESXi (bilo koji agent kao proxy; lozinka u <code>BACKUPZIT_VMWARE_PASSWORD</code>)</h2>

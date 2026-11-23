@@ -65,7 +65,7 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
 | What | How | Restore |
 |---|---|---|
 | **Files and folders** (Windows, Linux) | incremental, from a VSS snapshot on Windows; `{users}` paths (e.g. the Documents of every user) and wildcards; one job can cover several or all agents | single files from the browser (download), into a folder or to the original location |
-| **Whole disks** (Windows) | disk images of one, several or all disks, changed blocks only | bare metal from the recovery ISO, also onto different hardware; single files from the image |
+| **Whole disks** (Windows) | disk images of one, several or all disks, changed blocks only | bare metal from the recovery ISO (graphical, also without the console), onto different hardware or a smaller or larger disk, single partitions, GPT↔MBR, boot repair; single files from the image |
 | **Linux systems** | all file systems and the disk layout | bare metal from the Linux recovery ISO, or as a new Proxmox VM (P2V) |
 | **Proxmox VE** VMs and containers | agentless, changed blocks only; the node's own configuration (`/etc/pve`, `config.db`) with a files job | new VM or in place, **instant recovery** (the VM runs from the backup in seconds), replication, automatic boot tests |
 | **VMware ESXi** and **vCenter** VMs | agentless through a proxy agent, changed block tracking | new VM or in place, instant recovery over NFS |

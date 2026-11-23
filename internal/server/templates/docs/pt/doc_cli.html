@@ -33,7 +33,9 @@
   <tr><th>Comando</th><th>O que faz</th></tr>
   <tr><td><code>disks [--json]</code></td><td>Mostra discos e partições com os seus números.</td></tr>
   <tr><td><code>image-backup --disk N [--partitions 1,2] [--no-vss]</code><br><code>image-backup --all-disks</code></td><td>Faz backup de um disco inteiro ou de partições escolhidas, ou de todos os discos internos num único snapshot.</td></tr>
-  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] SNAPSHOT|latest</code></td><td>Grava uma imagem num disco; <b>apaga o disco</b>. <code>--keep-offline</code> quando o disco original está na mesma máquina; <code>--source-disk</code> escolhe o disco de um backup de todos os discos.</td></tr>
+  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] [--partitions 1,3] [--verify] [--fit [--resize 3=200G] [--drop-others]] [--style gpt|mbr] SNAPSHOT|latest</code></td><td>Grava uma imagem num disco; <b>apaga o disco</b>. <code>--keep-offline</code> quando o disco original está na mesma máquina; <code>--source-disk</code> escolhe o disco de um backup de todos os discos. <code>--partitions</code> restaura só algumas partições; <code>--verify</code> verifica antes cada bloco do instantâneo; <code>--fit</code> ajusta as partições a um disco menor ou maior (o NTFS é reduzido, também movendo dados); <code>--style</code> converte a tabela de partições.</td></tr>
+  <tr><td><code>image-layout [--target-disk N | --target-size 256G] [--partitions 1,3] [--drop-others] [--resize 3=40G] [--json] SNAPSHOT|latest</code></td><td>Mostrar como as partições ficariam num disco de destino e o tamanho mínimo de cada uma.</td></tr>
+  <tr><td><code>partition-restore --partition N --target-disk N [--replace N | --offset 120G] [--size 40G] [--verify] --yes-overwrite SNAPSHOT|latest</code></td><td>Restaurar uma partição num disco cujas outras partições se mantêm: sobre uma partição existente ou em espaço livre.</td></tr>
   <tr><td><code>image-ls [--disk N] --partition N SNAPSHOT|latest [\path]</code></td><td>Lista os arquivos de uma partição NTFS numa imagem (<code>--disk</code>: o disco salvo, em backups de todos os discos).</td></tr>
   <tr><td><code>image-extract [--disk N] --partition N --target DIR SNAPSHOT|latest \path…</code></td><td>Copia arquivos e pastas de uma partição numa imagem.</td></tr>
 </table>
@@ -49,6 +51,15 @@
 <table>
   <tr><th>Comando</th><th>O que faz</th></tr>
   <tr><td><code>prepare-hardware --disk N [--drivers DIR]</code></td><td>Prepara um disco Windows restaurado para hardware diferente (drivers de arranque, drivers adicionais, arquivos de arranque), tal como a opção de restauração, p. ex. para repetir a partir da ISO de recuperação.</td></tr>
+</table>
+<h2>Ferramentas de recuperação do Windows (ISO de recuperação ou Windows em execução)</h2>
+<table>
+  <tr><th>Comando</th><th>O que faz</th></tr>
+  <tr><td><code>boot-repair [--list] [--disk N --partition N] [--boot-files UEFI|BIOS|ALL] [--boot-drivers] [--active] [--mbr] [--backup-dir DIR]</code></td><td>Voltar a tornar arrancável um Windows existente: ficheiros de arranque e BCD para o firmware desta máquina; o setor 0 e o BCD são guardados antes.</td></tr>
+  <tr><td><code>drivers missing</code><br><code>drivers load DIR</code><br><code>drivers add --disk N --partition N DIR</code></td><td>Dispositivos sem controlador; carregar controladores no ambiente de recuperação; adicionar controladores a um Windows instalado.</td></tr>
+  <tr><td><code>bitlocker list</code><br><code>bitlocker unlock --disk N --partition N</code></td><td>Volumes BitLocker bloqueados; desbloquear um com a sua chave de recuperação (em <code>BACKUPZIT_BITLOCKER_KEY</code>).</td></tr>
+  <tr><td><code>access-package create --repo LOCATION --out FILE.bzaccess [--name NAME]</code><br><code>access-package show [--test] FILE.bzaccess</code></td><td>Pacote de acesso: local e credenciais de repositórios, cifrados com uma frase-passe (<code>BACKUPZIT_ACCESS_PASSPHRASE</code>), para restaurações sem a consola.</td></tr>
+  <tr><td><code>ntfs-check --device \\.\PhysicalDriveN --offset BYTES</code></td><td>Verificar as estruturas NTFS de uma partição (diagnóstico).</td></tr>
 </table>
 
 <h2>VMware ESXi (qualquer agente como proxy; senha em <code>BACKUPZIT_VMWARE_PASSWORD</code>)</h2>
