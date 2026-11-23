@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
@@ -89,15 +90,47 @@ func (h *hotAdd) borrowed(d *types.VirtualDisk) (string, bool) {
 	return b.FileName, h.dir == "" || vmDir(b.FileName) != h.dir
 }
 
+// inUse counts, per disk file, the disks this agent's runs have attached and
+// not released yet. Backups running at the same time are goroutines of the
+// one agent process, so a disk counted here is being read right now and
+// is no leftover (M-12); after the agent restarts nothing is counted and
+// every borrowed disk is a leftover again.
+var inUse = struct {
+	sync.Mutex
+	files map[string]int
+}{files: map[string]int{}}
+
+func markInUse(file string, n int) {
+	inUse.Lock()
+	defer inUse.Unlock()
+	k := strings.ToLower(file)
+	if inUse.files[k] += n; inUse.files[k] <= 0 {
+		delete(inUse.files, k)
+	}
+}
+
+func isInUse(file string) bool {
+	inUse.Lock()
+	defer inUse.Unlock()
+	return inUse.files[strings.ToLower(file)] > 0
+}
+
 // cleanup detaches disks of other VMs that an interrupted backup (agent
 // stopped, VM reset) left attached to the proxy. Their files are kept.
+// Disks another backup of this agent is reading stay attached.
 func (h *hotAdd) cleanup(ctx context.Context) {
+	unlock, err := lockHotAdd()
+	if err != nil {
+		h.log("hot-add: leftovers not checked", "error", err)
+		return
+	}
+	defer unlock()
 	devs, err := h.proxy.Device(ctx)
 	if err != nil {
 		return
 	}
 	for _, d := range devs.SelectByType((*types.VirtualDisk)(nil)) {
-		if file, ok := h.borrowed(d.(*types.VirtualDisk)); ok {
+		if file, ok := h.borrowed(d.(*types.VirtualDisk)); ok && !isInUse(file) {
 			h.log("hot-add: detaching a disk left attached by an earlier backup", "disk", file)
 			if err := h.detachFile(ctx, file); err != nil {
 				h.log("hot-add: detaching failed", "disk", file, "error", err)
@@ -139,8 +172,12 @@ func (h *hotAdd) attach(ctx context.Context, file string, capacity uint64) (io.R
 	spec := types.VirtualMachineConfigSpec{DeviceChange: []types.BaseVirtualDeviceConfigSpec{
 		&types.VirtualDeviceConfigSpec{Operation: types.VirtualDeviceConfigSpecOperationAdd, Device: disk},
 	}}
+	// Counted before it is attached (under the lock, like cleanup), so
+	// another run's cleanup never sees it as a leftover.
+	markInUse(file, 1)
 	t, err := h.proxy.Reconfigure(ctx, spec)
 	if err := h.c.wait(ctx, t, err); err != nil {
+		markInUse(file, -1)
 		return nil, nil, fmt.Errorf("attach %s to the agent's VM %s: %w", file, h.name, err)
 	}
 	dev, err := waitForDisk(ctx, before, capacity)
@@ -148,27 +185,35 @@ func (h *hotAdd) attach(ctx context.Context, file string, capacity uint64) (io.R
 		if derr := h.detachFile(context.WithoutCancel(ctx), file); derr != nil {
 			err = fmt.Errorf("%w; detaching it again failed: %v", err, derr)
 		}
+		markInUse(file, -1)
 		return nil, nil, err
 	}
 	f, err := os.Open(dev) // #nosec G304 -- the block device of the disk just attached
 	if err != nil {
 		_ = h.detachFile(context.WithoutCancel(ctx), file)
+		markInUse(file, -1)
 		return nil, nil, err
 	}
+	var once sync.Once
 	release := func() {
-		_ = f.Close()
-		ctx := context.WithoutCancel(ctx)
-		unlock, err := lockHotAdd()
-		if err == nil {
-			defer unlock()
-		}
-		releaseDisk(dev, h.log)
-		// After a long read the session may have ended (#44): sign in again
-		// and retry once (detachFile lists the devices again, so a retry
-		// never detaches twice).
-		if err := h.c.again(ctx, func() error { return h.detachFile(ctx, file) }); err != nil {
-			h.log("hot-add: detaching failed; the next backup detaches it", "disk", file, "error", err)
-		}
+		once.Do(func() {
+			_ = f.Close()
+			ctx := context.WithoutCancel(ctx)
+			unlock, err := lockHotAdd()
+			if err == nil {
+				defer unlock()
+			}
+			// Not read any more: if detaching fails below, the disk is a
+			// leftover the next backup detaches.
+			defer markInUse(file, -1)
+			releaseDisk(dev, h.log)
+			// After a long read the session may have ended (#44): sign in again
+			// and retry once (detachFile lists the devices again, so a retry
+			// never detaches twice).
+			if err := h.c.again(ctx, func() error { return h.detachFile(ctx, file) }); err != nil {
+				h.log("hot-add: detaching failed; the next backup detaches it", "disk", file, "error", err)
+			}
+		})
 	}
 	h.log("hot-add: disk attached to the agent's VM", "disk", file, "device", dev)
 	return f, release, nil

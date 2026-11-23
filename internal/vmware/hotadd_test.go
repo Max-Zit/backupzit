@@ -121,10 +121,32 @@ func TestHotAddSimulator(t *testing.T) {
 		}
 	}
 
-	// An interrupted backup left a disk attached: the next one detaches it.
+	// M-12 (0.59): while one backup reads the disk, another backup of the
+	// same agent starting leaves it attached.
+	_, release2, err := h.attach(ctx, file, uint64(len(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.hotAddProxy(ctx, log); err != nil {
+		t.Fatal(err)
+	}
+	if b := borrowedDisks(t, ctx, h); len(b) != 1 || b[0] != file {
+		t.Fatalf("a disk another backup is reading was detached: %v", b)
+	}
+	release2()
+	release2() // a second call changes nothing
+	if b := borrowedDisks(t, ctx, h); len(b) != 0 || isInUse(file) {
+		t.Fatalf("after release: attached %v, in use %v", b, isInUse(file))
+	}
+
+	// An interrupted backup (agent stopped) left a disk attached: after the
+	// restart nothing is in use, and the next backup detaches it.
 	if _, _, err := h.attach(ctx, file, uint64(len(data))); err != nil {
 		t.Fatal(err)
 	}
+	inUse.Lock()
+	clear(inUse.files) // the agent restarted
+	inUse.Unlock()
 	h2, err := c.hotAddProxy(ctx, log)
 	if err != nil {
 		t.Fatal(err)
