@@ -30,6 +30,9 @@ type Result struct {
 	// tries while the storage holds them (a download cut short, timeouts):
 	// it may be the network path, so repair leaves them alone (#38).
 	Unreadable []repo.ID
+	// DamagedIndex lists the index files that could not be read: their
+	// packs were taken from the pack headers; repair writes a new index.
+	DamagedIndex []string `json:",omitempty"`
 }
 
 // OK reports whether no errors were found.
@@ -106,6 +109,7 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 	// the pack headers when the repository was opened; repair rewrites the
 	// index.
 	for _, n := range r.DamagedIndexFiles() {
+		res.DamagedIndex = append(res.DamagedIndex, n)
 		errf("index file %s is damaged; its packs were read from their own headers instead (repair writes a new index)", n)
 	}
 

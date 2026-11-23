@@ -128,6 +128,10 @@ func (s *Server) handleJobCheck(w http.ResponseWriter, r *http.Request, _ string
 // (0.55, R-1): 0.54.2 also took out packs that only arrived short.
 const minRepoRepairVersion = "0.55.0"
 
+// minIndexRepairVersion is the first agent that writes a new index for
+// damaged index files (0.59, #53).
+const minIndexRepairVersion = "0.59.0"
+
 // damagedPacks is the number of damaged packs a failed data check found
 // (0 for other runs).
 func damagedPacks(run Run) int {
@@ -139,6 +143,19 @@ func damagedPacks(run Run) int {
 		return 0
 	}
 	return len(st.Damaged)
+}
+
+// damagedIndexFiles is the number of index files a failed data check could
+// not read (agents 0.59 and newer report them).
+func damagedIndexFiles(run Run) int {
+	if run.Kind != api.KindRepoCheck || run.Status != api.StatusFailed || len(run.Stats) == 0 {
+		return 0
+	}
+	var st struct{ DamagedIndex []string }
+	if json.Unmarshal(run.Stats, &st) != nil {
+		return 0
+	}
+	return len(st.DamagedIndex)
 }
 
 // repairForgetFlag in the paths of a repo-repair run: also remove the
@@ -204,11 +221,16 @@ var errRepairHold = errors.New("Retention of a job on this storage is paused aft
 
 // checkRepoRepair tells whether run is a data check that can be repaired.
 func (s *Server) checkRepoRepair(ctx context.Context, run Run) error {
-	if damagedPacks(run) == 0 || run.JobID == nil || run.TargetID == nil {
-		return errors.New("only a data check that found damaged packs can be repaired")
+	index := damagedIndexFiles(run)
+	if (damagedPacks(run) == 0 && index == 0) || run.JobID == nil || run.TargetID == nil {
+		return errors.New("only a data check that found damaged packs or index files can be repaired")
 	}
-	if a, err := s.store.GetAgent(ctx, run.AgentID); err == nil && agentOlder(a, minRepoRepairVersion) {
-		return fmt.Errorf("the agent on %s (%s) cannot repair a repository yet; update it to %s or newer", a.Hostname, a.Version, minRepoRepairVersion)
+	need := minRepoRepairVersion
+	if index > 0 {
+		need = minIndexRepairVersion
+	}
+	if a, err := s.store.GetAgent(ctx, run.AgentID); err == nil && agentOlder(a, need) {
+		return fmt.Errorf("the agent on %s (%s) cannot repair this repository yet; update it to %s or newer", a.Hostname, a.Version, need)
 	}
 	return nil
 }

@@ -206,6 +206,41 @@ func TestRepoCheck(t *testing.T) {
 		t.Fatalf("check after repair with forget: %s %q %v", r.Status, r.Message, r.Errors)
 	}
 
+	// #53 (0.59): a damaged index file. The check names it and offers
+	// Repair, which writes a new index; the next check passes.
+	var idxFile string
+	filepath.WalkDir(store, func(p string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() && strings.Contains(filepath.ToSlash(p), "/index/") {
+			idxFile = p
+		}
+		return nil
+	})
+	if idxFile == "" {
+		t.Fatal("no index file found")
+	}
+	ib, _ := os.ReadFile(idxFile)
+	os.Chmod(idxFile, 0o644)
+	if err := os.WriteFile(idxFile, ib[:len(ib)/2], 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r = check()
+	if r.Status != "failed" || !strings.Contains(r.Message, "damaged: Repair writes a new index") {
+		t.Fatalf("check with a damaged index file: %s %q", r.Status, r.Message)
+	}
+	if _, _, body := admin.do("GET", fmt.Sprintf("/runs/%d", r.ID), nil); !strings.Contains(body, fmt.Sprintf(`action="/runs/%d/repair"`, r.ID)) || !strings.Contains(body, "Repair: write a new index") {
+		t.Error("the check with a damaged index file does not offer Repair")
+	}
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/runs/%d/repair", r.ID), nil); !strings.Contains(loc, "msg=") {
+		t.Fatalf("queue the index repair: %s", loc)
+	}
+	runAgent(t, ag)
+	if rl, _ := e.store.ListRuns(ctx, server.RunFilter{JobID: jobID, Limit: 1}); rl[0].Kind != "repo-repair" || !strings.Contains(rl[0].Message, "damaged index file") {
+		t.Fatalf("index repair: %s %s %q", rl[0].Kind, rl[0].Status, rl[0].Message)
+	}
+	if r = check(); r.Status != "success" {
+		t.Errorf("check after the index repair: %s %q %v", r.Status, r.Message, r.Errors)
+	}
+
 	// Scheduled: once per repository and interval.
 	sched := server.NewScheduler(e.store, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	sched.Tick(ctx, time.Now().Add(31*24*time.Hour))

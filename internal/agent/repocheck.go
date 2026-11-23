@@ -50,6 +50,9 @@ func (a *Agent) repoCheck(ctx context.Context, run api.Run) api.RunResult {
 			// Only unreadable from here: say so instead of "damaged" (#38).
 			out.Message = fmt.Sprintf("%s could not be read from this agent, although the storage holds them: check the network path (proxy, firewall, IPS, NAT) before anything else", count(u, "data pack", "data packs"))
 		}
+		if n := len(res.DamagedIndex); n > 0 {
+			out.Message += fmt.Sprintf(". %s damaged: Repair writes a new index", count(n, "index file", "index files"))
+		}
 		return out
 	}
 	out.Message = fmt.Sprintf("Checked %d backups and read all %d data packs (%d blocks): no errors", res.Snapshots, res.PacksRead, res.BlobsRead)

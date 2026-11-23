@@ -232,11 +232,12 @@
   {{end}}
 </div>
 {{end}}
-{{if and $.Data.Damaged ($.Me.Can "jobs")}}
+{{if and (or $.Data.Damaged $.Data.DamagedIndex) ($.Me.Can "jobs")}}
 <div class="panel">
   <h2>{{T "Repair"}}</h2>
-  <p>{{T "The check found %d damaged data packs. As long as they are in the index, new backups keep reusing their lost data. Repair takes them out of the index, so that the next backups store that data again, and lists the backups that need the lost data (they stay and restore what is left)." $.Data.Damaged}} <a href="/docs/troubleshooting#repair">{{T "More"}}</a></p>
-  <form method="post" action="/runs/{{$.Data.Run.ID}}/repair" data-confirm="{{T "Take the damaged data packs out of the index? The storage is checked again first."}}"><label class="check"><input type="checkbox" name="forget"> {{T "Also remove the backups that need the lost data"}} <small>{{T "They cannot be restored completely. As long as they exist, every data check reports the missing data again."}}</small></label> {{template "reauth" $.Me}} <button>{{T "Repair: take the damaged data out of the index"}}</button></form>
+  {{if $.Data.DamagedIndex}}<p>{{T "The check found %d damaged index files. Backups and restores go on, but retention and freeing space wait until Repair has written a new index. Repair reads the storage again under an exclusive lock, verifies the data packs the damaged files listed, also takes out data packs proven damaged, and lists the backups that need lost data." $.Data.DamagedIndex}} <a href="/docs/troubleshooting#damaged-index">{{T "More"}}</a></p>{{end}}
+  {{if $.Data.Damaged}}<p>{{T "The check found %d damaged data packs. As long as they are in the index, new backups keep reusing their lost data. Repair takes them out of the index, so that the next backups store that data again, and lists the backups that need the lost data (they stay and restore what is left)." $.Data.Damaged}} <a href="/docs/troubleshooting#repair">{{T "More"}}</a></p>{{end}}
+  <form method="post" action="/runs/{{$.Data.Run.ID}}/repair" data-confirm="{{if $.Data.DamagedIndex}}{{T "Write a new index for this repository? The storage is read again first."}}{{else}}{{T "Take the damaged data packs out of the index? The storage is checked again first."}}{{end}}"><label class="check"><input type="checkbox" name="forget"> {{T "Also remove the backups that need the lost data"}} <small>{{T "They cannot be restored completely. As long as they exist, every data check reports the missing data again."}}</small></label> {{template "reauth" $.Me}} <button>{{if $.Data.DamagedIndex}}{{T "Repair: write a new index"}}{{else}}{{T "Repair: take the damaged data out of the index"}}{{end}}</button></form>
 </div>
 {{end}}
 {{if .Errors}}

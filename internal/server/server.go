@@ -1358,7 +1358,7 @@ func (s *Server) restoreFormData(ctx context.Context, run Run) (map[string]any, 
 		}
 	}
 	return map[string]any{
-		"Run": run, "Agents": agents, "Inventory": inventories(agents), "VMwareHosts": hosts, "Damaged": damagedPacks(run),
+		"Run": run, "Agents": agents, "Inventory": inventories(agents), "VMwareHosts": hosts, "Damaged": damagedPacks(run), "DamagedIndex": damagedIndexFiles(run),
 		"VM": vm, "PVEAgents": pveAgents(agents), "VMAgents": hypervisorAgents(agents, vm.Platform()), "VMPlatform": vm.Platform(),
 		"System": sysDetails(run), "LinuxAgents": linuxAgents(agents), "SelectedVMID": 0,
 		"SQL": sqlDetails(run), "SQLPoints": s.store.sqlRestorePoints(ctx, run), "WindowsAgents": sqlRestoreAgents(agents, sqlDetails(run)),
