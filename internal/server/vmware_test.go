@@ -260,7 +260,23 @@ func TestConsoleUpdate(t *testing.T) {
 	if _, _, body := admin.do("GET", "/settings/updates", nil); !strings.Contains(body, "BackupZit 9.9.9 is available") || !strings.Contains(body, "Better everything.") {
 		t.Fatal("new version not shown")
 	}
-	if _, loc, _ := admin.do("POST", "/settings/updates/install", url.Values{}); !strings.Contains(loc, "msg=") {
+	// The source offers another version by now (the testing channel keeps
+	// only the newest candidate): the install asks it again and shows the
+	// new version instead of failing to download the old one.
+	m2 := m
+	m2.Version = "9.9.10"
+	raw2, _ := json.Marshal(m2)
+	os.WriteFile(filepath.Join(src, "manifest.json"), raw2, 0o644)
+	os.WriteFile(filepath.Join(src, "manifest.json.sig"), []byte(update.Sign(raw2, key)), 0o644)
+	if _, loc, _ := admin.do("POST", "/settings/updates/install", url.Values{"version": {"9.9.9"}}); !strings.Contains(loc, "msg=") || !strings.Contains(loc, "9.9.10+instead+of+9.9.9") {
+		t.Fatalf("install after the source changed: %s", loc)
+	}
+	if _, err := os.Stat(filepath.Join(data, "update", "request.json")); err == nil {
+		t.Fatal("a version whose notes were not shown was staged")
+	}
+	os.WriteFile(filepath.Join(src, "manifest.json"), raw, 0o644)
+	os.WriteFile(filepath.Join(src, "manifest.json.sig"), []byte(update.Sign(raw, key)), 0o644)
+	if _, loc, _ := admin.do("POST", "/settings/updates/install", url.Values{"version": {"9.9.9"}}); !strings.Contains(loc, "msg=") {
 		t.Fatalf("install: %s", loc)
 	}
 	var req update.Request

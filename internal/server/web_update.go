@@ -337,6 +337,16 @@ func (s *Server) handleUpdateInstall(w http.ResponseWriter, r *http.Request, use
 		redirectErr(w, r, back, errors.New("updates are not available in this mode"))
 		return
 	}
+	// Ask the source again first: it may offer another version by now (the
+	// testing channel keeps only the newest candidate, so the files of the
+	// version seen hours ago are gone and their download fails with 404).
+	src := update.Source{Base: s.updateSettings(r.Context()).Source}
+	if src.Base != "" {
+		if err := s.checkUpdates(r.Context()); err != nil {
+			redirectErr(w, r, back, err)
+			return
+		}
+	}
 	s.upd.mu.Lock()
 	m, raw, sig := s.upd.available, s.upd.raw, s.upd.sig
 	s.upd.mu.Unlock()
@@ -344,7 +354,11 @@ func (s *Server) handleUpdateInstall(w http.ResponseWriter, r *http.Request, use
 		redirectErr(w, r, back, errors.New("no newer version is known; check for updates first"))
 		return
 	}
-	src := update.Source{Base: s.updateSettings(r.Context()).Source}
+	// Never install another version than the one whose notes were shown.
+	if seen := r.FormValue("version"); seen != "" && seen != m.Version {
+		redirectMsg(w, r, back, "The update source now offers "+m.Version+" instead of "+seen+": read its notes below, then install it.")
+		return
+	}
 	fetch := func(f update.File, dst string) error { return src.Download(r.Context(), f, dst) }
 	if err := s.stageUpdate(r.Context(), m, raw, sig, fetch, user); err != nil {
 		redirectErr(w, r, back, err)
