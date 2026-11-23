@@ -82,11 +82,17 @@ func (a *Agent) repoRepair(ctx context.Context, run api.Run) api.RunResult {
 	rebuilt := ""
 	rep := &repo.RepairResult{}
 	if bad := r.DamagedIndexFiles(); len(bad) > 0 {
-		rb, err := r.RebuildIndex(ctx)
+		// With "remove affected backups" the backups that use data no pack
+		// holds any more count as affected too (only if the storage lists
+		// the same packs twice); without it the rebuild names them and stops.
+		rb, err := r.RebuildIndexWith(ctx, repo.RebuildOptions{AcceptLost: run.RepairForget})
 		if err != nil {
 			return failed(fmt.Errorf("rebuild index: %w", err))
 		}
 		rebuilt = fmt.Sprintf("Replaced %s by a new index for %d data packs (the damaged files are kept in index-damaged/). ", count(len(bad), "damaged index file", "damaged index files"), rb.Packs)
+		if rb.Missing > 0 {
+			rebuilt += fmt.Sprintf("%s that backups use %s in no pack at all: those backups count as affected. ", count(rb.Missing, "blob", "blobs"), map[bool]string{true: "was", false: "were"}[rb.Missing == 1])
+		}
 		rep = rb.Repair()
 	}
 	res, err := checker.Run(ctx, r, checker.Options{ReadData: true, Progress: func(done, total int) {

@@ -94,7 +94,8 @@ func TestDamagedIndexMovedAsideOnEveryBackend(t *testing.T) {
 			be3 := open()
 			defer be3.Close()
 			aside := "index-damaged/" + strings.Repeat("9f", 32)
-			if got, err := be3.Load(ctx, aside); err != nil || !bytes.Equal(got, garbage) {
+			// The copy is sealed with the repository's key (0.59).
+			if got, err := be3.Load(ctx, aside); err != nil || bytes.Contains(got, garbage) {
 				t.Fatalf("%s: %q %v", aside, got, err)
 			}
 			if names, err := be3.List(ctx, "index"); err != nil || slices.Contains(names, bad) || slices.Contains(names, aside) {
@@ -106,6 +107,9 @@ func TestDamagedIndexMovedAsideOnEveryBackend(t *testing.T) {
 			}
 			if got := r3.DamagedIndexFiles(); len(got) != 0 {
 				t.Fatalf("still damaged: %v", got)
+			}
+			if got, err := r3.DamagedIndexCopy(ctx, bad); err != nil || !bytes.Equal(got, garbage) {
+				t.Fatalf("copy of %s: %q %v", bad, got, err)
 			}
 			for _, id := range ids {
 				if _, err := r3.LoadBlob(ctx, repo.DataBlob, id); err != nil {

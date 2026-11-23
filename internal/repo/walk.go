@@ -73,6 +73,13 @@ feed:
 // share it: kept snapshots of a job share most of their trees and map
 // chunks. On an object store they are read several at a time.
 func (r *Repository) BlobsOf(ctx context.Context, sns []*Snapshot) (map[BlobHandle]bool, error) {
+	return r.blobsOf(ctx, sns, nil)
+}
+
+// blobsOf is BlobsOf that does not read the folder lists and block maps in
+// skip (blobs that are lost): they count as used, what they reference is
+// not known.
+func (r *Repository) blobsOf(ctx context.Context, sns []*Snapshot, skip map[BlobHandle]bool) (map[BlobHandle]bool, error) {
 	used := map[BlobHandle]bool{}
 	workers := 1
 	if r.Concurrency() > 1 {
@@ -101,6 +108,9 @@ func (r *Repository) BlobsOf(ctx context.Context, sns []*Snapshot) (map[BlobHand
 			continue
 		}
 		used[h] = true
+		if skip[h] {
+			continue
+		}
 		origin[sn.Tree] = sn
 		level = append(level, sn.Tree)
 	}
@@ -128,6 +138,9 @@ func (r *Repository) BlobsOf(ctx context.Context, sns []*Snapshot) (map[BlobHand
 					continue
 				}
 				used[h] = true
+				if skip[h] {
+					continue
+				}
 				origin[*n.Subtree] = origin[level[i]]
 				next = append(next, *n.Subtree)
 			}
@@ -184,9 +197,18 @@ func (r *Repository) BlobsOf(ctx context.Context, sns []*Snapshot) (map[BlobHand
 				if !p.Included {
 					continue
 				}
-				parts = append(parts, part{sn, p})
+				lostMap := false
+				for _, m := range p.Maps {
+					lostMap = lostMap || skip[BlobHandle{Type: MapBlob, ID: m}]
+				}
+				if !lostMap {
+					parts = append(parts, part{sn, p})
+				}
 				for _, m := range p.Maps {
 					used[BlobHandle{Type: MapBlob, ID: m}] = true
+					if skip[BlobHandle{Type: MapBlob, ID: m}] {
+						continue
+					}
 					if _, ok := mapIndex[m]; !ok {
 						mapIndex[m] = len(mapIDs)
 						mapIDs = append(mapIDs, m)

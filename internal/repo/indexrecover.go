@@ -15,6 +15,10 @@ import (
 // parsed (cut short, overwritten, wrong key). Reading it again does not help.
 var errIndexDamaged = errors.New("index file damaged")
 
+// errPackGone marks a pack that is not on the storage (any more): damaged for
+// the data check, but a rebuild that just listed it stops on it.
+var errPackGone = errors.New("missing on the storage")
+
 // DamagedIndexFiles returns the index files that could not be read when the
 // repository was opened or its index refreshed. Their packs were found from
 // the pack headers instead (see recoverIndex); RebuildIndex replaces them.
@@ -137,6 +141,20 @@ type RebuildResult struct {
 	Unchecked []*Snapshot
 	// Moved are the damaged index files, now under index-damaged/.
 	Moved []string
+	// Missing is the number of blobs that backups use and no pack holds;
+	// only with RebuildOptions.AcceptLost (their backups are in Snapshots).
+	Missing int
+}
+
+// RebuildOptions control RebuildIndex.
+type RebuildOptions struct {
+	// AcceptLost lets the rebuild go on when backups use blobs that are in
+	// no pack at all (the data is lost, or a pack the storage keeps hiding):
+	// those backups are then reported as affected (Snapshots), for the
+	// caller to remove them if the user asked so ("remove affected
+	// backups"). Only when two more listings of the packs agree: a storage
+	// that lists differently each time is no proof of anything.
+	AcceptLost bool
 }
 
 // Repair is the result in the form of DropDamagedPacks, for the callers that
@@ -173,6 +191,11 @@ const damagedIndexDir = "index-damaged"
 // blob whose chosen copy is in a damaged pack is still listed through the
 // other pack that holds it.
 func (r *Repository) RebuildIndex(ctx context.Context) (*RebuildResult, error) {
+	return r.RebuildIndexWith(ctx, RebuildOptions{})
+}
+
+// RebuildIndexWith is RebuildIndex with options.
+func (r *Repository) RebuildIndexWith(ctx context.Context, o RebuildOptions) (*RebuildResult, error) {
 	if err := r.Flush(ctx); err != nil {
 		return nil, err
 	}
@@ -212,6 +235,12 @@ func (r *Repository) RebuildIndex(ctx context.Context) (*RebuildResult, error) {
 			return err
 		})
 		switch {
+		case errors.Is(err, errPackGone):
+			// It was listed moments ago, under the exclusive lock: a pack
+			// that vanishes now is a storage that changes or a folder that
+			// went away, not damage (0.59 review: a data volume unmounted
+			// during the rebuild left every later pack out).
+			return nil, untouched(fmt.Errorf("pack %s was listed but is gone now: the storage changed during the repair or a folder went away", p.Short()))
 		case err == nil:
 			verified[p] = blobs
 		case errors.Is(err, ErrPackDamaged) && everyTryDamaged:
@@ -254,7 +283,7 @@ func (r *Repository) RebuildIndex(ctx context.Context) (*RebuildResult, error) {
 	}
 	res.Blobs = len(lost)
 
-	if err := r.checkUsedBlobs(ctx, res, lost, inNew); err != nil {
+	if err := r.checkUsedBlobs(ctx, res, lost, inNew, o.AcceptLost); err != nil {
 		return nil, untouched(err)
 	}
 	moved, err := r.rewriteIndex(ctx, keep)
@@ -267,51 +296,127 @@ func (r *Repository) RebuildIndex(ctx context.Context) (*RebuildResult, error) {
 }
 
 // checkUsedBlobs refuses the rebuild when a blob that a backup uses is
-// neither in the new index (inNew) nor in a pack proven damaged. The backups
-// that need blobs of the left packs (lost) are listed in res, as
-// DropDamagedPacks does, and are not walked further (their folder lists may
-// be among the lost blobs).
-func (r *Repository) checkUsedBlobs(ctx context.Context, res *RebuildResult, lost, inNew map[BlobHandle]bool) error {
+// neither in the new index (inNew) nor in a pack proven damaged (lost). The
+// backups that need blobs of the left packs are listed in res, as
+// DropDamagedPacks does. Their other blobs are checked too, with the lost
+// folder lists and block maps as dead ends: a backup that needs a damaged
+// pack may also need an intact one the listing hid, which the next prune
+// would delete (0.59 review).
+//
+// The backups that use blobs no pack has are named in the error. With
+// acceptLost (the user asked to remove affected backups) they are reported
+// as affected instead, when two more listings of the packs agree.
+func (r *Repository) checkUsedBlobs(ctx context.Context, res *RebuildResult, lost, inNew map[BlobHandle]bool, acceptLost bool) error {
 	sns, err := r.ListSnapshots(ctx)
 	if err != nil {
 		return fmt.Errorf("read the backups to check that the new index lists everything they use: %w", err)
 	}
-	rest := sns
+	affected := map[ID]bool{}
 	if len(lost) > 0 {
-		rest = nil
 		trees := map[ID]bool{}
 		for _, sn := range sns {
-			affected, err := r.needsLost(ctx, sn, lost, trees)
+			hit, err := r.needsLost(ctx, sn, lost, trees)
 			switch {
 			case err != nil:
 				res.Unchecked = append(res.Unchecked, sn)
-				rest = append(rest, sn)
-			case affected:
+			case hit:
 				res.Snapshots = append(res.Snapshots, sn)
-			default:
-				rest = append(rest, sn)
+				affected[sn.ID] = true
 			}
 		}
 	}
-	// The blobs every backup uses, as prune collects them.
-	used, err := r.BlobsOf(ctx, rest)
+	// The blobs every backup uses, as prune collects them, not reading
+	// what is lost.
+	used, err := r.blobsOf(ctx, sns, lost)
 	if err != nil {
 		return fmt.Errorf("read the backups to check that the new index lists everything they use: %w", err)
 	}
-	missing := 0
-	var first BlobHandle
+	missing := map[BlobHandle]bool{}
 	for h := range used {
-		if inNew[h] || lost[h] {
-			continue
-		}
-		if missing++; missing == 1 {
-			first = h
+		if !inNew[h] && !lost[h] {
+			missing[h] = true
 		}
 	}
-	if missing > 0 {
-		return fmt.Errorf("%d blobs that backups use (first: %s %s) are in no pack of the new index and in no pack proven damaged: a data folder may be missing or listed incompletely, or the data is already lost", missing, first.Type, first.ID.Short())
+	if len(missing) == 0 {
+		return nil
 	}
-	return nil
+	// Which backups use them.
+	var users []*Snapshot
+	trees := map[ID]bool{}
+	for _, sn := range sns {
+		if hit, err := r.needsLost(ctx, sn, missing, trees); err == nil && hit {
+			users = append(users, sn)
+		}
+	}
+	if acceptLost {
+		stable, err := r.packListingStable(ctx)
+		if err != nil {
+			return err
+		}
+		if stable {
+			for _, sn := range users {
+				if !affected[sn.ID] {
+					res.Snapshots = append(res.Snapshots, sn)
+					affected[sn.ID] = true
+				}
+			}
+			res.Missing = len(missing)
+			return nil
+		}
+	}
+	var names []string
+	for i, sn := range users {
+		if i == 5 {
+			names = append(names, fmt.Sprintf("and %d more", len(users)-5))
+			break
+		}
+		names = append(names, fmt.Sprintf("%s of %s", sn.ID.Short(), sn.Time.Local().Format("2006-01-02 15:04")))
+	}
+	what := "backups"
+	if len(names) > 0 {
+		what = "backups " + strings.Join(names, ", ")
+	}
+	hint := "check that every data folder of the storage is there (mounted, complete) and repair again; if the data is really lost, repair with \"remove affected backups\" to remove these backups, which cannot be restored completely"
+	if acceptLost {
+		hint = "the storage lists its packs differently each time, so the backups were not removed; check the storage and repair again"
+	}
+	return fmt.Errorf("%d blobs that %s use are in no pack of the new index and in no pack proven damaged: %s", len(missing), what, hint)
+}
+
+// packListingStable lists the packs twice more and reports whether both
+// listings name the same packs, all known to the index in memory.
+func (r *Repository) packListingStable(ctx context.Context) (bool, error) {
+	var sets [2]map[ID]bool
+	for i := range sets {
+		packs, err := r.ListPacks(ctx)
+		if err != nil {
+			return false, fmt.Errorf("list packs: %w", err)
+		}
+		sets[i] = map[ID]bool{}
+		for _, p := range packs {
+			sets[i][p] = true
+		}
+	}
+	if len(sets[0]) != len(sets[1]) || len(sets[0]) == 0 {
+		return false, nil
+	}
+	for p := range sets[0] {
+		if !sets[1][p] {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// DamagedIndexCopy returns what the damaged index file name (index/...)
+// held, from its copy under index-damaged/, which is sealed with the
+// repository's key: for a look at it when support asks.
+func (r *Repository) DamagedIndexCopy(ctx context.Context, name string) ([]byte, error) {
+	b, err := r.be.Load(ctx, damagedIndexDir+"/"+strings.TrimPrefix(name, "index/"))
+	if err != nil {
+		return nil, err
+	}
+	return r.open(b)
 }
 
 // copyAside copies a damaged index file to index-damaged/. The caller
@@ -333,8 +438,12 @@ func (r *Repository) copyAside(ctx context.Context, name string) (bool, error) {
 	if size != int64(len(data)) {
 		return false, fmt.Errorf("%s: only %d of its %d bytes arrived; it was not moved aside", name, len(data), size)
 	}
-	to := damagedIndexDir + "/" + name[strings.LastIndex(name, "/")+1:]
-	if err := r.be.Save(ctx, to, data); err != nil {
+	// The copy keeps the folders below index/ (names stay apart) and is
+	// sealed with the repository's key: whatever the storage handed over as
+	// this file (a planted link to a file of the host, say) is not written
+	// back readable (0.59 review).
+	to := damagedIndexDir + "/" + strings.TrimPrefix(name, "index/")
+	if err := r.be.Save(ctx, to, r.seal(data)); err != nil {
 		return false, fmt.Errorf("copy %s to %s: %w", name, to, err)
 	}
 	return true, nil

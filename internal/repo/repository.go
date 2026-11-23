@@ -306,14 +306,14 @@ func (r *Repository) loadIndex(ctx context.Context, progress func(done, total in
 			defer wg.Done()
 			for n := range jobs {
 				if err := r.loadIndexFile(ctx, n); err != nil {
-					if errors.Is(err, errIndexDamaged) {
-						mu.Lock()
-						damaged = append(damaged, n)
-						mu.Unlock()
+					if !errors.Is(err, errIndexDamaged) {
+						fail(err)
 						continue
 					}
-					fail(err)
-					continue
+					mu.Lock()
+					damaged = append(damaged, n)
+					mu.Unlock()
+					// counted below like the others, so the progress reaches the total
 				}
 				if progress != nil {
 					mu.Lock()
@@ -348,19 +348,42 @@ func (r *Repository) loadIndexFile(ctx context.Context, n string) error {
 	if err != nil {
 		return fmt.Errorf("load %s: %w", n, err)
 	}
-	b, err := r.open(sealed)
+	f, err := r.parseIndexFile(n, sealed)
 	if err != nil {
-		return r.indexFileBad(ctx, n, sealed, fmt.Errorf("%s: %w: %w", n, errIndexDamaged, err))
-	}
-	f, err := decodeIndexFile(b)
-	if err != nil {
-		return r.indexFileBad(ctx, n, sealed, fmt.Errorf("parse %s: %w: %w", n, errIndexDamaged, err))
+		// Index files are named by the hash of their content. One that does
+		// not match its name may only have been corrupted on its way here
+		// (plain HTTP): read once more before it counts as damaged, which
+		// makes a backup store its packs' data again and skip retention
+		// (0.59 review).
+		if base := n[strings.LastIndex(n, "/")+1:]; Hash(sealed).String() != base {
+			if again, lerr := r.be.Load(ctx, n); lerr == nil && Hash(again).String() == base {
+				sealed = again
+				f, err = r.parseIndexFile(n, sealed)
+			}
+		}
+		if err != nil {
+			return r.indexFileBad(ctx, n, sealed, err)
+		}
 	}
 	for _, p := range f.Packs {
 		r.idx.addPack(p.ID, p.Blobs)
 	}
 	r.noteIndexFile(n)
 	return nil
+}
+
+// parseIndexFile opens and decodes the index file n; an error wraps
+// errIndexDamaged.
+func (r *Repository) parseIndexFile(n string, sealed []byte) (indexFile, error) {
+	b, err := r.open(sealed)
+	if err != nil {
+		return indexFile{}, fmt.Errorf("%s: %w: %w", n, errIndexDamaged, err)
+	}
+	f, err := decodeIndexFile(b)
+	if err != nil {
+		return indexFile{}, fmt.Errorf("parse %s: %w: %w", n, errIndexDamaged, err)
+	}
+	return f, nil
 }
 
 // indexFileBad decides whether an index file that cannot be opened or
@@ -655,7 +678,7 @@ func (r *Repository) VerifyPack(ctx context.Context, pack ID) (int, error) {
 func (r *Repository) verifyPack(ctx context.Context, pack ID) ([]PackedBlob, error) {
 	data, err := r.be.Load(ctx, packName(pack))
 	if errors.Is(err, backend.ErrNotFound) {
-		return nil, fmt.Errorf("pack %s: missing on the storage: %w", pack.Short(), ErrPackDamaged)
+		return nil, fmt.Errorf("pack %s: %w: %w", pack.Short(), errPackGone, ErrPackDamaged)
 	}
 	if err != nil {
 		return nil, err // a read problem (network, timeout), no verdict on the pack
