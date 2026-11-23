@@ -20,14 +20,14 @@ require (
 	github.com/go-pdf/fpdf v0.9.0
 	github.com/jackc/pgx/v5 v5.13.0
 	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
-	github.com/johannesboyne/gofakes3 v1.2.0
+	github.com/johannesboyne/gofakes3 v1.3.0
 	github.com/kardianos/service v1.3.0
-	github.com/klauspost/compress v1.20.4
+	github.com/klauspost/compress v1.20.5
 	github.com/letsencrypt/pebble/v2 v2.10.3
 	github.com/masahiro331/go-ext4-filesystem v0.0.0-20260423010602-fe51f5b5e52b
-	github.com/masahiro331/go-xfs-filesystem v0.0.0-20260422061116-d21e5e4481bb
-	github.com/masterzen/winrm v0.0.0-20261004123143-57b335310d59
-	github.com/microsoft/go-mssqldb v1.11.2
+	github.com/masahiro331/go-xfs-filesystem v0.0.0-20261121071311-4626f2d5e0aa
+	github.com/masterzen/winrm v0.0.0-20261114181639-d693523ae428
+	github.com/microsoft/go-mssqldb v1.12.0
 	github.com/minio/minio-go/v7 v7.4.1
 	github.com/pkg/sftp v1.13.12
 	github.com/restic/chunker v0.5.0
@@ -46,7 +46,7 @@ require (
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.13.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/storage/internal v0.1.0 // indirect
-	github.com/Azure/go-ntlmssp v0.1.2-0.20260824092057-1c8077778c2c // indirect
+	github.com/Azure/go-ntlmssp v0.1.2-0.20261111092545-5846b35b583b // indirect
 	github.com/ChrisTrenkamp/goxpath v0.0.0-20210404020558-97928f7e12b6 // indirect
 	github.com/Velocidex/json v0.0.0-20220224052537-92f3c0326e5a // indirect
 	github.com/Velocidex/ordereddict v0.0.0-20230909174157-2aa49cc5d11d // indirect

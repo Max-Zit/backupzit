@@ -312,7 +312,7 @@ MIT License
     SOFTWARE
 
 ==============================================================================
-github.com/Azure/go-ntlmssp v0.1.2-0.20260824092057-1c8077778c2c — MIT License
+github.com/Azure/go-ntlmssp v0.1.2-0.20261111092545-5846b35b583b — MIT License
 ==============================================================================
 
 The MIT License (MIT)
@@ -4885,7 +4885,7 @@ freely, subject to the following restrictions:
    distribution.
 
 ==============================================================================
-github.com/klauspost/compress v1.20.4 — Apache License 2.0
+github.com/klauspost/compress v1.20.5 — Apache License 2.0
 ==============================================================================
 
 Copyright (c) 2012 The Go Authors. All rights reserved.
@@ -5626,7 +5626,7 @@ Changes by BackupZit (2026-11-19):
 Drop this copy once upstream has the fix.
 
 ==============================================================================
-github.com/masahiro331/go-xfs-filesystem v0.0.0-20260422061116-d21e5e4481bb — Apache License 2.0
+github.com/masahiro331/go-xfs-filesystem v0.0.0-20261121071311-4626f2d5e0aa — Apache License 2.0
 ==============================================================================
 
 Apache License
@@ -6038,7 +6038,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 ==============================================================================
-github.com/masterzen/winrm v0.0.0-20261004123143-57b335310d59 — Apache License 2.0
+github.com/masterzen/winrm v0.0.0-20261114181639-d693523ae428 — Apache License 2.0
 ==============================================================================
 
 Apache License
@@ -6244,7 +6244,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 ==============================================================================
-github.com/microsoft/go-mssqldb v1.11.2 — BSD License
+github.com/microsoft/go-mssqldb v1.12.0 — BSD License
 ==============================================================================
 
 Copyright (c) 2012 The Go Authors. All rights reserved.
@@ -8703,7 +8703,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ==============================================================================
-github.com/klauspost/compress v1.20.4, internal/snapref — BSD License
+github.com/klauspost/compress v1.20.5, internal/snapref — BSD License
 ==============================================================================
 
 Copyright (c) 2011 The Snappy-Go Authors. All rights reserved.
@@ -8735,7 +8735,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ==============================================================================
-github.com/klauspost/compress v1.20.4, s2 — BSD License
+github.com/klauspost/compress v1.20.5, s2 — BSD License
 ==============================================================================
 
 Copyright (c) 2011 The Snappy-Go Authors. All rights reserved.
@@ -8768,7 +8768,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ==============================================================================
-github.com/klauspost/compress v1.20.4, zstd/internal/xxhash — MIT License
+github.com/klauspost/compress v1.20.5, zstd/internal/xxhash — MIT License
 ==============================================================================
 
 Copyright (c) 2016 Caleb Spare
@@ -8795,7 +8795,7 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ==============================================================================
-github.com/microsoft/go-mssqldb v1.11.2, internal/github.com/swisscom/mssql-always-encrypted — MIT License
+github.com/microsoft/go-mssqldb v1.12.0, internal/github.com/swisscom/mssql-always-encrypted — MIT License
 ==============================================================================
 
 Copyright (c) 2021 Swisscom (Switzerland) Ltd
@@ -8818,7 +8818,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ==============================================================================
-github.com/microsoft/go-mssqldb v1.11.2, internal/gopkg.in/natefinch/npipe.v2 — MIT License
+github.com/microsoft/go-mssqldb v1.12.0, internal/gopkg.in/natefinch/npipe.v2 — MIT License
 ==============================================================================
 
 The MIT License (MIT)
