@@ -201,7 +201,12 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <pre>systemctl stop backupzit-server
 set -a; . /etc/backupzit/server.env; set +a
 export BACKUPZIT_PASSWORD='&lt;recovery key&gt;'
-export BACKUPZIT_SFTP_PASSWORD='…' BACKUPZIT_SFTP_HOSTKEY='SHA256:…'   # or BACKUPZIT_S3_ACCESS_KEY/_SECRET_KEY, _SMB_PASSWORD, _AZURE_KEY, _HARDENED_KEY/_FINGERPRINT
+# credentials of the storage target, only the line of its type:
+export BACKUPZIT_SMB_PASSWORD='…'                                      # SMB (+ BACKUPZIT_SMB_DOMAIN='…' for a domain account)
+export BACKUPZIT_SFTP_PASSWORD='…' BACKUPZIT_SFTP_HOSTKEY='SHA256:…'   # SFTP
+export BACKUPZIT_S3_ACCESS_KEY='…' BACKUPZIT_S3_SECRET_KEY='…'         # S3
+export BACKUPZIT_AZURE_KEY='…'                                         # Azure (or BACKUPZIT_AZURE_SAS='…')
+export BACKUPZIT_HARDENED_KEY='…' BACKUPZIT_HARDENED_FINGERPRINT='…'   # hardened repository
 backupzit-server --restore-console --repo 'sftp://backup@nas:22/backups/backupzit-console'
 systemctl start backupzit-server</pre></li>
   <li>Nadaj nowemu serwerowi adres IP lub nazwę DNS starego. Agenci ufają przywróconemu certyfikatowi i sami ponownie się łączą.</li>
