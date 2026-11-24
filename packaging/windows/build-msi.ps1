@@ -79,12 +79,20 @@ try {
     & $go build -trimpath -ldflags "-s -w -H windowsgui -X main.version=$Version$suffix" -o $tray ./cmd/backupzit-tray
     } finally { Remove-Item ([IO.Path]::Combine($trayDir, 'rsrc_windows_amd64.syso')) -ErrorAction SilentlyContinue }
     if ($LASTEXITCODE -ne 0) { throw "go build (tray) failed" }
-    Invoke-Sign $exe, $tray
+
+    # Graphical recovery program for the Windows recovery ISO
+    # (packaging\winpe\build-winpe.ps1 takes it from next to the agent). It
+    # uses the manifest file installed next to it (common controls 6), as
+    # tested in Windows PE.
+    $recovery = Join-Path $work "backupzit-recovery.exe"
+    & $go build -trimpath -ldflags "-s -w -H windowsgui -X main.version=$Version$suffix" -o $recovery ./cmd/backupzit-recovery
+    if ($LASTEXITCODE -ne 0) { throw "go build (recovery) failed" }
+    Invoke-Sign $exe, $tray, $recovery
 
     $wix = Join-Path $env:USERPROFILE ".dotnet\tools\wix.exe"
     if (-not (Test-Path $wix)) { $wix = "wix" }
     $msi = Join-Path $dist "backupzit-agent-$Version-x64$suffix.msi"
-    & $wix build -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext -arch x64 -d "Version=$msiVersion" -d "AgentExe=$exe" -d "TrayExe=$tray" -d "IconFile=$icon" -d "ArtDir=$PSScriptRoot" -d "RootDir=$(Resolve-Path (Join-Path $PSScriptRoot '..\..'))" -o $msi (Join-Path $PSScriptRoot "agent.wxs")
+    & $wix build -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext -arch x64 -d "Version=$msiVersion" -d "AgentExe=$exe" -d "TrayExe=$tray" -d "RecoveryExe=$recovery" -d "IconFile=$icon" -d "ArtDir=$PSScriptRoot" -d "RootDir=$(Resolve-Path (Join-Path $PSScriptRoot '..\..'))" -o $msi (Join-Path $PSScriptRoot "agent.wxs")
     if ($LASTEXITCODE -ne 0) { throw "wix build failed" }
     Invoke-Sign $msi
     Remove-Item (Join-Path $dist "*.wixpdb") -ErrorAction SilentlyContinue

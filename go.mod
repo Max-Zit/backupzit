@@ -24,6 +24,8 @@ require (
 	github.com/kardianos/service v1.3.0
 	github.com/klauspost/compress v1.20.5
 	github.com/letsencrypt/pebble/v2 v2.10.3
+	github.com/lxn/walk v0.0.0-20210112085537-c389da54e794
+	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
 	github.com/masahiro331/go-ext4-filesystem v0.0.0-20261121070946-2c847b6f8831
 	github.com/masahiro331/go-xfs-filesystem v0.0.0-20261121071311-4626f2d5e0aa
 	github.com/masterzen/winrm v0.0.0-20261114181639-d693523ae428
@@ -109,6 +111,7 @@ require (
 	golang.org/x/text v0.44.0 // indirect
 	golang.org/x/tools v0.52.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
+	gopkg.in/Knetic/govaluate.v3 v3.0.0 // indirect
 	gopkg.in/ini.v1 v1.67.3 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
