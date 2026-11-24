@@ -217,15 +217,18 @@ enroll() {
     fi
 }
 
-# start_service installs the LaunchDaemon on the first installation (also
-# before enrollment: the service waits for a code, like the MSI's); an
-# upgrade keeps it (preinstall stopped it) and starts the new program.
+# start_service writes the LaunchDaemon and starts the agent. On the first
+# installation this happens before enrollment, too: the service waits for a
+# code, like the MSI's. An upgrade writes the definition again, so settings a
+# newer agent needs (MaterializeDatalessFiles since 0.60) reach installed
+# Macs; preinstall unloaded the job, so the start reads the new file.
 start_service() {
-    if ! "$AGENT" service status >/dev/null 2>&1; then
-        if ! "$AGENT" service install; then
+    if ! "$AGENT" service install; then
+        if ! "$AGENT" service status >/dev/null 2>&1; then
             log "the agent service could not be installed; run in Terminal: sudo $AGENT service install"
             return 0
         fi
+        log "the agent service definition could not be updated; the previous one stays"
     fi
     "$AGENT" service start || log "the agent service did not start (log: $LOG_FILE)"
 }

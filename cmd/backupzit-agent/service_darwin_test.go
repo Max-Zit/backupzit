@@ -23,6 +23,7 @@ func TestAgentLaunchDaemon(t *testing.T) {
 		"<key>KeepAlive</key>\n\t<true/>",
 		"<key>UserName</key>\n\t<string>root</string>",
 		"<key>ThrottleInterval</key>\n\t<integer>30</integer>",
+		"<key>MaterializeDatalessFiles</key>\n\t<false/>",
 		"<key>StandardErrorPath</key>\n\t<string>/Library/Logs/BackupZit/launchd.log</string>",
 		"\t\t<string>/Library/BackupZit/bin/backupzit-agent</string>\n\t\t<string>service</string>\n\t\t<string>run</string>\n\t\t<string>--config</string>\n\t\t<string>/Library/Application Support/BackupZit/other.json</string>\n",
 	} {

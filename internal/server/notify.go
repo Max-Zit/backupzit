@@ -21,6 +21,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // EmailSettings configure notifications. Stored under settings key "email".
@@ -392,6 +393,19 @@ func (n *Notifier) runMessage(l *language, r Run) (string, string) {
 				break
 			}
 			fmt.Fprintf(&b, "  %s\n", e)
+		}
+	}
+	if r.Kind == api.KindBackup && len(r.Stats) > 0 {
+		var st repo.SnapshotStats
+		if json.Unmarshal(r.Stats, &st) == nil && st.CloudOnlyFiles > 0 {
+			b.WriteString("\n" + l.T("Only in the cloud, not backed up — files: %d (%s)", st.CloudOnlyFiles, humanBytes(st.CloudOnlyBytes)) + "\n")
+			for i, f := range st.CloudOnly {
+				if i == 20 {
+					b.WriteString("  " + l.T("... and %d more", len(st.CloudOnly)-20) + "\n")
+					break
+				}
+				fmt.Fprintf(&b, "  %s: %s\n", f.Path, l.T("%d files, %s", f.Files, humanBytes(f.Bytes)))
+			}
 		}
 	}
 	if u := n.publicURL(); u != "" {

@@ -100,6 +100,35 @@ type SnapshotStats struct {
 	// Failed names the guests of a VM backup that could not be backed up in
 	// this run: they have no restore point in it.
 	Failed []string `json:"failed,omitempty"`
+	// CloudOnlyFiles and CloudOnlyBytes count the files whose content is
+	// only in the cloud (iCloud Drive with Optimize Mac Storage, OneDrive
+	// Files On-Demand) and was not in the previous backup: they were not
+	// opened and are not in this snapshot. CloudOnly sums them up per
+	// folder, at most MaxCloudOnlyFolders of them.
+	CloudOnlyFiles uint64            `json:"cloud_only_files,omitempty"`
+	CloudOnlyBytes uint64            `json:"cloud_only_bytes,omitempty"`
+	CloudOnly      []CloudOnlyFolder `json:"cloud_only,omitempty"`
+}
+
+// MaxCloudOnlyFolders bounds SnapshotStats.CloudOnly; files of further
+// folders are counted in the totals only.
+const MaxCloudOnlyFolders = 50
+
+// CloudOnlyUnlisted is the number of cloud-only files in folders beyond
+// those CloudOnly lists.
+func (s SnapshotStats) CloudOnlyUnlisted() uint64 {
+	n := s.CloudOnlyFiles
+	for _, f := range s.CloudOnly {
+		n -= min(n, f.Files)
+	}
+	return n
+}
+
+// CloudOnlyFolder is one folder of SnapshotStats.CloudOnly.
+type CloudOnlyFolder struct {
+	Path  string `json:"path"`
+	Files uint64 `json:"files"`
+	Bytes uint64 `json:"bytes"`
 }
 
 // UnixMeta is the Unix specific metadata of a node.

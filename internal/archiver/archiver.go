@@ -462,6 +462,9 @@ func (a *Archiver) archivePath(ctx context.Context, p, name string, parent *repo
 	case fi.Mode().IsRegular():
 		n.Type = repo.NodeFile
 		if err := a.archiveFile(ctx, p, fi, &n, parent); err != nil {
+			if errors.Is(err, errCloudOnly) {
+				return n, false, nil
+			}
 			if ctx.Err() != nil {
 				return n, false, ctx.Err()
 			}
@@ -585,6 +588,11 @@ func (a *Archiver) archiveFile(ctx context.Context, p string, fi fs.FileInfo, n 
 		a.stats.FilesSkipped++
 		return nil
 	}
+	// Content only in the cloud and not in the previous backup: never
+	// opened (cloud.go).
+	if inCloud(fi, n) {
+		return a.skipCloudOnly(p, size, false, false)
+	}
 	if parent != nil {
 		a.stats.FilesChanged++
 	} else {
@@ -593,6 +601,9 @@ func (a *Archiver) archiveFile(ctx context.Context, p string, fi fs.FileInfo, n 
 
 	f, err := os.Open(a.src(p))
 	if err != nil {
+		if inCloudLive(p) {
+			return a.skipCloudOnly(p, size, true, parent != nil)
+		}
 		return err
 	}
 	defer f.Close()
@@ -604,6 +615,9 @@ func (a *Archiver) archiveFile(ctx context.Context, p string, fi fs.FileInfo, n 
 			break
 		}
 		if err != nil {
+			if inCloudLive(p) {
+				return a.skipCloudOnly(p, size, true, parent != nil)
+			}
 			return err
 		}
 		read += uint64(c.Length)

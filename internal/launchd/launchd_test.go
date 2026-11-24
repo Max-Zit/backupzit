@@ -46,7 +46,7 @@ func TestPlistContent(t *testing.T) {
 			t.Errorf("plist lacks %q:\n%s", want, s)
 		}
 	}
-	for _, absent := range []string{"LaunchOnlyOnce", "AbandonProcessGroup", "WorkingDirectory"} {
+	for _, absent := range []string{"LaunchOnlyOnce", "AbandonProcessGroup", "WorkingDirectory", "MaterializeDatalessFiles"} {
 		if strings.Contains(s, absent) {
 			t.Errorf("plist has unset key %s", absent)
 		}

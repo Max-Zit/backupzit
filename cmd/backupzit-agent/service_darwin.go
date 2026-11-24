@@ -53,21 +53,26 @@ const startWait = 15 * time.Second
 // running, restarted 30 s after it ends (Restart=always, RestartSec=30
 // with systemd), 90 s to stop (systemd's default) so a run can finish
 // writing, and a lower CPU priority (Nice=10 on Linux). The agent writes
-// its own log; launchd's stdout/stderr file only gets crash traces.
+// its own log; launchd's stdout/stderr file only gets crash traces. It
+// never makes iCloud download a file: a dataless file is left out of the
+// backup (the archiver does not open it), and a read that reaches one
+// anyway fails at once instead of waiting for the owner's iCloud.
 func agentJob(exe string, args []string) launchd.Job {
+	noMaterialize := false
 	return launchd.Job{
-		Label:             agent.LaunchdLabel,
-		ProgramArguments:  append([]string{exe}, args...),
-		UserName:          "root",
-		GroupName:         "wheel",
-		RunAtLoad:         true,
-		KeepAlive:         true,
-		ThrottleInterval:  30,
-		ExitTimeOut:       agentExitTimeOut,
-		Nice:              10,
-		WorkingDirectory:  "/",
-		StandardOutPath:   agent.LaunchdLogPath,
-		StandardErrorPath: agent.LaunchdLogPath,
+		Label:                    agent.LaunchdLabel,
+		ProgramArguments:         append([]string{exe}, args...),
+		UserName:                 "root",
+		GroupName:                "wheel",
+		RunAtLoad:                true,
+		KeepAlive:                true,
+		ThrottleInterval:         30,
+		ExitTimeOut:              agentExitTimeOut,
+		Nice:                     10,
+		WorkingDirectory:         "/",
+		StandardOutPath:          agent.LaunchdLogPath,
+		StandardErrorPath:        agent.LaunchdLogPath,
+		MaterializeDatalessFiles: &noMaterialize,
 	}
 }
 

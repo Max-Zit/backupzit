@@ -176,6 +176,17 @@
     <div class="stat"><b>{{bytes .BytesStored}}</b><span>{{T "uploaded (new data)"}}</span></div>
   </div>
   {{template "savings" .}}
+  {{if .CloudOnlyFiles}}
+  <div class="panel" id="cloud-only">
+    <h2>{{T "Only in the cloud, not backed up — files: %d (%s)" .CloudOnlyFiles (bytes .CloudOnlyBytes)}}</h2>
+    <p>{{T "These files are in iCloud Drive or OneDrive but not downloaded on the computer: their content is not on its disk, so it is not in this backup. Files that were in the previous backup and have not changed keep their content from there. Download them on the computer (Mac: Finder, Download Now; Windows: Explorer, Always keep on this device) and the next backup reads them."}} <a href="/docs/troubleshooting#cloud-only">{{T "More"}}</a></p>
+    <div class="table-wrap"><table>
+      <tr><th>{{T "Folder"}}</th><th>{{T "Files"}}</th><th>{{T "Size"}}</th></tr>
+      {{range .CloudOnly}}<tr><td class="mono">{{.Path}}</td><td>{{.Files}}</td><td>{{bytes .Bytes}}</td></tr>{{end}}
+    </table></div>
+    {{with .CloudOnlyUnlisted}}<p class="muted small">{{T "In further folders — files: %d" .}}</p>{{end}}
+  </div>
+  {{end}}
   {{end}}
 {{end}}
 {{with .Data.TestStats}}

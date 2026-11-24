@@ -721,6 +721,12 @@ func (a *Agent) backupPaths(ctx context.Context, run api.Run, paths []string, us
 	if len(sn.VSSVolumes) > 0 {
 		res.Message = snapshotMessage(sn.VSSVolumes)
 	}
+	if sn.Stats.CloudOnlyFiles > 0 {
+		// Their content is missing from the backup: a warning, but
+		// apart from the read errors, with what to do.
+		res.Status = api.StatusWarning
+		res.Message = strings.TrimSpace(cloudOnlyMessage(runtime.GOOS, sn.Stats) + " " + res.Message)
+	}
 	if len(sn.Stats.Errors) > 0 {
 		res.Status = api.StatusWarning
 		res.Message = strings.TrimSpace(fmt.Sprintf("%d files or folders could not be read. %s", len(sn.Stats.Errors), res.Message))

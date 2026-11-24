@@ -82,6 +82,7 @@
 
 <h2>A backup ends with "warning"</h2>
 <p>Some files could not be read — usually files locked by an application while VSS is not available, or files the agent has no permission for. The list is on the run page. Everything else is backed up. On a Mac, a missing Full Disk Access also gives a warning (<a href="/docs/macos#warnings">macOS agents</a>).</p>
+<p id="cloud-only"><b>Files only in the cloud.</b> iCloud Drive on a Mac (<i>Optimize Mac Storage</i>) and OneDrive on Windows (<i>Files On-Demand</i>, files marked online-only) keep the content of many files only in the cloud. A backup cannot read them, and since 0.60 the agent does not try. A file that the previous backup has unchanged keeps its content from there. The others are left out and listed apart from the read errors, per folder, under <i>Only in the cloud, not backed up</i> on the run page. The run ends with a warning, because that content is not in the backup. Download the files on the computer before the backup (Mac: Finder → <b>Download Now</b>; Windows: right-click → <b>Always keep on this device</b>), or turn off Optimize Mac Storage. OneDrive for work or school can also be backed up from the cloud with a <a href="/docs/m365">Microsoft 365</a> job, online-only files included. See also <a href="/docs/macos#icloud">Files in iCloud Drive</a>.</p>
 
 <h2>Backups are slow</h2>
 <ul>

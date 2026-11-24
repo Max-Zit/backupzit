@@ -29,6 +29,11 @@ type Job struct {
 	// LaunchOnlyOnce runs the job once per boot: a one-shot job is not
 	// started again if launchd itself restarts.
 	LaunchOnlyOnce bool
+	// MaterializeDatalessFiles, when set, overrides the system's policy for
+	// reading "dataless" files (iCloud Drive with Optimize Mac Storage):
+	// false makes such a read fail at once instead of asking the file
+	// provider to download the file.
+	MaterializeDatalessFiles *bool
 	// AbandonProcessGroup keeps processes the job started when its main
 	// process exits (launchd kills the process group otherwise).
 	AbandonProcessGroup bool
@@ -79,6 +84,9 @@ func (j Job) Plist() ([]byte, error) {
 	writeString(&b, "Label", j.Label)
 	if j.LaunchOnlyOnce {
 		writeBool(&b, "LaunchOnlyOnce", true)
+	}
+	if j.MaterializeDatalessFiles != nil {
+		writeBool(&b, "MaterializeDatalessFiles", *j.MaterializeDatalessFiles)
 	}
 	if j.Nice != 0 {
 		writeInt(&b, "Nice", j.Nice)
