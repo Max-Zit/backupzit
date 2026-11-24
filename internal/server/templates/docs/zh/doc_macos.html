@@ -1,11 +1,11 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
-<h1>macOS 代理（Apple 芯片）</h1>
-<p class="lead">macOS 代理备份搭载 Apple 芯片的 Mac 上的文件和文件夹。它从首次启动起就作为服务运行，启动磁盘的每次备份都从 APFS 本地快照读取，并保留 Mac 的文件元数据。菜单栏 App 显示其状态，并引导用户授予只有用户本人才能授予的权限。</p>
+<h1>macOS 代理</h1>
+<p class="lead">macOS 代理备份 Mac（搭载 Apple 芯片或 Intel 处理器）上的文件和文件夹。它从首次启动起就作为服务运行，启动磁盘的每次备份都从 APFS 本地快照读取，并保留 Mac 的文件元数据。菜单栏 App 显示其状态，并引导用户授予只有用户本人才能授予的权限。</p>
 <div class="callout warn"><p><b>预览版。</b>macOS 代理是 0.59 的新功能，由一位贡献者编写并在 Mac 上测试；我们自己的测试在构建流水线的 macOS 上运行。如有问题，请在 <a href="https://github.com/Max-Zit/backupzit/issues">GitHub Issues</a> 中报告。</p></div>
 
 <h2 id="requirements">要求</h2>
 <ul>
-  <li>搭载 <b>Apple 芯片</b>（M1 及更新，arm64）并运行 <b>macOS 13</b> 或更高版本的 Mac。Intel Mac 没有安装包。</li>
+  <li>搭载 <b>Apple 芯片</b>（M1 及更新）或 <b>Intel</b> 处理器、并运行 <b>macOS 13</b> 或更高版本的 Mac。一个通用安装包同时适用于两者（自 0.60 起；0.59 仅适用于 Apple 芯片）。</li>
   <li>Mac 上的管理员帐户，用于安装和注册。</li>
   <li>由 Mac 的用户授予<a href="#permissions">完全磁盘访问权限</a>：macOS 不允许其他任何人这样做，脚本和控制台都不行。</li>
   <li>与所有代理一样，Mac 必须能访问控制台的代理地址（通常为端口 8443）和存储。</li>
@@ -13,7 +13,7 @@
 
 <h2 id="install">安装</h2>
 <ol>
-  <li>在 <a href="/agents">Agent</a> 页面下载 <b>macOS 代理 — Apple 芯片</b>（<code>backupzit-agent_<i>version</i>_darwin_arm64.pkg</code>）。与 Windows 和 Linux 安装程序一样，它包含在控制台软件包中。</li>
+  <li>在 <a href="/agents">Agent</a> 页面下载 <b>macOS 代理</b>（<code>backupzit-agent_<i>version</i>_darwin_universal.pkg</code>）。与 Windows 和 Linux 安装程序一样，它包含在控制台软件包中。</li>
   <li>在 Mac 上打开 <code>.pkg</code> 并按照安装器操作。未使用 Apple Developer ID 签名的安装包会让 macOS 先要求确认：右键点按它并选择<b>打开</b>（在较新的 macOS 上：<i>系统设置 → 隐私与安全性 → 仍要打开</i>）。</li>
   <li>安装器的最后一页会说明需要授予的<a href="#permissions">权限</a>，并打开菜单栏 App。</li>
 </ol>

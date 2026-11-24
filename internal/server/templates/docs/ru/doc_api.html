@@ -19,7 +19,7 @@
   <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Наблюдатель</td><td>Последние запуски, сначала новые (по умолчанию 100, максимум 1000)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Наблюдатель</td><td>Один запуск с сообщением, ошибками и статистикой</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Наблюдатель</td><td><a href="/docs/monitoring">Отчёт</a> за период: итоги, доля успешных и сведения по каждому заданию</td></tr>
-  <tr><td><code>GET /api/v1/targets</code></td><td>Наблюдатель</td><td>Хранилища (без учётных данных)</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Наблюдатель</td><td>Хранилища (без учётных данных); <code>agents_only</code> отмечает хранилища, доступные только агентам</td></tr>
   <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Наблюдатель</td><td>Один агент</td></tr>
   <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Оператор копирования</td><td>Запрашивает у агента журнал: <code>{"run_id": 124}</code>; прочитайте его следующей точкой, когда агент его отправит (агенты 0.38.0 и новее)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Оператор копирования</td><td>Журнал, отправленный агентом: <code>{"log": "..."}</code>, или 404, пока он не пришёл</td></tr>

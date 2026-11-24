@@ -158,7 +158,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>514/udp of tcp, 6514/tcp (TLS)</td><td>console</td><td>syslog-server / SIEM</td><td>optioneel: export van het auditlogboek (de poort die u invoert)</td></tr>
   <tr><td>443/tcp</td><td>console</td><td>github.com en zijn downloadservers</td><td>controle op updates en downloads van de standaard-updatebron; agents krijgen hun updates van de console</td></tr>
 </table>
-<p>De console maakt ook zelf verbinding met de opslag, zodat u bestanden in schijfimages en VM-back-ups kunt doorbladeren (en downloaden); ze heeft dus dezelfde opslagtoegang nodig als de agents.</p>
+<p>De console maakt ook zelf verbinding met de opslag, om die te testen, om er back-ups op te vinden en zodat u bestanden in schijfimages en VM-back-ups kunt doorbladeren (en downloaden); ze heeft dus dezelfde opslagtoegang nodig als de agents. Opslag die alleen de agents bereiken, bijvoorbeeld een NAS op het netwerk van een klant terwijl de console elders draait, kan als <a href="/docs/storage#agents-only">alleen bereikbaar voor agents</a> worden gemarkeerd: de agents testen en doorzoeken die dan, en de console maakt er nooit verbinding mee.</p>
 
 <h2>BackupZit bijwerken</h2>
 <p>Standaard haalt de console updates uit de officiële BackupZit-versies op GitHub (<code>https://github.com/Max-Zit/backupzit/releases</code>). Onder <a href="/settings/updates">Instellingen → Updates</a> kunt u in plaats daarvan een andere <b>updatebron</b> invoeren — uw eigen HTTPS-mirror of een map op de server. Welke bron ook, elke versie moet een geldige BackupZit-handtekening dragen. De console controleert dagelijks op nieuwe versies en mailt de beheerders als er een beschikbaar is. Klik op <b>Installeren</b> om hem te installeren:</p>
@@ -193,7 +193,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>het certificaat van de console, dat de agents vastpinnen.</li>
 </ul>
 <p>Ze is versleuteld met de herstelsleutel van het doel en gededupliceerd. De nieuwste back-ups worden bewaard: standaard 14.</p>
-<p id="console-backup-page">Kies op de pagina het <i>Opslagdoel</i> (alleen netwerkopslag: SFTP, S3, SMB, Azure of een geharde repository; de back-up komt daar in de map <code>backupzit-console</code>), het uur van de dagelijkse back-up (<i>Om</i>, tijd van de console) en bij <i>Bewaren</i> hoeveel back-ups er blijven. <i>Nu back-uppen</i> maakt er meteen een. De pagina toont de laatste back-up en de grootte ervan, en het repositoryadres dat u nodig hebt voor een herstel.</p>
+<p id="console-backup-page">Kies op de pagina het <i>Opslagdoel</i> (netwerkopslag die de console bereikt: SFTP, S3, SMB, Azure of een geharde repository, geen opslag die alleen bereikbaar is voor agents; de back-up komt daar in de map <code>backupzit-console</code>), het uur van de dagelijkse back-up (<i>Om</i>, tijd van de console) en bij <i>Bewaren</i> hoeveel back-ups er blijven. <i>Nu back-uppen</i> maakt er meteen een. De pagina toont de laatste back-up en de grootte ervan, en het repositoryadres dat u nodig hebt voor een herstel.</p>
 <h3>De console herstellen</h3>
 <ol>
   <li>Installeer een nieuwe console met dezelfde of een nieuwere versie, bijvoorbeeld vanaf de appliance-ISO.</li>

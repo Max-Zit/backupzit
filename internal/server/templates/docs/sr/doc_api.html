@@ -19,7 +19,7 @@
   <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Posmatrač</td><td>Skorašnja pokretanja, od najnovijeg (podrazumevano 100, najviše 1000)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Posmatrač</td><td>Jedno pokretanje sa porukom, greškama i statistikom</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Posmatrač</td><td><a href="/docs/monitoring">Izveštaj</a> za period: zbirovi, procenat uspešnosti i detalji po poslu</td></tr>
-  <tr><td><code>GET /api/v1/targets</code></td><td>Posmatrač</td><td>Skladišta (bez pristupnih podataka)</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Posmatrač</td><td>Skladišta (bez pristupnih podataka); <code>agents_only</code> označava skladište dostupno samo agentima</td></tr>
   <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Posmatrač</td><td>Jedan agent</td></tr>
   <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Operater bekapa</td><td>Traži od agenta njegov log: <code>{"run_id": 124}</code>; čita se sledećom tačkom kada ga agent pošalje (agenti 0.38.0 ili noviji)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Operater bekapa</td><td>Log koji je agent poslao: <code>{"log": "..."}</code>, ili 404 dok ne stigne</td></tr>

@@ -1,11 +1,11 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
-<h1>Agenci macOS (Apple silicon)</h1>
-<p class="lead">Agent macOS tworzy kopie plików i folderów komputera Mac z czipem Apple. Działa jako usługa od pierwszego uruchomienia, każdą kopię dysku startowego czyta z lokalnej migawki APFS i zachowuje metadane plików Maca. Aplikacja na pasku menu pokazuje jego stan i prowadzi użytkownika przez uprawnienia, które tylko on może przyznać.</p>
+<h1>Agenci macOS</h1>
+<p class="lead">Agent macOS tworzy kopie plików i folderów komputera Mac, z czipem Apple lub procesorem Intel. Działa jako usługa od pierwszego uruchomienia, każdą kopię dysku startowego czyta z lokalnej migawki APFS i zachowuje metadane plików Maca. Aplikacja na pasku menu pokazuje jego stan i prowadzi użytkownika przez uprawnienia, które tylko on może przyznać.</p>
 <div class="callout warn"><p><b>Wersja zapoznawcza.</b> Agent dla macOS jest nowy w 0.59. Napisał go i przetestował na Macach współtwórca; nasze własne testy działają na macOS w procesie budowania. Zgłoś, co nie działa, w <a href="https://github.com/Max-Zit/backupzit/issues">GitHub Issues</a>.</p></div>
 
 <h2 id="requirements">Wymagania</h2>
 <ul>
-  <li>Mac z czipem <b>Apple silicon</b> (M1 i nowsze, arm64) i <b>macOS 13</b> lub nowszy. Dla Maców z procesorem Intel nie ma pakietu.</li>
+  <li>Mac z czipem <b>Apple silicon</b> (M1 i nowsze) lub z procesorem <b>Intel</b> oraz <b>macOS 13</b> lub nowszy. Jeden uniwersalny pakiet obsługuje oba (od 0.60; wersja 0.59 była tylko dla Apple silicon).</li>
   <li>Konto administratora na Macu, do instalacji i rejestracji.</li>
   <li>Użytkownik Maca, aby przyznać <a href="#permissions">pełny dostęp do dysku</a>: macOS nie pozwala na to nikomu innemu, ani skryptowi, ani konsoli.</li>
   <li>Jak każdy agent, Mac musi mieć dostęp do adresu konsoli dla agentów (zwykle port 8443) i do magazynu.</li>
@@ -13,7 +13,7 @@
 
 <h2 id="install">Instalacja</h2>
 <ol>
-  <li>Na stronie <a href="/agents">Agenci</a> pobierz <b>Agent macOS — Apple Silicon</b> (<code>backupzit-agent_<i>wersja</i>_darwin_arm64.pkg</code>). Pakiet konsoli zawiera go, tak jak instalatory Windows i Linux.</li>
+  <li>Na stronie <a href="/agents">Agenci</a> pobierz <b>Agent macOS</b> (<code>backupzit-agent_<i>wersja</i>_darwin_universal.pkg</code>). Pakiet konsoli zawiera go, tak jak instalatory Windows i Linux.</li>
   <li>Otwórz <code>.pkg</code> na Macu i postępuj zgodnie z instalatorem. Pakiet niepodpisany identyfikatorem Apple Developer ID sprawia, że macOS najpierw prosi o potwierdzenie: kliknij go prawym przyciskiem i wybierz <b>Otwórz</b> (w nowszych macOS: <i>Ustawienia systemowe → Prywatność i ochrona → Otwórz mimo to</i>).</li>
   <li>Ostatnia strona instalatora objaśnia <a href="#permissions">uprawnienia</a> do przyznania, a aplikacja na pasku menu się otwiera.</li>
 </ol>

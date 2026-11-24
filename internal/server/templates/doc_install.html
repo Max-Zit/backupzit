@@ -158,7 +158,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>514/udp or tcp, 6514/tcp (TLS)</td><td>console</td><td>syslog server / SIEM</td><td>optional: audit log export (the port you enter)</td></tr>
   <tr><td>443/tcp</td><td>console</td><td>github.com and its download servers</td><td>update checks and downloads from the default update source; agents get their updates from the console</td></tr>
 </table>
-<p>The console also connects to the storage itself to let you browse files inside disk images and VM backups (and download them), so it needs the same storage access as the agents.</p>
+<p>The console also connects to the storage itself to test it, to find backups on it and to let you browse files inside disk images and VM backups (and download them), so it needs the same storage access as the agents. Storage that only the agents reach, for example a NAS on a customer's network while the console runs elsewhere, can be marked <a href="/docs/storage#agents-only">reachable by agents only</a>: agents then test and search it, and the console never connects to it.</p>
 
 <h2>Updating BackupZit</h2>
 <p>By default the console takes updates from the official BackupZit releases on GitHub (<code>https://github.com/Max-Zit/backupzit/releases</code>). Under <a href="/settings/updates">Settings → Updates</a> you can enter another <b>update source</b> instead — your own HTTPS mirror or a folder on the server. Whatever the source, every release must carry a valid BackupZit signature. The console checks every day for new releases and emails the administrators when one is available. To install it, click <b>Install</b>:</p>
@@ -193,7 +193,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>the console's certificate, which agents pin.</li>
 </ul>
 <p>It is encrypted with the target's recovery key and deduplicated. The newest backups are kept: 14 by default.</p>
-<p id="console-backup-page">On the page choose the <i>Storage target</i> (network storage only: SFTP, S3, SMB, Azure or a hardened repository; the backup goes into the folder <code>backupzit-console</code> there), the hour of the daily backup (<i>At</i>, console time) and how many backups to <i>Keep</i>. <i>Back up now</i> makes one at once. The page shows the last backup with its size and the repository address you need for a restore.</p>
+<p id="console-backup-page">On the page choose the <i>Storage target</i> (network storage the console reaches: SFTP, S3, SMB, Azure or a hardened repository, not storage reachable by agents only; the backup goes into the folder <code>backupzit-console</code> there), the hour of the daily backup (<i>At</i>, console time) and how many backups to <i>Keep</i>. <i>Back up now</i> makes one at once. The page shows the last backup with its size and the repository address you need for a restore.</p>
 <h3>Restoring the console</h3>
 <ol>
   <li>Install a new console with the same or a newer version, for example from the appliance ISO.</li>

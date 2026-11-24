@@ -19,7 +19,7 @@
   <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>閲覧者</td><td>最近の実行、新しい順（既定 100、最大 1000）</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>閲覧者</td><td>メッセージ、エラー、統計を含む 1 件の実行</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>閲覧者</td><td>期間の<a href="/docs/monitoring">レポート</a>: 合計、成功率、ジョブごとの詳細</td></tr>
-  <tr><td><code>GET /api/v1/targets</code></td><td>閲覧者</td><td>ストレージ先（資格情報を除く）</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>閲覧者</td><td>ストレージ先（資格情報を除く）。<code>agents_only</code> はエージェントのみ到達可能なストレージを示します</td></tr>
   <tr><td><code>GET /api/v1/agents/{id}</code></td><td>閲覧者</td><td>1 つのエージェント</td></tr>
   <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>バックアップ オペレーター</td><td>エージェントにログを要求します: <code>{"run_id": 124}</code>。エージェントが送信したら次のエンドポイントで読み取ります（エージェント 0.38.0 以降）</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>バックアップ オペレーター</td><td>エージェントが送信したログ: <code>{"log": "..."}</code>。届くまでは 404</td></tr>

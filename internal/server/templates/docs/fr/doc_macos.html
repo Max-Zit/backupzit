@@ -1,11 +1,11 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
-<h1>Agents macOS (Apple silicon)</h1>
-<p class="lead">L'agent macOS sauvegarde les fichiers et dossiers d'un Mac avec puce Apple silicon. Il tourne comme service dès le démarrage, lit chaque sauvegarde du disque de démarrage depuis un instantané local APFS et conserve les métadonnées des fichiers du Mac. Une app de la barre des menus affiche son état et guide l'utilisateur à travers les autorisations que lui seul peut accorder.</p>
+<h1>Agents macOS</h1>
+<p class="lead">L'agent macOS sauvegarde les fichiers et dossiers d'un Mac, avec puce Apple silicon ou Intel. Il tourne comme service dès le démarrage, lit chaque sauvegarde du disque de démarrage depuis un instantané local APFS et conserve les métadonnées des fichiers du Mac. Une app de la barre des menus affiche son état et guide l'utilisateur à travers les autorisations que lui seul peut accorder.</p>
 <div class="callout warn"><p><b>Préversion.</b> L'agent macOS est nouveau dans la 0.59. Il a été écrit et testé sur des Mac par un contributeur ; nos propres tests tournent sur macOS dans la chaîne de compilation. Signalez ce qui ne fonctionne pas dans les <a href="https://github.com/Max-Zit/backupzit/issues">GitHub Issues</a>.</p></div>
 
 <h2 id="requirements">Prérequis</h2>
 <ul>
-  <li>Un Mac avec <b>Apple silicon</b> (M1 et plus récents, arm64) et <b>macOS 13</b> ou plus récent. Les Mac Intel n'ont pas de paquet.</li>
+  <li>Un Mac avec <b>Apple silicon</b> (M1 et plus récents) ou un processeur <b>Intel</b>, et <b>macOS 13</b> ou plus récent. Un seul paquet universel sert aux deux (depuis la 0.60 ; la 0.59 était réservée à Apple silicon).</li>
   <li>Un compte administrateur sur le Mac, pour l'installation et l'inscription.</li>
   <li>L'utilisateur du Mac, pour accorder l'<a href="#permissions">accès complet au disque</a> : macOS ne laisse personne d'autre le faire, ni un script ni la console.</li>
   <li>Comme tout agent, le Mac doit joindre l'adresse agents de la console (en général le port 8443) et le stockage.</li>
@@ -13,7 +13,7 @@
 
 <h2 id="install">Installation</h2>
 <ol>
-  <li>Sur la page <a href="/agents">Agents</a>, téléchargez <b>Agent macOS — Apple Silicon</b> (<code>backupzit-agent_<i>version</i>_darwin_arm64.pkg</code>). Le paquet de la console le contient, comme les installateurs Windows et Linux.</li>
+  <li>Sur la page <a href="/agents">Agents</a>, téléchargez <b>Agent macOS</b> (<code>backupzit-agent_<i>version</i>_darwin_universal.pkg</code>). Le paquet de la console le contient, comme les installateurs Windows et Linux.</li>
   <li>Ouvrez le <code>.pkg</code> sur le Mac et suivez l'installateur. Pour un paquet qui n'est pas signé avec un Apple Developer ID, macOS demande d'abord une confirmation : faites un clic droit dessus et choisissez <b>Ouvrir</b> (sur les macOS récents : <i>Réglages Système → Confidentialité et sécurité → Ouvrir quand même</i>).</li>
   <li>La dernière page de l'installateur explique les <a href="#permissions">autorisations</a> à accorder, et l'app de la barre des menus s'ouvre.</li>
 </ol>

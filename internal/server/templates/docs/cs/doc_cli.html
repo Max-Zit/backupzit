@@ -34,7 +34,9 @@
   <tr><th>Příkaz</th><th>Co dělá</th></tr>
   <tr><td><code>disks [--json]</code></td><td>Zobrazí disky a oddíly s jejich čísly.</td></tr>
   <tr><td><code>image-backup --disk N [--partitions 1,2] [--no-vss]</code><br><code>image-backup --all-disks</code></td><td>Zálohuje celý disk nebo vybrané oddíly, nebo všechny interní disky v jednom snímku.</td></tr>
-  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] SNAPSHOT|latest</code></td><td>Zapíše obraz na disk; <b>vymaže disk</b>. <code>--keep-offline</code>, když je původní disk ve stejném počítači; <code>--source-disk</code> vybere disk ze zálohy všech disků.</td></tr>
+  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] [--partitions 1,3] [--verify] [--fit [--resize 3=200G] [--drop-others]] [--style gpt|mbr] SNAPSHOT|latest</code></td><td>Zapíše obraz na disk; <b>vymaže disk</b>. <code>--keep-offline</code>, když je původní disk ve stejném počítači; <code>--source-disk</code> vybere disk ze zálohy všech disků. <code>--partitions</code> obnoví jen vybrané oddíly; <code>--verify</code> nejprve zkontroluje každý blok snímku; <code>--fit</code> přizpůsobí oddíly menšímu nebo většímu disku (NTFS se zmenší, i s přesunem dat); <code>--style</code> převede tabulku oddílů (převedený disk nemůže zůstat offline). Cíl se těsně před zápisem znovu zkontroluje podle velikosti, modelu, sériového čísla a ID tabulky oddílů: disk, který mezitím dostal zvolené číslo, se odmítne, stejně jako disky s repozitářem nebo s médiem pro obnovu. Návratový kód <code>3</code>: data se zapsala, ale dokončení disku (souborové systémy, spouštěcí soubory, nový hardware) selhalo; varování říkají, co dělat.</td></tr>
+  <tr><td><code>image-layout [--target-disk N | --target-size 256G] [--partitions 1,3] [--drop-others] [--resize 3=40G] [--as-source] [--json] SNAPSHOT|latest</code></td><td>Ukázat, jak by oddíly ležely na cílovém disku a na jakou nejmenší velikost lze každý zmenšit. <code>--as-source</code> místo toho ukáže rozložení zálohy, bez přizpůsobení.</td></tr>
+  <tr><td><code>partition-restore --partition N --target-disk N [--replace N | --offset 120G] [--size 40G] [--verify] --yes-overwrite SNAPSHOT|latest</code></td><td>Obnovit jeden oddíl na disk, jehož ostatní oddíly zůstanou: přes existující oddíl nebo do volného místa. S <code>--replace</code> je nutné <code>--yes-overwrite</code>. Funguje i na disku běžícího Windows, ale ne přes jeho systémový oddíl nebo oddíl Windows. Návratový kód <code>3</code> jako u <code>image-restore</code>.</td></tr>
   <tr><td><code>image-ls [--disk N] --partition N SNAPSHOT|latest [\path]</code></td><td>Vypíše soubory v oddílu NTFS v obrazu (<code>--disk</code>: zálohovaný disk, u záloh všech disků).</td></tr>
   <tr><td><code>image-extract [--disk N] --partition N --target DIR SNAPSHOT|latest \path…</code></td><td>Zkopíruje soubory a složky z oddílu v obrazu.</td></tr>
 </table>
@@ -50,6 +52,15 @@
 <table>
   <tr><th>Příkaz</th><th>Co dělá</th></tr>
   <tr><td><code>prepare-hardware --disk N [--drivers DIR]</code></td><td>Připraví obnovený disk Windows pro jiný hardware (zaváděcí ovladače, další ovladače, zaváděcí soubory) — totéž co volba obnovy, např. pro zopakování z ISO pro obnovu.</td></tr>
+</table>
+<h2>Nástroje pro obnovu Windows (ISO pro obnovu nebo běžící Windows)</h2>
+<table>
+  <tr><th>Příkaz</th><th>Co dělá</th></tr>
+  <tr><td><code>boot-repair [--list] [--disk N --partition N] [--boot-files UEFI|BIOS|ALL] [--boot-drivers] [--active] [--mbr] [--backup-dir DIR]</code></td><td>Znovu zprovoznit spouštění existujícího Windows: spouštěcí soubory a BCD pro firmware tohoto počítače. První MiB disku, spouštěcí sektor systémového oddílu a BCD se nejprve zálohují, ve výchozím nastavení do <code>\backupzit</code> na jiné jednotce (nikdy na opravovaný disk, nikdy na <code>X:</code>); bez takové jednotky zadejte <code>--backup-dir</code>. Z běžícího Windows se spouštěcí položka opraveného disku přidá jako poslední, takže počítač dál startuje ze svého vlastního disku.</td></tr>
+  <tr><td><code>drivers missing</code><br><code>drivers load DIR</code><br><code>drivers add --disk N --partition N DIR</code></td><td>Zařízení bez ovladače; načtení ovladačů do prostředí pro obnovu; přidání ovladačů do nainstalovaného Windows.</td></tr>
+  <tr><td><code>bitlocker list</code><br><code>bitlocker unlock --disk N --partition N</code></td><td>Zamčené svazky BitLocker; odemčení jednoho jeho klíčem pro obnovení (v <code>BACKUPZIT_BITLOCKER_KEY</code>). Při více zamčených svazcích jsou <code>--disk</code> a <code>--partition</code> povinné.</td></tr>
+  <tr><td><code>access-package create --repo LOCATION --out FILE.bzaccess [--name NAME]</code><br><code>access-package show [--test] FILE.bzaccess</code></td><td>Přístupový balíček: umístění a přístupové údaje repozitářů, zašifrované heslovou frází (<code>BACKUPZIT_ACCESS_PASSPHRASE</code>), pro obnovu bez konzole.</td></tr>
+  <tr><td><code>ntfs-check --device \\.\PhysicalDriveN --offset BYTES</code></td><td>Zkontrolovat struktury NTFS oddílu (diagnostika).</td></tr>
 </table>
 
 <h2>VMware ESXi (libovolný agent jako proxy; heslo v <code>BACKUPZIT_VMWARE_PASSWORD</code>)</h2>

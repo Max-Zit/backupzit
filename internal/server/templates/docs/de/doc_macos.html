@@ -1,11 +1,11 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
-<h1>macOS-Agenten (Apple Silicon)</h1>
-<p class="lead">Der macOS-Agent sichert die Dateien und Ordner eines Macs mit Apple Silicon. Er läuft ab dem ersten Start als Dienst, liest jede Sicherung des Startlaufwerks aus einem lokalen APFS-Snapshot und behält die Dateimetadaten des Macs bei. Eine Menüleisten-App zeigt seinen Zustand und führt den Benutzer durch die Berechtigungen, die nur er erteilen kann.</p>
+<h1>macOS-Agenten</h1>
+<p class="lead">Der macOS-Agent sichert die Dateien und Ordner eines Macs, mit Apple Silicon oder Intel. Er läuft ab dem ersten Start als Dienst, liest jede Sicherung des Startlaufwerks aus einem lokalen APFS-Snapshot und behält die Dateimetadaten des Macs bei. Eine Menüleisten-App zeigt seinen Zustand und führt den Benutzer durch die Berechtigungen, die nur er erteilen kann.</p>
 <div class="callout warn"><p><b>Vorschau.</b> Der macOS-Agent ist neu in 0.59. Ein Mitwirkender hat ihn geschrieben und auf Macs getestet; unsere eigenen Tests laufen in der Build-Pipeline auf macOS. Bitte melden Sie, was nicht funktioniert, in den <a href="https://github.com/Max-Zit/backupzit/issues">GitHub Issues</a>.</p></div>
 
 <h2 id="requirements">Voraussetzungen</h2>
 <ul>
-  <li>Ein Mac mit <b>Apple Silicon</b> (M1 und neuer, arm64) und <b>macOS 13</b> oder neuer. Für Intel-Macs gibt es kein Paket.</li>
+  <li>Ein Mac mit <b>Apple Silicon</b> (M1 und neuer) oder einem <b>Intel</b>-Prozessor und <b>macOS 13</b> oder neuer. Ein universelles Paket dient beiden (seit 0.60; 0.59 war nur für Apple Silicon).</li>
   <li>Ein Administratorkonto auf dem Mac, für Installation und Registrierung.</li>
   <li>Den Benutzer des Macs, um den <a href="#permissions">Festplattenvollzugriff</a> zu erteilen: macOS lässt das niemand anderen tun, weder ein Skript noch die Konsole.</li>
   <li>Wie jeder Agent muss der Mac die Agentenadresse der Konsole (meist Port 8443) und den Speicher erreichen.</li>
@@ -13,7 +13,7 @@
 
 <h2 id="install">Installieren</h2>
 <ol>
-  <li>Laden Sie auf der Seite <a href="/agents">Agenten</a> <b>macOS-Agent — Apple Silicon</b> herunter (<code>backupzit-agent_<i>version</i>_darwin_arm64.pkg</code>). Das Konsolenpaket enthält es, wie die Installationsprogramme für Windows und Linux.</li>
+  <li>Laden Sie auf der Seite <a href="/agents">Agenten</a> <b>macOS-Agent</b> herunter (<code>backupzit-agent_<i>version</i>_darwin_universal.pkg</code>). Das Konsolenpaket enthält es, wie die Installationsprogramme für Windows und Linux.</li>
   <li>Öffnen Sie das <code>.pkg</code> auf dem Mac und folgen Sie dem Installationsprogramm. Bei einem Paket, das nicht mit einer Apple Developer ID signiert ist, fragt macOS zuerst nach einer Bestätigung: Klicken Sie mit der rechten Maustaste darauf und wählen Sie <b>Öffnen</b> (bei neueren macOS-Versionen: <i>Systemeinstellungen → Datenschutz &amp; Sicherheit → Dennoch öffnen</i>).</li>
   <li>Die letzte Seite des Installationsprogramms erklärt die zu erteilenden <a href="#permissions">Berechtigungen</a>, und die Menüleisten-App öffnet sich.</li>
 </ol>

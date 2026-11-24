@@ -1,11 +1,11 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
-<h1>Agenti pro macOS (Apple Silicon)</h1>
-<p class="lead">Agent pro macOS zálohuje soubory a složky Macu s čipem Apple. Běží jako služba od prvního spuštění, každou zálohu spouštěcího disku čte z lokálního snímku APFS a zachovává metadata souborů Macu. Aplikace v řádku nabídek zobrazuje jeho stav a provede uživatele oprávněními, která může udělit jen on.</p>
+<h1>Agenti pro macOS</h1>
+<p class="lead">Agent pro macOS zálohuje soubory a složky Macu, s čipem Apple nebo s procesorem Intel. Běží jako služba od prvního spuštění, každou zálohu spouštěcího disku čte z lokálního snímku APFS a zachovává metadata souborů Macu. Aplikace v řádku nabídek zobrazuje jeho stav a provede uživatele oprávněními, která může udělit jen on.</p>
 <div class="callout warn"><p><b>Preview.</b> Agent pro macOS je ve verzi 0.59 nový. Napsal a na Macích ho otestoval přispěvatel; naše vlastní testy běží na macOS v sestavovacím procesu. Co nefunguje, nahlaste prosím v <a href="https://github.com/Max-Zit/backupzit/issues">GitHub Issues</a>.</p></div>
 
 <h2 id="requirements">Požadavky</h2>
 <ul>
-  <li>Mac s čipem <b>Apple Silicon</b> (M1 a novější, arm64) a <b>macOS 13</b> nebo novějším. Pro Macy s procesorem Intel balíček není.</li>
+  <li>Mac s čipem <b>Apple Silicon</b> (M1 a novější) nebo s procesorem <b>Intel</b> a <b>macOS 13</b> nebo novějším. Oběma slouží jeden univerzální balíček (od 0.60; 0.59 byla jen pro Apple Silicon).</li>
   <li>Účet správce na Macu pro instalaci a registraci.</li>
   <li>Uživatel Macu, který udělí <a href="#permissions">plný přístup k disku</a>: macOS to nedovolí nikomu jinému, ani skriptu, ani konzoli.</li>
   <li>Jako každý agent musí Mac dosáhnout na adresu konzole pro agenty (obvykle port 8443) a na úložiště.</li>
@@ -13,7 +13,7 @@
 
 <h2 id="install">Instalace</h2>
 <ol>
-  <li>Na stránce <a href="/agents">Agenti</a> stáhněte <b>Agent pro macOS — Apple Silicon</b> (<code>backupzit-agent_<i>verze</i>_darwin_arm64.pkg</code>). Balíček konzole ho obsahuje stejně jako instalátory pro Windows a Linux.</li>
+  <li>Na stránce <a href="/agents">Agenti</a> stáhněte <b>Agent pro macOS</b> (<code>backupzit-agent_<i>verze</i>_darwin_universal.pkg</code>). Balíček konzole ho obsahuje stejně jako instalátory pro Windows a Linux.</li>
   <li>Otevřete <code>.pkg</code> na Macu a postupujte podle instalátoru. U balíčku, který není podepsaný identifikátorem Apple Developer ID, si macOS nejprve vyžádá potvrzení: klikněte na něj pravým tlačítkem a zvolte <b>Otevřít</b> (v novějších macOS: <i>Nastavení systému → Soukromí a zabezpečení → Přesto otevřít</i>).</li>
   <li>Poslední stránka instalátoru vysvětlí <a href="#permissions">oprávnění</a>, která je třeba udělit, a otevře se aplikace v řádku nabídek.</li>
 </ol>

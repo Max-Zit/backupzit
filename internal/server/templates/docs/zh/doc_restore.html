@@ -52,7 +52,7 @@
   <li><b>在代理上还原它们</b>——还原到文件夹或原位置，如同使用<i>仅这些路径</i>的还原。</li>
 </ul>
 <p>指向文件的<b>符号链接</b>（例如 <code>/etc/os-release</code>）在其目标文件位于备份中时，会作为目标文件下载；指向文件夹的链接不会包含在 ZIP 压缩包中。从虚拟机备份（ext4、XFS）下载的文件同样如此。在代理上还原时，链接会重新创建为链接。</p>
-<p>控制台会自行从存储读取备份，因此浏览功能适用于网络存储上的备份（SFTP、S3、SMB、Azure、加固存储库）；对于代理的本地磁盘或 USB 磁盘，请通过路径还原。拥有还原角色的用户可以浏览和下载。</p>
+<p>控制台会自行从存储读取备份，因此浏览功能适用于网络存储上的备份（SFTP、S3、SMB、Azure、加固存储库）；对于代理的本地磁盘或 USB 磁盘，以及<a href="/docs/storage#agents-only">仅代理可访问</a>的存储，请通过路径还原。拥有还原角色的用户可以浏览和下载。</p>
 
 <div class="callout tip"><p><b>找到正确的备份：</b>使用 <a href="/calendar">日历</a> 查看哪天运行了哪些备份，或查看作业页面的历史记录。</p></div>
 
@@ -81,10 +81,13 @@
       <li>从 Microsoft 安装免费的 <b>Windows ADK</b>（功能 <i>Deployment Tools</i>）和 <b>Windows PE 加载项</b>。</li>
       <li>从发布中下载 <code>build-winpe.ps1</code>（位于代理软件包旁），并从装有代理的机器的 <code>C:\Program Files\backupzit Agent</code> 中取得 <code>backupzit-agent.exe</code>。</li>
       <li>在管理员 PowerShell 中运行：<code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>。添加 <code>-DriverDir C:\Drivers</code> 以包含存储或网络驱动程序（例如 Proxmox 虚拟机的 VirtIO），添加 <code>-RecoveryJson .\recovery.json</code> 使其无需输入即可连接。</li>
+      <li>启动时，ISO 会在每个驱动器上查找 <code>\backupzit\recovery.json</code>。找到时，恢复代理会连接到此控制台，并从这里启动还原，因此现场人员只需从 U 盘启动。找不到时，会打开图形化恢复程序（安装在代理旁边的 <code>backupzit-recovery.exe</code>）：还原磁盘映像或单个分区（也可还原到更小或更大的磁盘）、修复启动、加载驱动程序。在介质的命令提示符中可以启动另一个（<code>backupzit-recovery</code> 或 <code>backupzit-agent recovery</code>）。使用 <code>-AccessPackage .\backupzit.bzaccess</code>（在<a href="/recovery">恢复介质</a>中创建）时，该程序无需此控制台即可打开备份，只需要密码短语。密码短语需要包含三类字符共 12 个（两类则 16 个，一类则 20 个），常见密码会被拒绝；页面会提供一个生成的密码短语，在 QWERTY、QWERTZ 和 AZERTY 键盘上输入方式相同。</li>
+      <li>Windows PE 的语言和键盘与时区一样，取自创建 ISO 的电脑（<code>-Language de-de</code>、<code>-KeyboardLayout</code> 和 <code>-TimeZone</code> 可选择其他设置），因此服务器地址或密码短语的输入方式与那台电脑上相同。恢复程序支持控制台的 14 种语言。<code>-NoUi</code> 只包含控制台代理。介质的 <code>\backupzit\</code> 中带有许可证文本和 <code>SOURCE-CODE.txt</code>。</li>
+      <li>写入前，程序会按大小、型号、序列号和分区表 ID 再次检查目标磁盘：在此期间获得所选编号的磁盘（例如重新插入的 USB 磁盘）会被拒绝，存放备份、恢复介质和访问包的磁盘也会被拒绝。还原到原始磁盘时，如果放得下，会保留备份的布局（没有分区会扩展到空隙中）；对于更小的磁盘或在选择时，会建议使用<i>适应目标磁盘</i>。转换为 GPT 或 MBR 的磁盘不能保持脱机。修复启动时会先将启动数据保存到另一个驱动器上的 <code>\backupzit</code>。</li>
       <li>可选择将 ISO 复制到控制台的 <code>/var/lib/backupzit/dist</code> 目录；之后它会出现在恢复介质页面上。</li>
     </ol></li>
 </ul>
-<p>控制台中的文件浏览适用于网络存储上的备份（SFTP、S3、SMB、Azure、加固存储库）；控制台会直接读取它们。对于代理本地磁盘上的备份或使用 SSH 密钥的 SFTP 上的备份，仍可从控制台使用<i>仅这些路径</i>进行还原；如需查看其内容，请使用命令行。</p>
+<p>控制台中的文件浏览适用于网络存储上的备份（SFTP、S3、SMB、Azure、加固存储库）；控制台会直接读取它们。对于代理本地磁盘上的备份、使用 SSH 密钥的 SFTP 上的备份，或仅代理可访问的存储上的备份（此时控制台会立即提示），仍可从控制台使用<i>仅这些路径</i>进行还原；如需查看其内容，请使用命令行。</p>
 
 <h2>不通过控制台还原</h2>
 <p>如果控制台本身丢失，任何安装了代理的机器都可以使用存储目标的<b>恢复单</b>直接从存储还原：</p>

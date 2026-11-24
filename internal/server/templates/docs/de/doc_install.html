@@ -158,7 +158,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>514/udp oder tcp, 6514/tcp (TLS)</td><td>Konsole</td><td>Syslog-Server / SIEM</td><td>optional: Export des Audit-Protokolls (der eingetragene Port)</td></tr>
   <tr><td>443/tcp</td><td>Konsole</td><td>github.com und seine Download-Server</td><td>Update-Prüfungen und Downloads aus der Standard-Update-Quelle; Agenten erhalten ihre Updates von der Konsole</td></tr>
 </table>
-<p>Die Konsole verbindet sich auch selbst mit dem Speicher, damit Sie Dateien in Festplattenabbildern und VM-Sicherungen durchsuchen (und herunterladen) können; sie braucht daher denselben Speicherzugang wie die Agenten.</p>
+<p>Die Konsole verbindet sich auch selbst mit dem Speicher, um ihn zu testen, Sicherungen darauf zu finden und Sie Dateien in Festplattenabbildern und VM-Sicherungen durchsuchen (und herunterladen) zu lassen; sie braucht daher denselben Speicherzugang wie die Agenten. Speicher, den nur die Agenten erreichen, zum Beispiel ein NAS im Netzwerk eines Kunden, während die Konsole anderswo läuft, lässt sich als <a href="/docs/storage#agents-only">nur für Agenten erreichbar</a> markieren: Dann testen und durchsuchen ihn die Agenten, und die Konsole verbindet sich nie damit.</p>
 
 <h2>BackupZit aktualisieren</h2>
 <p>Standardmäßig bezieht die Konsole Updates aus den offiziellen BackupZit-Versionen auf GitHub (<code>https://github.com/Max-Zit/backupzit/releases</code>). Unter <a href="/settings/updates">Einstellungen → Updates</a> können Sie stattdessen eine andere <b>Update-Quelle</b> eintragen — Ihren eigenen HTTPS-Spiegel oder einen Ordner auf dem Server. Unabhängig von der Quelle muss jede Version eine gültige BackupZit-Signatur tragen. Die Konsole prüft täglich auf neue Versionen und schickt den Administratoren eine E-Mail, wenn eine verfügbar ist. Zum Installieren klicken Sie auf <b>Installieren</b>:</p>
@@ -193,7 +193,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>das Zertifikat der Konsole, das die Agenten pinnen.</li>
 </ul>
 <p>Sie ist mit dem Wiederherstellungsschlüssel des Ziels verschlüsselt und dedupliziert. Die neuesten Sicherungen werden behalten: standardmäßig 14.</p>
-<p id="console-backup-page">Wählen Sie auf der Seite das <i>Speicherziel</i> (nur Netzwerkspeicher: SFTP, S3, SMB, Azure oder ein gehärtetes Repository; die Sicherung kommt dort in den Ordner <code>backupzit-console</code>), die Stunde der täglichen Sicherung (<i>Um</i>, Zeit der Konsole) und wie viele Sicherungen zu behalten sind (<i>Behalten</i>). <i>Jetzt sichern</i> erstellt sofort eine. Die Seite zeigt die letzte Sicherung mit ihrer Größe und die Repository-Adresse, die Sie für eine Wiederherstellung brauchen.</p>
+<p id="console-backup-page">Wählen Sie auf der Seite das <i>Speicherziel</i> (Netzwerkspeicher, den die Konsole erreicht: SFTP, S3, SMB, Azure oder ein gehärtetes Repository, kein nur für Agenten erreichbarer Speicher; die Sicherung kommt dort in den Ordner <code>backupzit-console</code>), die Stunde der täglichen Sicherung (<i>Um</i>, Zeit der Konsole) und wie viele Sicherungen zu behalten sind (<i>Behalten</i>). <i>Jetzt sichern</i> erstellt sofort eine. Die Seite zeigt die letzte Sicherung mit ihrer Größe und die Repository-Adresse, die Sie für eine Wiederherstellung brauchen.</p>
 <h3>Die Konsole wiederherstellen</h3>
 <ol>
   <li>Installieren Sie eine neue Konsole mit derselben oder einer neueren Version, zum Beispiel vom Appliance-ISO.</li>

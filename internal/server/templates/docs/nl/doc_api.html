@@ -19,7 +19,7 @@
   <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Kijker</td><td>Recente runs, nieuwste eerst (standaard 100, maximaal 1000)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Kijker</td><td>Eén run met melding, fouten en statistieken</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Kijker</td><td>Het <a href="/docs/monitoring">rapport</a> voor een periode: totalen, slagingspercentage en details per taak</td></tr>
-  <tr><td><code>GET /api/v1/targets</code></td><td>Kijker</td><td>Opslagdoelen (zonder inloggegevens)</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Kijker</td><td>Opslagdoelen (zonder inloggegevens); <code>agents_only</code> markeert opslag die alleen bereikbaar is voor agents</td></tr>
   <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Kijker</td><td>Eén agent</td></tr>
   <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Back-upoperator</td><td>Vraagt de agent om zijn logboek: <code>{"run_id": 124}</code>; lees het met het volgende endpoint zodra de agent het heeft gestuurd (agents 0.38.0 of nieuwer)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Back-upoperator</td><td>Het logboek dat de agent stuurde: <code>{"log": "..."}</code>, of 404 tot het binnen is</td></tr>

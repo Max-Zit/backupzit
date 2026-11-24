@@ -19,7 +19,7 @@
   <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Betrachter</td><td>Letzte Läufe, neueste zuerst (Standard 100, maximal 1000)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Betrachter</td><td>Ein Lauf mit Meldung, Fehlern und Statistik</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Betrachter</td><td>Der <a href="/docs/monitoring">Bericht</a> für einen Zeitraum: Summen, Erfolgsquote und Details pro Auftrag</td></tr>
-  <tr><td><code>GET /api/v1/targets</code></td><td>Betrachter</td><td>Speicherziele (ohne Zugangsdaten)</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Betrachter</td><td>Speicherziele (ohne Zugangsdaten); <code>agents_only</code> kennzeichnet Speicher, der nur für Agenten erreichbar ist</td></tr>
   <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Betrachter</td><td>Ein Agent</td></tr>
   <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Sicherungsoperator</td><td>Fordert das Protokoll des Agenten an: <code>{"run_id": 124}</code>; mit dem nächsten Endpunkt lesen, sobald der Agent es gesendet hat (Agenten ab 0.38.0)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Sicherungsoperator</td><td>Das gesendete Protokoll: <code>{"log": "..."}</code>, oder 404, bis es eintrifft</td></tr>

@@ -19,7 +19,7 @@
   <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Obserwator</td><td>Ostatnie uruchomienia, od najnowszych (domyślnie 100, maks. 1000)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Obserwator</td><td>Jedno uruchomienie z komunikatem, błędami i statystyką</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Obserwator</td><td><a href="/docs/monitoring">Raport</a> za okres: sumy, odsetek sukcesów i szczegóły dla każdego zadania</td></tr>
-  <tr><td><code>GET /api/v1/targets</code></td><td>Obserwator</td><td>Magazyny docelowe (bez danych logowania)</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Obserwator</td><td>Magazyny docelowe (bez danych logowania); <code>agents_only</code> oznacza magazyn dostępny tylko dla agentów</td></tr>
   <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Obserwator</td><td>Jeden agent</td></tr>
   <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Operator kopii</td><td>Prosi agenta o dziennik: <code>{"run_id": 124}</code>; odczytaj go kolejnym punktem, gdy agent go wyśle (agenci 0.38.0 lub nowsi)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Operator kopii</td><td>Dziennik wysłany przez agenta: <code>{"log": "..."}</code> albo 404, dopóki nie dotrze</td></tr>

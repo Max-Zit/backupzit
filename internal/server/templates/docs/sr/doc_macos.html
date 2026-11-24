@@ -1,11 +1,11 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
-<h1>macOS agenti (Apple silicon)</h1>
-<p class="lead">macOS agent pravi bekap fajlova i foldera Mac računara sa Apple čipom. Radi kao servis od prvog pokretanja, svaki bekap startnog diska čita iz lokalnog APFS snimka i čuva metapodatke fajlova Mac računara. Aplikacija na traci menija prikazuje njegovo stanje i vodi korisnika kroz dozvole koje samo on može da da.</p>
+<h1>macOS agenti</h1>
+<p class="lead">macOS agent pravi bekap fajlova i foldera Mac računara, sa Apple čipom ili sa Intel procesorom. Radi kao servis od prvog pokretanja, svaki bekap startnog diska čita iz lokalnog APFS snimka i čuva metapodatke fajlova Mac računara. Aplikacija na traci menija prikazuje njegovo stanje i vodi korisnika kroz dozvole koje samo on može da da.</p>
 <div class="callout warn"><p><b>Preview.</b> macOS agent je nov u 0.59. Napisao ga je i na Mac-ovima testirao saradnik; naši testovi se izvršavaju na macOS-u u procesu pravljenja paketa. Ono što ne radi prijavite na <a href="https://github.com/Max-Zit/backupzit/issues">GitHub Issues</a>.</p></div>
 
 <h2 id="requirements">Zahtevi</h2>
 <ul>
-  <li>Mac sa <b>Apple silicon</b> čipom (M1 i noviji, arm64) i <b>macOS 13</b> ili noviji. Za Intel Mac računare nema paketa.</li>
+  <li>Mac sa <b>Apple silicon</b> čipom (M1 i noviji) ili sa <b>Intel</b> procesorom i <b>macOS 13</b> ili noviji. Jedan univerzalni paket služi za oba (od 0.60; 0.59 je bila samo za Apple silicon).</li>
   <li>Administratorski nalog na Mac računaru, za instalaciju i registraciju.</li>
   <li>Korisnik Mac računara, da bi dao <a href="#permissions">pun pristup disku</a>: macOS to ne dozvoljava nikom drugom, ni skripti ni konzoli.</li>
   <li>Kao svaki agent, Mac mora da dopre do adrese konzole za agente (obično port 8443) i do skladišta.</li>
@@ -13,7 +13,7 @@
 
 <h2 id="install">Instalacija</h2>
 <ol>
-  <li>Na stranici <a href="/agents">Agenti</a> preuzmite <b>macOS agent — Apple Silicon</b> (<code>backupzit-agent_<i>verzija</i>_darwin_arm64.pkg</code>). Paket konzole ga nosi, kao i instalacije za Windows i Linux.</li>
+  <li>Na stranici <a href="/agents">Agenti</a> preuzmite <b>macOS agent</b> (<code>backupzit-agent_<i>verzija</i>_darwin_universal.pkg</code>). Paket konzole ga nosi, kao i instalacije za Windows i Linux.</li>
   <li>Otvorite <code>.pkg</code> na Mac računaru i pratite instalaciju. Za paket koji nije potpisan Apple Developer ID-jem macOS prvo traži potvrdu: kliknite ga desnim tasterom i izaberite <b>Open</b> (na novijem macOS-u: <i>System Settings → Privacy &amp; Security → Open Anyway</i>).</li>
   <li>Poslednja stranica instalacije objašnjava <a href="#permissions">dozvole</a> koje treba dati, a aplikacija na traci menija se otvara.</li>
 </ol>

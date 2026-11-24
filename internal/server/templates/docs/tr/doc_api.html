@@ -19,7 +19,7 @@
   <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Görüntüleyici</td><td>Son çalıştırmalar, en yeni önce (varsayılan 100, en fazla 1000)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Görüntüleyici</td><td>Mesaj, hatalar ve istatistiklerle tek bir çalıştırma</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Görüntüleyici</td><td>Bir dönemin <a href="/docs/monitoring">raporu</a>: toplamlar, başarı oranı ve iş başına ayrıntılar</td></tr>
-  <tr><td><code>GET /api/v1/targets</code></td><td>Görüntüleyici</td><td>Depolama hedefleri (kimlik bilgileri olmadan)</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Görüntüleyici</td><td>Depolama hedefleri (kimlik bilgileri olmadan); <code>agents_only</code> yalnızca aracıların erişebildiği depolamayı işaretler</td></tr>
   <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Görüntüleyici</td><td>Tek bir ajan</td></tr>
   <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Yedekleme operatörü</td><td>Ajandan günlüğünü ister: <code>{"run_id": 124}</code>; ajan gönderdikten sonra sonraki uç noktayla okunur (ajan 0.38.0 veya daha yenisi)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Yedekleme operatörü</td><td>Ajanın gönderdiği günlük: <code>{"log": "..."}</code> veya gelene kadar 404</td></tr>

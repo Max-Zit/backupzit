@@ -19,7 +19,7 @@
   <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Viewer</td><td>Recent runs, newest first (default 100, max 1000)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Viewer</td><td>One run with message, errors and statistics</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Viewer</td><td>The <a href="/docs/monitoring">report</a> for a period: totals, success rate and per-job details</td></tr>
-  <tr><td><code>GET /api/v1/targets</code></td><td>Viewer</td><td>Storage targets (without credentials)</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Viewer</td><td>Storage targets (without credentials); <code>agents_only</code> marks storage reachable by agents only</td></tr>
   <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Viewer</td><td>One agent</td></tr>
   <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Backup operator</td><td>Asks the agent for its log: <code>{"run_id": 124}</code>; read it with the next endpoint once the agent has sent it (agents 0.38.0 or newer)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Backup operator</td><td>The log an agent sent: <code>{"log": "..."}</code>, or 404 until it arrives</td></tr>

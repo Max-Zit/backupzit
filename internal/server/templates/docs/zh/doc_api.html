@@ -19,7 +19,7 @@
   <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>查看者</td><td>最近的运行，最新的在前（默认 100，最多 1000）</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>查看者</td><td>单次运行及其消息、错误和统计信息</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>查看者</td><td>某个时段的<a href="/docs/monitoring">报告</a>：合计、成功率和每个作业的详情</td></tr>
-  <tr><td><code>GET /api/v1/targets</code></td><td>查看者</td><td>存储目标（不含凭据）</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>查看者</td><td>存储目标（不含凭据）；<code>agents_only</code> 表示仅代理可访问的存储</td></tr>
   <tr><td><code>GET /api/v1/agents/{id}</code></td><td>查看者</td><td>单个代理</td></tr>
   <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>备份操作员</td><td>请求代理发送其日志：<code>{"run_id": 124}</code>；代理发送后用下一个端点读取（需要代理 0.38.0 或更高版本）</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>备份操作员</td><td>代理发送的日志：<code>{"log": "..."}</code>，到达之前返回 404</td></tr>

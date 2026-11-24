@@ -158,7 +158,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>514/udp nebo tcp, 6514/tcp (TLS)</td><td>konzole</td><td>server syslog / SIEM</td><td>volitelně: export protokolu auditu (port, který zadáte)</td></tr>
   <tr><td>443/tcp</td><td>konzole</td><td>github.com a jeho servery pro stahování</td><td>kontrola a stahování aktualizací z výchozího zdroje aktualizací; agenti dostávají aktualizace od konzole</td></tr>
 </table>
-<p>Konzole se k úložišti připojuje i sama, abyste mohli procházet soubory v obrazech disků a zálohách VM (a stahovat je), takže potřebuje stejný přístup k úložišti jako agenti.</p>
+<p>Konzole se k úložišti připojuje i sama, aby ho otestovala, našla na něm zálohy a abyste mohli procházet soubory v obrazech disků a zálohách VM (a stahovat je), takže potřebuje stejný přístup k úložišti jako agenti. Úložiště, na které dosáhnou jen agenti, například NAS v síti zákazníka, zatímco konzole běží jinde, lze označit jako <a href="/docs/storage#agents-only">dostupné jen agentům</a>: agenti ho pak testují a prohledávají a konzole se k němu nikdy nepřipojuje.</p>
 
 <h2>Aktualizace BackupZit</h2>
 <p>Ve výchozím stavu konzole stahuje aktualizace z oficiálních vydání BackupZit na GitHubu (<code>https://github.com/Max-Zit/backupzit/releases</code>). V <a href="/settings/updates">Nastavení → Aktualizace</a> můžete místo toho zadat jiný <b>zdroj aktualizací</b> — vlastní zrcadlo HTTPS nebo složku na serveru. Ať je zdroj jakýkoli, každé vydání musí mít platný podpis BackupZit. Konzole denně kontroluje nová vydání a pošle správcům e-mail, když je některé k dispozici. Pro instalaci klikněte na <b>Instalovat</b>:</p>
@@ -193,7 +193,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>certifikát konzole, který si agenti připínají.</li>
 </ul>
 <p>Je šifrována klíčem pro obnovení daného cíle a deduplikována. Uchovávají se nejnovější zálohy: ve výchozím stavu 14.</p>
-<p id="console-backup-page">Na stránce zvolte <i>Cílové úložiště</i> (jen síťové úložiště: SFTP, S3, SMB, Azure nebo zabezpečené úložiště; záloha jde tam do složky <code>backupzit-console</code>), hodinu denní zálohy (<i>V</i>, čas konzole) a počet záloh v poli <i>Ponechat</i>. <i>Zálohovat nyní</i> vytvoří zálohu hned. Stránka ukazuje poslední zálohu s její velikostí a adresu repozitáře, kterou potřebujete pro obnovu.</p>
+<p id="console-backup-page">Na stránce zvolte <i>Cílové úložiště</i> (síťové úložiště, na které konzole dosáhne: SFTP, S3, SMB, Azure nebo zabezpečené úložiště, ne úložiště dostupné jen agentům; záloha jde tam do složky <code>backupzit-console</code>), hodinu denní zálohy (<i>V</i>, čas konzole) a počet záloh v poli <i>Ponechat</i>. <i>Zálohovat nyní</i> vytvoří zálohu hned. Stránka ukazuje poslední zálohu s její velikostí a adresu repozitáře, kterou potřebujete pro obnovu.</p>
 <h3>Obnova konzole</h3>
 <ol>
   <li>Nainstalujte novou konzoli ve stejné nebo novější verzi, například z ISO appliance.</li>

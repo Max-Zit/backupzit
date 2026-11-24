@@ -1,11 +1,11 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
-<h1>macOS aracıları (Apple silicon)</h1>
-<p class="lead">macOS aracısı, Apple silicon'lu bir Mac'in dosya ve klasörlerini yedekler. İlk açılıştan itibaren hizmet olarak çalışır, başlangıç diskinin her yedeğini bir APFS yerel anlık görüntüsünden okur ve Mac'in dosya meta verilerini korur. Menü çubuğu uygulaması durumunu gösterir ve kullanıcıya yalnızca onun verebileceği izinlerde yol gösterir.</p>
+<h1>macOS ajanları</h1>
+<p class="lead">macOS aracısı, Apple silicon'lu veya Intel işlemcili bir Mac'in dosya ve klasörlerini yedekler. İlk açılıştan itibaren hizmet olarak çalışır, başlangıç diskinin her yedeğini bir APFS yerel anlık görüntüsünden okur ve Mac'in dosya meta verilerini korur. Menü çubuğu uygulaması durumunu gösterir ve kullanıcıya yalnızca onun verebileceği izinlerde yol gösterir.</p>
 <div class="callout warn"><p><b>Önizleme.</b> macOS ajanı 0.59'da yenidir. Bir katkıda bulunan tarafından yazıldı ve Mac'lerde test edildi; kendi testlerimiz derleme sürecinde macOS üzerinde çalışır. Çalışmayanları <a href="https://github.com/Max-Zit/backupzit/issues">GitHub Issues</a> üzerinden bildirin.</p></div>
 
 <h2 id="requirements">Gereksinimler</h2>
 <ul>
-  <li><b>Apple silicon</b>'lu (M1 ve sonrası, arm64) ve <b>macOS 13</b> veya sonrası yüklü bir Mac. Intel Mac'ler için paket yoktur.</li>
+  <li><b>Apple silicon</b>'lu (M1 ve sonrası) veya <b>Intel</b> işlemcili, <b>macOS 13</b> veya sonrası yüklü bir Mac. Tek bir evrensel paket ikisine de hizmet eder (0.60'tan itibaren; 0.59 yalnızca Apple silicon içindi).</li>
   <li>Kurulum ve kayıt için Mac'te bir yönetici hesabı.</li>
   <li><a href="#permissions">Tam Disk Erişimi</a>'ni vermesi için Mac'in kullanıcısı: macOS bunu başka hiç kimseye, ne bir betiğe ne de konsola yaptırır.</li>
   <li>Her aracı gibi Mac de konsolun aracı adresine (genellikle bağlantı noktası 8443) ve depolamaya ulaşabilmelidir.</li>
@@ -13,7 +13,7 @@
 
 <h2 id="install">Kurulum</h2>
 <ol>
-  <li><a href="/agents">Aracılar</a> sayfasında <b>macOS ajanı — Apple Silicon</b>'ı (<code>backupzit-agent_<i>sürüm</i>_darwin_arm64.pkg</code>) indirin. Konsol paketi, Windows ve Linux yükleyicileri gibi bunu da içerir.</li>
+  <li><a href="/agents">Aracılar</a> sayfasında <b>macOS ajanı</b>'nı (<code>backupzit-agent_<i>sürüm</i>_darwin_universal.pkg</code>) indirin. Konsol paketi, Windows ve Linux yükleyicileri gibi bunu da içerir.</li>
   <li><code>.pkg</code>'yi Mac'te açın ve yükleyiciyi izleyin. Apple Developer ID ile imzalanmamış bir paket için macOS önce onay ister: pakete sağ tıklayıp <b>Aç</b>'ı seçin (yeni macOS sürümlerinde: <i>Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç</i>).</li>
   <li>Yükleyicinin son sayfası verilmesi gereken <a href="#permissions">izinleri</a> açıklar ve menü çubuğu uygulaması açılır.</li>
 </ol>

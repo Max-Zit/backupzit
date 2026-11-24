@@ -19,7 +19,7 @@
   <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Observador</td><td>Ejecuciones recientes, las más nuevas primero (100 por defecto, máximo 1000)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Observador</td><td>Una ejecución con mensaje, errores y estadísticas</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Observador</td><td>El <a href="/docs/monitoring">informe</a> de un periodo: totales, tasa de éxito y detalles por trabajo</td></tr>
-  <tr><td><code>GET /api/v1/targets</code></td><td>Observador</td><td>Destinos de almacenamiento (sin credenciales)</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Observador</td><td>Destinos de almacenamiento (sin credenciales); <code>agents_only</code> marca el almacenamiento accesible solo para agentes</td></tr>
   <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Observador</td><td>Un agente</td></tr>
   <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Operador de copias</td><td>Pide su registro al agente: <code>{"run_id": 124}</code>; se lee con el siguiente punto cuando el agente lo haya enviado (agentes 0.38.0 o posteriores)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Operador de copias</td><td>El registro enviado por el agente: <code>{"log": "..."}</code>, o 404 hasta que llegue</td></tr>

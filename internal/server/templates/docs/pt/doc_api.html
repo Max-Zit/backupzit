@@ -19,7 +19,7 @@
   <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Visualizador</td><td>Execuções recentes, da mais nova (padrão 100, máximo 1000)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Visualizador</td><td>Uma execução com mensagem, erros e estatísticas</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Visualizador</td><td>O <a href="/docs/monitoring">relatório</a> de um período: totais, taxa de sucesso e detalhes por tarefa</td></tr>
-  <tr><td><code>GET /api/v1/targets</code></td><td>Visualizador</td><td>Destinos de armazenamento (sem credenciais)</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Visualizador</td><td>Destinos de armazenamento (sem credenciais); <code>agents_only</code> marca o armazenamento acessível somente pelos agentes</td></tr>
   <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Visualizador</td><td>Um agente</td></tr>
   <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Operador de backup</td><td>Pede o log ao agente: <code>{"run_id": 124}</code>; leia-o com o próximo endpoint quando o agente o tiver enviado (agentes 0.38.0 ou mais novos)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Operador de backup</td><td>O log enviado pelo agente: <code>{"log": "..."}</code>, ou 404 até que chegue</td></tr>

@@ -19,7 +19,7 @@
   <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Čtenář</td><td>Nedávné běhy, nejnovější první (výchozí 100, nejvýše 1000)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Čtenář</td><td>Jeden běh se zprávou, chybami a statistikou</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Čtenář</td><td><a href="/docs/monitoring">Přehled</a> za období: součty, úspěšnost a podrobnosti podle úloh</td></tr>
-  <tr><td><code>GET /api/v1/targets</code></td><td>Čtenář</td><td>Cílová úložiště (bez přihlašovacích údajů)</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Čtenář</td><td>Cílová úložiště (bez přihlašovacích údajů); <code>agents_only</code> označuje úložiště dostupné jen agentům</td></tr>
   <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Čtenář</td><td>Jeden agent</td></tr>
   <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Operátor záloh</td><td>Požádá agenta o protokol: <code>{"run_id": 124}</code>; přečtěte ho dalším bodem, jakmile ho agent pošle (agenti 0.38.0 nebo novější)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Operátor záloh</td><td>Protokol, který agent poslal: <code>{"log": "..."}</code>, nebo 404, dokud nedorazí</td></tr>

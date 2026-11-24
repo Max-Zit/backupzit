@@ -1,11 +1,11 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
-<h1>macOS-agents (Apple silicon)</h1>
-<p class="lead">De macOS-agent maakt back-ups van de bestanden en mappen van een Mac met Apple silicon. Hij draait vanaf de eerste opstart als service, leest elke back-up van de opstartschijf uit een lokale APFS-momentopname en behoudt de bestandsmetadata van de Mac. Een menubalk-app toont zijn status en leidt de gebruiker door de toestemmingen die alleen hij kan geven.</p>
+<h1>macOS-agents</h1>
+<p class="lead">De macOS-agent maakt back-ups van de bestanden en mappen van een Mac, met Apple silicon of Intel. Hij draait vanaf de eerste opstart als service, leest elke back-up van de opstartschijf uit een lokale APFS-momentopname en behoudt de bestandsmetadata van de Mac. Een menubalk-app toont zijn status en leidt de gebruiker door de toestemmingen die alleen hij kan geven.</p>
 <div class="callout warn"><p><b>Preview.</b> De macOS-agent is nieuw in 0.59. Een bijdrager heeft hem geschreven en op Macs getest; onze eigen tests draaien op macOS in de build-pipeline. Meld wat niet werkt in <a href="https://github.com/Max-Zit/backupzit/issues">GitHub Issues</a>.</p></div>
 
 <h2 id="requirements">Vereisten</h2>
 <ul>
-  <li>Een Mac met <b>Apple silicon</b> (M1 en nieuwer, arm64) en <b>macOS 13</b> of nieuwer. Voor Intel-Macs is er geen pakket.</li>
+  <li>Een Mac met <b>Apple silicon</b> (M1 en nieuwer) of een <b>Intel</b>-processor, en <b>macOS 13</b> of nieuwer. Eén universeel pakket dient voor beide (sinds 0.60; 0.59 was alleen voor Apple silicon).</li>
   <li>Een beheerdersaccount op de Mac, voor de installatie en de registratie.</li>
   <li>De gebruiker van de Mac, om <a href="#permissions">volledige schijftoegang</a> te geven: macOS laat niemand anders dat doen, geen script en ook de console niet.</li>
   <li>Zoals elke agent moet de Mac het agentadres van de console (meestal poort 8443) en de opslag kunnen bereiken.</li>
@@ -13,7 +13,7 @@
 
 <h2 id="install">Installeren</h2>
 <ol>
-  <li>Download op de pagina <a href="/agents">Agents</a> <b>macOS-agent — Apple Silicon</b> (<code>backupzit-agent_<i>versie</i>_darwin_arm64.pkg</code>). Het consolepakket bevat het, net als de installatieprogramma's voor Windows en Linux.</li>
+  <li>Download op de pagina <a href="/agents">Agents</a> <b>macOS-agent</b> (<code>backupzit-agent_<i>versie</i>_darwin_universal.pkg</code>). Het consolepakket bevat het, net als de installatieprogramma's voor Windows en Linux.</li>
   <li>Open het <code>.pkg</code> op de Mac en volg het installatieprogramma. Bij een pakket dat niet met een Apple Developer ID is ondertekend, vraagt macOS eerst om bevestiging: klik er met de rechtermuisknop op en kies <b>Open</b> (op nieuwere macOS-versies: <i>Systeeminstellingen → Privacy en beveiliging → Open toch</i>).</li>
   <li>De laatste pagina van het installatieprogramma legt uit welke <a href="#permissions">toestemmingen</a> nodig zijn, en de menubalk-app wordt geopend.</li>
 </ol>

@@ -158,7 +158,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>514/udp o tcp, 6514/tcp (TLS)</td><td>consola</td><td>servidor syslog / SIEM</td><td>opcional: exportación del registro de auditoría (el puerto que indique)</td></tr>
   <tr><td>443/tcp</td><td>consola</td><td>github.com y sus servidores de descarga</td><td>comprobación y descarga de actualizaciones desde el origen de actualizaciones predeterminado; los agentes reciben sus actualizaciones de la consola</td></tr>
 </table>
-<p>La consola también se conecta por sí misma al almacenamiento para que pueda explorar archivos dentro de imágenes de disco y copias de VM (y descargarlos), así que necesita el mismo acceso al almacenamiento que los agentes.</p>
+<p>La consola también se conecta por sí misma al almacenamiento para probarlo, buscar copias en él y permitirle explorar archivos dentro de imágenes de disco y copias de VM (y descargarlos), así que necesita el mismo acceso al almacenamiento que los agentes. El almacenamiento al que solo llegan los agentes, por ejemplo un NAS en la red de un cliente mientras la consola se ejecuta en otro lugar, puede marcarse como <a href="/docs/storage#agents-only">accesible solo para agentes</a>: entonces lo prueban y lo examinan los agentes, y la consola nunca se conecta a él.</p>
 
 <h2>Actualizar BackupZit</h2>
 <p>Por defecto, la consola obtiene las actualizaciones de las versiones oficiales de BackupZit en GitHub (<code>https://github.com/Max-Zit/backupzit/releases</code>). En <a href="/settings/updates">Configuración → Actualizaciones</a> puede indicar otro <b>origen de actualizaciones</b>: su propio espejo HTTPS o una carpeta del servidor. Sea cual sea el origen, cada versión debe llevar una firma válida de BackupZit. La consola comprueba cada día si hay versiones nuevas y envía un correo a los administradores cuando hay una disponible. Para instalarla, haga clic en <b>Instalar</b>:</p>
@@ -193,7 +193,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>el certificado de la consola, que fijan los agentes.</li>
 </ul>
 <p>Está cifrada con la clave de recuperación del destino y deduplicada. Se conservan las copias más recientes: 14 por defecto.</p>
-<p id="console-backup-page">En la página elija el <i>Destino de almacenamiento</i> (solo almacenamiento de red: SFTP, S3, SMB, Azure o un repositorio reforzado; la copia va allí a la carpeta <code>backupzit-console</code>), la hora de la copia diaria (<i>A las</i>, hora de la consola) y cuántas copias se guardan (<i>Conservar</i>). <i>Copiar ahora</i> hace una al momento. La página muestra la última copia con su tamaño y la dirección del repositorio que necesita para una restauración.</p>
+<p id="console-backup-page">En la página elija el <i>Destino de almacenamiento</i> (almacenamiento de red al que llegue la consola: SFTP, S3, SMB, Azure o un repositorio reforzado, no almacenamiento accesible solo para agentes; la copia va allí a la carpeta <code>backupzit-console</code>), la hora de la copia diaria (<i>A las</i>, hora de la consola) y cuántas copias se guardan (<i>Conservar</i>). <i>Copiar ahora</i> hace una al momento. La página muestra la última copia con su tamaño y la dirección del repositorio que necesita para una restauración.</p>
 <h3>Restaurar la consola</h3>
 <ol>
   <li>Instale una consola nueva con la misma versión o una posterior, por ejemplo desde la ISO del appliance.</li>

@@ -19,7 +19,7 @@
   <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Lecteur</td><td>Exécutions récentes, les plus récentes en premier (100 par défaut, 1000 au maximum)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Lecteur</td><td>Une exécution avec message, erreurs et statistiques</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Lecteur</td><td>Le <a href="/docs/monitoring">rapport</a> d'une période : totaux, taux de réussite et détails par tâche</td></tr>
-  <tr><td><code>GET /api/v1/targets</code></td><td>Lecteur</td><td>Cibles de stockage (sans identifiants)</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Lecteur</td><td>Cibles de stockage (sans identifiants) ; <code>agents_only</code> signale un stockage accessible uniquement par les agents</td></tr>
   <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Lecteur</td><td>Un agent</td></tr>
   <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Opérateur de sauvegarde</td><td>Demande son journal à l'agent : <code>{"run_id": 124}</code> ; à lire avec le point suivant une fois envoyé (agents 0.38.0 ou plus récents)</td></tr>
   <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Opérateur de sauvegarde</td><td>Le journal envoyé par l'agent : <code>{"log": "..."}</code>, ou 404 tant qu'il n'est pas arrivé</td></tr>

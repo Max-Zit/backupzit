@@ -158,7 +158,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>514/udp lub tcp, 6514/tcp (TLS)</td><td>konsola</td><td>serwer syslog / SIEM</td><td>opcjonalnie: eksport dziennika audytu (port, który wpiszesz)</td></tr>
   <tr><td>443/tcp</td><td>konsola</td><td>github.com i jego serwery pobierania</td><td>sprawdzanie i pobieranie aktualizacji z domyślnego źródła aktualizacji; agenci dostają aktualizacje od konsoli</td></tr>
 </table>
-<p>Konsola łączy się też sama z magazynem, aby umożliwić przeglądanie plików w obrazach dysków i kopiach maszyn wirtualnych (i ich pobieranie), więc potrzebuje takiego samego dostępu do magazynu jak agenci.</p>
+<p>Konsola łączy się też sama z magazynem, aby go testować, wyszukiwać w nim kopie i umożliwić przeglądanie plików w obrazach dysków i kopiach maszyn wirtualnych (i ich pobieranie), więc potrzebuje takiego samego dostępu do magazynu jak agenci. Magazyn, do którego docierają tylko agenci, na przykład NAS w sieci klienta, gdy konsola działa gdzie indziej, można oznaczyć jako <a href="/docs/storage#agents-only">dostępny tylko dla agentów</a>: wtedy testują go i przeszukują agenci, a konsola nigdy się z nim nie łączy.</p>
 
 <h2>Aktualizacja BackupZit</h2>
 <p>Domyślnie konsola pobiera aktualizacje z oficjalnych wydań BackupZit na GitHubie (<code>https://github.com/Max-Zit/backupzit/releases</code>). W <a href="/settings/updates">Ustawienia → Aktualizacje</a> możesz zamiast tego podać inne <b>źródło aktualizacji</b> — własny serwer lustrzany HTTPS lub folder na serwerze. Niezależnie od źródła każde wydanie musi mieć ważny podpis BackupZit. Konsola codziennie sprawdza nowe wydania i wysyła e-mail do administratorów, gdy jakieś jest dostępne. Aby je zainstalować, kliknij <b>Zainstaluj</b>:</p>
@@ -193,7 +193,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>certyfikat konsoli, który przypinają agenci.</li>
 </ul>
 <p>Jest szyfrowana kluczem odzyskiwania miejsca docelowego i deduplikowana. Zachowywane są najnowsze kopie: domyślnie 14.</p>
-<p id="console-backup-page">Na stronie wybierz <i>Magazyn docelowy</i> (tylko magazyn sieciowy: SFTP, S3, SMB, Azure lub utwardzone repozytorium; kopia trafia tam do folderu <code>backupzit-console</code>), godzinę codziennej kopii (<i>O</i>, czas konsoli) i liczbę kopii w polu <i>Zachowaj</i>. <i>Utwórz kopię teraz</i> od razu tworzy kopię. Strona pokazuje ostatnią kopię z jej rozmiarem oraz adres repozytorium potrzebny do przywrócenia.</p>
+<p id="console-backup-page">Na stronie wybierz <i>Magazyn docelowy</i> (magazyn sieciowy, do którego konsola ma dostęp: SFTP, S3, SMB, Azure lub utwardzone repozytorium, a nie magazyn dostępny tylko dla agentów; kopia trafia tam do folderu <code>backupzit-console</code>), godzinę codziennej kopii (<i>O</i>, czas konsoli) i liczbę kopii w polu <i>Zachowaj</i>. <i>Utwórz kopię teraz</i> od razu tworzy kopię. Strona pokazuje ostatnią kopię z jej rozmiarem oraz adres repozytorium potrzebny do przywrócenia.</p>
 <h3>Przywracanie konsoli</h3>
 <ol>
   <li>Zainstaluj nową konsolę w tej samej lub nowszej wersji, na przykład z ISO appliance.</li>

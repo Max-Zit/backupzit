@@ -158,7 +158,7 @@ backupzit-server --set-admin-password 'NOVA-LOZINKA'</pre>
   <tr><td>514/udp ili tcp, 6514/tcp (TLS)</td><td>konzola</td><td>syslog server / SIEM</td><td>opciono: izvoz audit loga (port koji unesete)</td></tr>
   <tr><td>443/tcp</td><td>konzola</td><td>github.com i njegovi serveri za preuzimanje</td><td>provera i preuzimanje ažuriranja iz podrazumevanog izvora ažuriranja; agenti dobijaju ažuriranja od konzole</td></tr>
 </table>
-<p>Konzola se i sama povezuje na skladište da biste mogli da pregledate fajlove u slikama diskova i bekapima VM-ova (i da ih preuzmete), pa joj treba isti pristup skladištu kao agentima.</p>
+<p>Konzola se i sama povezuje na skladište da bi ga testirala, pronašla bekape na njemu i da biste mogli da pregledate fajlove u slikama diskova i bekapima VM-ova (i da ih preuzmete), pa joj treba isti pristup skladištu kao agentima. Skladište do kog dolaze samo agenti, na primer NAS u mreži klijenta dok konzola radi negde drugde, može da se označi kao <a href="/docs/storage#agents-only">dostupno samo agentima</a>: tada ga testiraju i pretražuju agenti, a konzola se nikad ne povezuje na njega.</p>
 
 <h2>Ažuriranje BackupZit-a</h2>
 <p>Podrazumevano konzola uzima ažuriranja iz zvaničnih BackupZit izdanja na GitHub-u (<code>https://github.com/Max-Zit/backupzit/releases</code>). U <a href="/settings/updates">Podešavanja → Ažuriranja</a> možete umesto toga uneti drugi <b>izvor ažuriranja</b> — svoj HTTPS mirror ili folder na serveru. Bez obzira na izvor, svako izdanje mora da ima ispravan BackupZit potpis. Konzola svakog dana proverava ima li novih izdanja i šalje email administratorima kada se pojavi novo. Za instalaciju kliknite <b>Instaliraj</b>:</p>
@@ -193,7 +193,7 @@ backupzit-server --set-admin-password 'NOVA-LOZINKA'</pre>
   <li>sertifikat konzole, koji agenti pamte.</li>
 </ul>
 <p>Šifrovan je ključem za oporavak skladišta i dedupliciran. Čuvaju se najnoviji bekapi: podrazumevano 14.</p>
-<p id="console-backup-page">Na stranici izaberite <i>Skladište</i> (samo mrežno skladište: SFTP, S3, SMB, Azure ili ojačani repozitorijum; bekap ide u folder <code>backupzit-console</code> na njemu), sat dnevnog bekapa (<i>U</i>, po vremenu konzole) i koliko bekapa da se čuva (<i>Čuvaj</i>). <i>Napravi bekap sada</i> odmah pravi jedan. Stranica prikazuje poslednji bekap sa njegovom veličinom i adresu repozitorijuma koja vam treba za vraćanje.</p>
+<p id="console-backup-page">Na stranici izaberite <i>Skladište</i> (mrežno skladište do kog konzola dolazi: SFTP, S3, SMB, Azure ili ojačani repozitorijum, ne skladište dostupno samo agentima; bekap ide u folder <code>backupzit-console</code> na njemu), sat dnevnog bekapa (<i>U</i>, po vremenu konzole) i koliko bekapa da se čuva (<i>Čuvaj</i>). <i>Napravi bekap sada</i> odmah pravi jedan. Stranica prikazuje poslednji bekap sa njegovom veličinom i adresu repozitorijuma koja vam treba za vraćanje.</p>
 <h3>Vraćanje konzole</h3>
 <ol>
   <li>Instalirajte novu konzolu iste ili novije verzije, na primer sa ISO-a uređaja.</li>

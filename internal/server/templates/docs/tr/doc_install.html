@@ -158,7 +158,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>514/udp veya tcp, 6514/tcp (TLS)</td><td>konsol</td><td>syslog sunucusu / SIEM</td><td>isteğe bağlı: denetim günlüğünün dışa aktarımı (girdiğiniz bağlantı noktası)</td></tr>
   <tr><td>443/tcp</td><td>konsol</td><td>github.com ve indirme sunucuları</td><td>varsayılan güncelleme kaynağından güncelleme denetimleri ve indirmeler; aracılar güncellemelerini konsoldan alır</td></tr>
 </table>
-<p>Konsol, disk görüntüleri ve VM yedeklerindeki dosyalara göz atmanıza (ve onları indirmenize) izin vermek için depolamaya kendisi de bağlanır; bu yüzden aracılarla aynı depolama erişimine ihtiyaç duyar.</p>
+<p>Konsol, depolamayı test etmek, üzerindeki yedekleri bulmak ve disk görüntüleri ile VM yedeklerindeki dosyalara göz atmanıza (ve onları indirmenize) izin vermek için depolamaya kendisi de bağlanır; bu yüzden aracılarla aynı depolama erişimine ihtiyaç duyar. Yalnızca aracıların erişebildiği depolama, örneğin konsol başka bir yerde çalışırken bir müşterinin ağındaki bir NAS, <a href="/docs/storage#agents-only">yalnızca aracılar erişebilir</a> olarak işaretlenebilir: bu durumda onu aracılar test eder ve arar, konsol ise ona hiç bağlanmaz.</p>
 
 <h2>BackupZit'i güncelleme</h2>
 <p>Varsayılan olarak konsol güncellemeleri GitHub'daki resmi BackupZit sürümlerinden alır (<code>https://github.com/Max-Zit/backupzit/releases</code>). <a href="/settings/updates">Ayarlar → Güncellemeler</a> altında bunun yerine başka bir <b>güncelleme kaynağı</b> girebilirsiniz — kendi HTTPS yansınız veya sunucudaki bir klasör. Kaynak ne olursa olsun, her sürüm geçerli bir BackupZit imzası taşımalıdır. Konsol her gün yeni sürümleri denetler ve biri kullanılabilir olduğunda yöneticilere e-posta gönderir. Kurmak için <b>Kur</b>'a tıklayın:</p>
@@ -193,7 +193,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>aracıların sabitlediği konsol sertifikası.</li>
 </ul>
 <p>Hedefin kurtarma anahtarıyla şifrelenir ve tekilleştirilir. En yeni yedekler tutulur: varsayılan olarak 14.</p>
-<p id="console-backup-page">Sayfada <i>Depolama hedefi</i>'ni (yalnızca ağ depolaması: SFTP, S3, SMB, Azure veya güçlendirilmiş depo; yedek oradaki <code>backupzit-console</code> klasörüne gider), günlük yedeğin saatini (<i>Saat</i>, konsol saati) ve kaç yedeğin tutulacağını (<i>Sakla</i>) seçin. <i>Şimdi yedekle</i> hemen bir yedek alır. Sayfa son yedeği boyutuyla ve geri yükleme için gereken depo adresiyle birlikte gösterir.</p>
+<p id="console-backup-page">Sayfada <i>Depolama hedefi</i>'ni (konsolun erişebildiği ağ depolaması: SFTP, S3, SMB, Azure veya güçlendirilmiş depo, yalnızca aracıların erişebildiği depolama değil; yedek oradaki <code>backupzit-console</code> klasörüne gider), günlük yedeğin saatini (<i>Saat</i>, konsol saati) ve kaç yedeğin tutulacağını (<i>Sakla</i>) seçin. <i>Şimdi yedekle</i> hemen bir yedek alır. Sayfa son yedeği boyutuyla ve geri yükleme için gereken depo adresiyle birlikte gösterir.</p>
 <h3>Konsolu geri yükleme</h3>
 <ol>
   <li>Aynı veya daha yeni sürümde yeni bir konsol kurun, örneğin appliance ISO'sundan.</li>

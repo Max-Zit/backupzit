@@ -1,11 +1,11 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
-<h1>macOS エージェント（Apple シリコン）</h1>
-<p class="lead">macOS エージェントは、Apple シリコン搭載 Mac のファイルとフォルダーをバックアップします。最初の起動からサービスとして動作し、起動ディスクのバックアップはすべて APFS ローカル スナップショットから読み取り、Mac のファイル メタデータを保持します。メニュー バー アプリが状態を表示し、Mac のユーザーにしか許可できないアクセス権の設定を案内します。</p>
+<h1>macOS エージェント</h1>
+<p class="lead">macOS エージェントは、Apple シリコン搭載または Intel 搭載の Mac のファイルとフォルダーをバックアップします。最初の起動からサービスとして動作し、起動ディスクのバックアップはすべて APFS ローカル スナップショットから読み取り、Mac のファイル メタデータを保持します。メニュー バー アプリが状態を表示し、Mac のユーザーにしか許可できないアクセス権の設定を案内します。</p>
 <div class="callout warn"><p><b>プレビュー。</b>macOS エージェントは 0.59 の新機能です。コントリビューターが作成し、Mac でテストしました。当社のテストはビルド パイプラインの macOS 上で実行しています。動作しない点は <a href="https://github.com/Max-Zit/backupzit/issues">GitHub Issues</a> でお知らせください。</p></div>
 
 <h2 id="requirements">要件</h2>
 <ul>
-  <li><b>Apple シリコン</b>（M1 以降、arm64）搭載で <b>macOS 13</b> 以降の Mac。Intel Mac 用のパッケージはありません。</li>
+  <li><b>Apple シリコン</b>（M1 以降）または <b>Intel</b> プロセッサー搭載で、<b>macOS 13</b> 以降の Mac。1 つのユニバーサル パッケージで両方に対応します（0.60 以降。0.59 は Apple シリコン専用でした）。</li>
   <li>インストールと登録のための、Mac の管理者アカウント。</li>
   <li><a href="#permissions">フルディスクアクセス</a>を許可する Mac のユーザー: macOS はほかの誰にも、スクリプトにもコンソールにもそれを許しません。</li>
   <li>他のエージェントと同様に、Mac はコンソールのエージェント用アドレス（通常はポート 8443）とストレージに到達できる必要があります。</li>
@@ -13,7 +13,7 @@
 
 <h2 id="install">インストール</h2>
 <ol>
-  <li><a href="/agents">エージェント</a>ページで <b>macOS エージェント — Apple シリコン</b>（<code>backupzit-agent_<i>version</i>_darwin_arm64.pkg</code>）をダウンロードします。Windows と Linux のインストーラーと同様に、コンソール パッケージに同梱されています。</li>
+  <li><a href="/agents">エージェント</a>ページで <b>macOS エージェント</b>（<code>backupzit-agent_<i>version</i>_darwin_universal.pkg</code>）をダウンロードします。Windows と Linux のインストーラーと同様に、コンソール パッケージに同梱されています。</li>
   <li>Mac で <code>.pkg</code> を開き、インストーラーの指示に従います。Apple Developer ID で署名されていないパッケージの場合、macOS はまず確認を求めます: パッケージを右クリックして<b>開く</b>を選びます（新しい macOS では <i>システム設定 → プライバシーとセキュリティ → このまま開く</i>）。</li>
   <li>インストーラーの最後のページで許可すべき<a href="#permissions">アクセス権</a>が説明され、メニュー バー アプリが開きます。</li>
 </ol>
