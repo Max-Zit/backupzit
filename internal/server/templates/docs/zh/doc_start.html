@@ -28,7 +28,7 @@
 <p>要搭建新的控制台，可将现成的设备映像导入一台小型虚拟机、启动设备 ISO，或在现有 Linux 服务器上运行安装脚本；参见 <a href="/docs/install">安装服务器</a>。</p>
 <ol>
   <li>在 <a href="/targets">存储</a> 下<b>添加存储目标</b>。保持<i>加密备份</i>处于启用状态，并将随后显示的恢复单保存在安全的地方。参见 <a href="/docs/storage">存储目标</a>。</li>
-  <li><b>安装代理</b>：在 <a href="/agents">Agent</a> 下点击<i>创建注册令牌</i>，从同一页面下载安装程序，并在 Windows 安装程序要求时粘贴注册码（Linux 和 macOS：<code>backupzit-agent enroll --code …</code>，参见 <a href="/docs/macos">macOS 代理</a>）。对于虚拟机，请在 Proxmox 或 Hyper-V 主机上安装代理；在 Agent → VMware ESXi 主机 下添加 VMware ESXi 主机。参见 <a href="/docs/agents">Agent</a>。</li>
+  <li><b>安装代理</b>：在 <a href="/agents">Agent</a> 下点击<i>创建注册令牌</i>，从同一页面下载安装程序，并在 Windows 安装程序要求时粘贴注册码（Linux：<code>backupzit-agent enroll --code …</code>；macOS：菜单栏 App 会在安装后要求输入注册码，参见 <a href="/docs/macos">macOS 代理</a>）。对于虚拟机，请在 Proxmox 或 Hyper-V 主机上安装代理；在 Agent → VMware ESXi 主机 下添加 VMware ESXi 主机。参见 <a href="/docs/agents">Agent</a>。</li>
   <li>在 <a href="/jobs">备份作业</a> 下<b>创建备份作业</b>：选择代理、存储、要备份的内容（文件、NAS 共享、磁盘映像、数据库、整个 Linux 系统，或 Proxmox、Hyper-V、VMware ESXi 主机的虚拟机）、运行时间以及保留的备份数量。参见 <a href="/docs/jobs">备份作业和计划</a>。</li>
   <li>在作业页面上使用<i>立即运行备份</i><b>手动运行一次</b>，并在 <a href="/runs">活动</a> 下检查结果。</li>
   <li><b>测试还原</b>——备份的价值取决于能否还原。自动还原测试每周运行；也请使用<a href="/restore">还原向导</a>手动还原一次。参见 <a href="/docs/restore">还原</a>。</li>

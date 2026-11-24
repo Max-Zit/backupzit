@@ -82,6 +82,7 @@
 
 <h2>Un backup termina con "avviso"</h2>
 <p>Alcuni file non sono stati letti — di solito file bloccati da un'applicazione mentre VSS non è disponibile, o file per cui l'agente non ha autorizzazione. L'elenco è nella pagina dell'esecuzione. Tutto il resto è salvato. Su un Mac, anche la mancanza dell'accesso completo al disco produce un avviso (<a href="/docs/macos#warnings">Agenti macOS</a>).</p>
+<p id="cloud-only"><b>File solo nel cloud.</b> iCloud Drive su un Mac (<i>Ottimizza spazio Mac</i>) e OneDrive su Windows (<i>File su richiesta</i>, file contrassegnati come disponibili solo online) conservano il contenuto di molti file solo nel cloud. Un backup non può leggerli, e dalla 0.60 l'agente non ci prova. Un file che il backup precedente contiene invariato mantiene il contenuto di quel backup. Gli altri vengono esclusi ed elencati a parte rispetto agli errori di lettura, per cartella, sotto <i>Solo nel cloud, non salvati</i> nella pagina dell'esecuzione. L'esecuzione termina con un avviso, perché quel contenuto non è nel backup. Scaricate i file sul computer prima del backup (Mac: Finder → <b>Scarica ora</b>; Windows: clic destro → <b>Mantieni sempre su questo dispositivo</b>), oppure disattivate Ottimizza spazio Mac. OneDrive per il lavoro o l'istituto di istruzione può anche essere salvato dal cloud con un job <a href="/docs/m365">Microsoft 365</a>, compresi i file disponibili solo online. Vedete anche <a href="/docs/macos#icloud">File in iCloud Drive</a>.</p>
 
 <h2>I backup sono lenti</h2>
 <ul>

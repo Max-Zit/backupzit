@@ -82,6 +82,7 @@
 
 <h2>Záloha skončí „varováním“</h2>
 <p>Některé soubory nešlo přečíst — obvykle soubory zamčené aplikací, když není k dispozici VSS, nebo soubory, ke kterým agent nemá oprávnění. Seznam je na stránce běhu. Vše ostatní je zálohováno. Na Macu dává varování i chybějící plný přístup k disku (<a href="/docs/macos#warnings">Agenti pro macOS</a>).</p>
+<p id="cloud-only"><b>Soubory jen v cloudu.</b> iCloud Drive na Macu (<i>Optimalizovat úložiště Macu</i>) a OneDrive ve Windows (<i>Soubory na vyžádání</i>, soubory označené jako dostupné jen online) uchovávají obsah mnoha souborů jen v cloudu. Záloha je přečíst nemůže a agent se o to od 0.60 nepokouší. Soubor, který předchozí záloha obsahuje beze změny, si ponechá obsah z ní. Ostatní se vynechají a na stránce běhu se vypíšou zvlášť od chyb čtení, po složkách, pod <i>Jen v cloudu, nezálohováno</i>. Běh skončí varováním, protože tento obsah v záloze není. Stáhněte soubory před zálohou do počítače (Mac: Finder → <b>Download Now</b>; Windows: pravé tlačítko → <b>Always keep on this device</b>), nebo vypněte Optimalizovat úložiště Macu. OneDrive pro práci nebo školu lze také zálohovat z cloudu úlohou <a href="/docs/m365">Microsoft 365</a>, včetně souborů dostupných jen online. Viz také <a href="/docs/macos#icloud">Soubory na iCloud Drive</a>.</p>
 
 <h2>Zálohy jsou pomalé</h2>
 <ul>

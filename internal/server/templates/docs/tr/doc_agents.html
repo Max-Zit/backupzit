@@ -16,7 +16,7 @@
 <h2>Aracıları kaydetme</h2>
 <ol>
   <li><a href="/agents">Aracılar</a> sayfasında <b>Kayıt belirteci oluştur</b>'a tıklayın. Konsol 7 gün geçerli ve istenen sayıda makinede kullanılabilen bir <b>kayıt kodu</b> (<code>BZ1-…</code>) gösterir. Kod, aracılar için konsol adresini (sayfa web bağlantı noktası 443'te açık olsa bile aracı bağlantı noktasıyla, genellikle 8443), belirteci ve sertifika parmak izini içerir. 0.33.6'dan itibaren aracılar, eski konsolların web bağlantı noktasında oluşturduğu kodlarla da kaydolur.</li>
-  <li>Windows: MSI'yi çalıştırın ve yükleyici istediğinde kodu yapıştırın. Linux: gösterilen komutu çalıştırın. macOS: paketi kurun, ardından gösterilen komutu Terminal'de çalıştırın (bkz. <a href="/docs/macos#enroll">macOS aracıları</a>).</li>
+  <li>Windows: MSI'yi çalıştırın ve yükleyici istediğinde kodu yapıştırın. Linux: gösterilen komutu çalıştırın. macOS: paketi kurun ve menü çubuğu uygulaması istediğinde kodu yapıştırın ya da gösterilen komutu Terminal'de çalıştırın (bkz. <a href="/docs/macos#enroll">macOS aracıları</a>).</li>
   <li>Makine bir dakika içinde aracı listesinde görünür.</li>
 </ol>
 <p>Kurulum sırasında konsola ulaşılamazsa aracı kodu saklar ve kaydolabilene kadar yeniden dener. Yükseltmeler kaydı korur ve yeniden sormaz. Zaten kayıtlı bir makinede <code>ENROLLCODE</code> ile sessiz kurulum, kod aynı konsol içinse kaydı korur (GPO veya RMM bunu güvenle tekrarlayabilir), kod başka bir konsol içinse makineyi taşır; önceki kayıt <code>agent.json</code> yanında <code>agent.json.replaced-<i>tarih</i></code> olarak saklanır, böylece adını geri değiştirmek makineyi aynı aracı olarak eski konsoluna döndürür.</p>
@@ -29,7 +29,7 @@ backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre>
 <h3 id="macos">macOS</h3>
 <pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre>
-<p>Bunu <code>.pkg</code>'yi kurduktan sonra çalıştırın. Bir MDM bunun yerine paketi kurmadan önce kodu <code>/Library/Application Support/BackupZit/enroll-code</code> dosyasına yazar. Ardından Tam Disk Erişimi'ni Mac'in kullanıcısı vermelidir; bkz. <a href="/docs/macos">macOS aracıları</a>.</p>
+<p>Bunu <code>.pkg</code>'yi kurduktan sonra çalıştırın ya da kodu, kurulumdan sonra isteyen BackupZit menü çubuğu uygulamasına yapıştırın (daha sonra: menüsündeki <b>Enroll this Mac…</b>). Bir MDM bunun yerine paketi kurmadan önce kodu <code>/Library/Application Support/BackupZit/enroll-code</code> dosyasına yazar. Ardından Tam Disk Erişimi'ni Mac'in kullanıcısı vermelidir; bkz. <a href="/docs/macos">macOS aracıları</a>.</p>
 
 <h2>Aracıları konsoldan kurma</h2>
 <p>Yükleyicileri her makineye kopyalamak yerine aracıyı konsola kurdurun: <a href="/agents">Aracılar</a> sayfasında <b>Buradan bir makineye kur</b>'u açın, Linux veya Windows'u seçin ve makinenin adresini ve bir yönetici hesabını girin.</p>

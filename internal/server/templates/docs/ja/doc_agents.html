@@ -16,7 +16,7 @@
 <h2>エージェントの登録</h2>
 <ol>
   <li><a href="/agents">エージェント</a>ページで<b>登録トークンを作成</b>をクリックします。コンソールに<b>登録コード</b>（<code>BZ1-…</code>）が表示されます。有効期間は 7 日で、何台のマシンにも使えます。エージェント用のコンソール アドレス（ページを Web ポート 443 で開いていても、エージェント用ポート、通常は 8443）、トークン、証明書のフィンガープリントが含まれます。0.33.6 以降のエージェントは、古いコンソールが Web ポートで作成したコードでも登録できます。</li>
-  <li>Windows: MSI を実行し、インストーラーが求めたらコードを貼り付けます。Linux: 表示されたコマンドを実行します。macOS: パッケージをインストールし、表示されたコマンドをターミナルで実行します（<a href="/docs/macos#enroll">macOS エージェント</a>を参照）。</li>
+  <li>Windows: MSI を実行し、インストーラーが求めたらコードを貼り付けます。Linux: 表示されたコマンドを実行します。macOS: パッケージをインストールし、メニュー バー アプリが求めたらコードを貼り付けるか、表示されたコマンドをターミナルで実行します（<a href="/docs/macos#enroll">macOS エージェント</a>を参照）。</li>
   <li>1 分以内にマシンがエージェント一覧に表示されます。</li>
 </ol>
 <p>インストール中にコンソールに接続できない場合、エージェントはコードを保持し、登録できるまで再試行します。アップグレードでは登録が保持され、再度尋ねられることはありません。登録済みのマシンで <code>ENROLLCODE</code> を指定してサイレント インストールすると、コードが同じコンソールのものなら登録を保持し（GPO や RMM で安全に繰り返せます）、別のコンソールのものならマシンを移行します。以前の登録は <code>agent.json</code> の隣に <code>agent.json.replaced-<i>日付</i></code> として保存されるため、名前を元に戻せばマシンは同じエージェントとして元のコンソールに戻ります。</p>
@@ -29,7 +29,7 @@ backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre>
 <h3 id="macos">macOS</h3>
 <pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre>
-<p><code>.pkg</code> をインストールした後に実行します。MDM の場合は、代わりにパッケージをインストールする前にコードを <code>/Library/Application Support/BackupZit/enroll-code</code> に書き込みます。その後、フルディスクアクセスを Mac のユーザーが許可する必要があります。<a href="/docs/macos">macOS エージェント</a>を参照してください。</p>
+<p><code>.pkg</code> をインストールした後に実行するか、インストール後にコードを求める BackupZit のメニュー バー アプリにコードを貼り付けます（後からはメニューの <b>Enroll this Mac…</b>）。MDM の場合は、代わりにパッケージをインストールする前にコードを <code>/Library/Application Support/BackupZit/enroll-code</code> に書き込みます。その後、フルディスクアクセスを Mac のユーザーが許可する必要があります。<a href="/docs/macos">macOS エージェント</a>を参照してください。</p>
 
 <h2>コンソールからのエージェントのインストール</h2>
 <p>インストーラーを各マシンにコピーする代わりに、コンソールにエージェントをインストールさせることができます。<a href="/agents">エージェント</a>で<b>ここからマシンにインストール</b>を開き、Linux または Windows を選んで、マシンのアドレスと管理者アカウントを入力します。</p>

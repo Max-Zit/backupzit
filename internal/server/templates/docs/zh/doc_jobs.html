@@ -22,7 +22,7 @@
 </ol>
 
 <h2 id="users">每个用户的文件夹</h2>
-<p>在路径下方，<b>计算机的每个用户</b> 可添加 <i>桌面</i>、<i>文档</i>、<i>下载</i>、<i>图片</i> 或 <i>整个用户配置文件</i>。它们写作 <code>{users}/Documents</code>，代理在每次备份时重新查找这些文件夹：Windows 上为 <code>C:\Users\&lt;名称&gt;\Documents</code>（以及 OneDrive 移动后的文件夹 <code>…\OneDrive\Documents</code>），Linux 上为 <code>/home/&lt;名称&gt;/Documents</code> 和 <code>/root/Documents</code>，macOS 上为 <code>/Users/&lt;名称&gt;/Documents</code>。之后新增的用户无需修改作业即可备份；系统配置文件（Default、Public）会被跳过。<code>{users}</code> 后可接任何文件夹，例如 <code>{users}/AppData/Roaming/Thunderbird</code>。</p>
+<p>在路径下方，<b>计算机的每个用户</b> 可添加 <i>桌面</i>、<i>文档</i>、<i>下载</i>、<i>图片</i> 或 <i>整个用户配置文件</i>。它们写作 <code>{users}/Documents</code>，代理在每次备份时重新查找这些文件夹：Windows 上为 <code>C:\Users\&lt;名称&gt;\Documents</code>（以及 OneDrive 移动后的文件夹 <code>…\OneDrive\Documents</code>），Linux 上为 <code>/home/&lt;名称&gt;/Documents</code> 和 <code>/root/Documents</code>，macOS 上为 <code>/Users/&lt;名称&gt;/Documents</code>。之后新增的用户无需修改作业即可备份；系统配置文件（Default、Public）会被跳过。<code>{users}</code> 后可接任何文件夹，例如 <code>{users}/AppData/Roaming/Thunderbird</code>。OneDrive 或 iCloud 云盘仅保存在云端的文件不在备份中：参见 <a href="/docs/troubleshooting#cloud-only">仅在云端的文件</a>。</p>
 <p>路径中还可以使用通配符 <code>*</code>（一个文件夹名称内的任意字符）和 <code>?</code>（一个字符）：<code>D:\Projects\*\Docs</code>、<code>/srv/sites/*/uploads</code>。在 Windows 上不区分大小写；在 Linux 和 macOS 上按所写内容匹配。在某台计算机上找不到任何内容的 <code>{users}</code> 或通配符路径不算错误：运行会报告 <i>Nothing matched …</i>，只有在完全没有可备份内容时才会失败。需要代理 0.45.0 或更高版本。整个配置文件也包含缓存；可使用完整路径排除，例如 <code>C:\Users\*\AppData\Local\Temp</code>。</p>
 
 <h2 id="groups">一个作业用于多个代理</h2>

@@ -31,16 +31,17 @@
 <p>该程序不会加入 <code>PATH</code>：在“终端”中请使用其完整路径调用。</p>
 
 <h2 id="enroll">注册</h2>
-<p>即使 Mac 尚未注册，服务也已安装并在运行；一旦注册，它就开始工作。在 <a href="/agents">Agent</a> 页面，<b>创建注册令牌</b>会在 Windows 和 Linux 的命令旁边显示 macOS 的命令。从以下三种方式中选择一种：</p>
+<p>即使 Mac 尚未注册，服务也已安装并在运行；一旦注册，它就开始工作。在 <a href="/agents">Agent</a> 页面，<b>创建注册令牌</b>会在 Windows 和 Linux 的命令旁边显示 macOS 的注册码和命令。从以下四种方式中选择一种：</p>
 <ol>
-  <li><b>安装后在“终端”中</b>（常用方式）：
+  <li id="menu-bar"><b>安装后在菜单栏 App 中</b>（常用方式，适用于 0.60 及更高版本的代理）：在 Mac 尚未注册期间，BackupZit 菜单栏 App 会在安装后立即要求输入注册码。粘贴注册码，点击 <b>Enroll</b>，并在 macOS 要求时输入管理员的名称和密码。随后 App 会显示注册是否成功，如未成功则显示原因。以后，或在点击 <b>Later</b> 之后，可在其菜单中选择 <b>Enroll this Mac…</b>；只要 Mac 尚未注册，该菜单项就会存在。</li>
+  <li><b>安装后在“终端”中</b>：
 <pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
   <li id="mdm"><b>使用 MDM</b>（Jamf、Intune、Mosyle……）：在安装安装包之前，由脚本将注册码写入一个属于 root 的文件：
 <pre>echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat &gt; "/Library/Application Support/BackupZit/enroll-code"'</pre>
   然后部署安装包。安装时会用该注册码注册 Mac 并删除该文件。不属于 root 的文件会被忽略。这也是将已注册的 Mac 迁移到另一个控制台的方法。</li>
   <li><b>软件包旁的文件</b>：在 Mac 启动磁盘上与 <code>.pkg</code> 相同的文件夹中放一个写有代码的 <code>backupzit-enroll.txt</code>（例如 <code>/Users/Shared</code>；如果来自 U 盘或网络共享，请先把两者复制到 Mac 上：在这类卷上，任何文件都可以声称属于 root）。只有在 Mac 尚未注册、并且没有其他人可能写入它时才会使用：该文件属于 root 或 Mac 的管理员，只有一个名称且只有其所有者可以更改，其文件夹属于 root 或管理员，其他用户不能写入（或者像 <code>/Users/Shared</code> 那样设置了粘滞位）。</li>
 </ol>
-<p>如果安装期间无法连接控制台，代理会保留注册码并不断重试。如果注册失败，原因记录在 <code>/Library/Application Support/BackupZit/enroll-error.log</code> 中；之后请在“终端”中注册。升级和重新安装会保留注册。</p>
+<p>如果安装期间无法连接控制台，代理会保留注册码并不断重试。如果注册失败，原因记录在 <code>/Library/Application Support/BackupZit/enroll-error.log</code> 中；之后请通过菜单栏 App 或在“终端”中注册。升级和重新安装会保留注册。</p>
 
 <h2 id="permissions">权限</h2>
 <p>macOS 会保护某些数据不被任何程序读取（即使以 root 身份运行），直到用户在“系统设置”中允许。只有坐在 Mac 前的用户才能授予这些权限；安装器的最后一页和菜单栏 App 会引导用户完成。</p>
@@ -79,6 +80,13 @@
 <p>已备份文件夹下的某些系统文件夹会保留为空文件夹：其他卷（<code>/Volumes</code>）、交换区（<code>/System/Volumes/VM</code>、<code>/private/var/vm</code>）、<code>/System/Volumes</code> 中的支持卷、<code>/dev</code>、临时文件（<code>/private/tmp</code>、<code>/private/var/folders</code>）、缓存（<code>/Library/Caches</code>、<code>/System/Library/Caches</code>、<code>~/Library/Caches</code>）、废纸篓（<code>~/.Trash</code>、<code>.Trashes</code>）、Spotlight、FSEvents、文稿版本以及本地和 HFS+ 的 Time Machine 备份。以 <code>/</code> 作为来源时，<code>/</code> 已显示的数据卷文件夹（<code>/Users</code>、<code>/Applications</code>……）不会被读取两次。作为作业来源指定的文件夹总会被读取，例如 <code>/Volumes/USB</code> 或 <code>~/.Trash</code>。</p>
 <h3 id="warnings">运行报告中的警告</h3>
 <p>没有完全磁盘访问权限时，无法读取 macOS 保护的文件夹：邮件、信息、Safari 浏览器、桌面和文稿、其他 App 的数据、可移除卷和网络卷。此时，来源涉及 <code>/Users</code>（<code>/Users/Shared</code> 除外）、<code>/Library</code> 或 <code>/Volumes</code>，或其上层文件夹（如 <code>/</code>）的备份会以警告 <i>Full Disk Access is not granted to the BackupZit agent</i> 结束。其他文件夹（例如 <code>/opt/data</code>）的备份不会发出警告。</p>
+<h3 id="icloud">iCloud 云盘中的文件</h3>
+<p>当<i>桌面与文稿</i>存储在 iCloud 云盘中并打开了<b>优化 Mac 储存空间</b>时，macOS 会将一段时间未使用的文件的内容仅保存在 iCloud 中。文件仍以其名称和大小显示在“访达”中，但其数据不在 Mac 上（即“dataless”文件，带有 iCloud 下载箭头）。备份无法读取这样的文件：APFS 快照不包含其内容，而直接在磁盘上读取会让 iCloud 在文件所有者的会话中下载它，在该用户未登录时这会失败。自 0.60 起，代理从不打开这些文件，也从不让 iCloud 下载其中任何一个：</p>
+<ul>
+  <li>在上一次备份中存在且此后未更改（大小和修改时间相同）的文件会沿用那次备份中的内容，因此备份之后才被释放空间的文件仍保留在备份中。</li>
+  <li>其他此类文件会被排除在备份之外，并与读取错误分开计数。运行会以类似 <i>3360 files (1.2 GiB) are in iCloud Drive but not downloaded on this Mac</i> 的警告结束，运行页面会按文件夹（例如 <code>/Users/anna/Documents</code>）列出它们，并显示文件数和大小。</li>
+</ul>
+<p>要备份这些文件，请在备份之前将它们下载到 Mac：在“访达”中右键点按该文件夹 → <b>立即下载</b>，或者在“终端”中以该用户身份运行 <code>find ~/Documents -type f -exec brctl download {} \;</code>。要将它们永久保留在 Mac 上，请在<i>系统设置 → 你的名字 → iCloud</i> 中关闭<b>优化 Mac 储存空间</b>。未登录此 Mac 的用户的文件，只有在该用户登录后才能下载。</p>
 
 <h2 id="restore">还原</h2>
 <p>Mac 的文件与所有<a href="/docs/restore">文件备份</a>一样还原：整个备份或仅部分路径，还原到文件夹或原始位置，在该 Mac 或其他代理上；单个文件可以从控制台下载。在 Mac 上还原会重新设置上述元数据。与 Windows 和 Linux 一样，它只通过已打开的文件夹写入，绝不按路径写入，因此还原期间被放在路径中的链接不会被跟随。覆盖已锁定的文件进行还原时，会先清除其锁定和 append-only 标志，然后重新设置保存的标志（系统标志无法在运行中的 Mac 上清除）。</p>
@@ -110,6 +118,7 @@ sudo /Library/BackupZit/uninstall.sh --purge    # deletes them too</pre>
   <tr><td>运行显示文件是“without a snapshot”读取的</td><td>“No APFS local snapshot … was taken”：授予完全磁盘访问权限。“Not on the startup disk's data volume”：该路径位于外置磁盘或共享上，APFS 本地快照不覆盖它；它仍会被备份。其他原因见消息。</td></tr>
   <tr><td>更新运行失败</td><td>运行会显示原因，例如 launchd 拒绝了安装程序作业。安装程序的输出位于 <code>/Library/Application Support/BackupZit/updates</code>（Agent 页面上的<b>获取日志</b>也包含它）。手动安装较新的 <code>.pkg</code> 也可以；注册会保留。</td></tr>
   <tr><td>Mac 的系统作业被拒绝</td><td>这是预期行为：参见 <a href="#limits">Mac 代理不能做什么</a>。</td></tr>
+  <tr><td>“… are in iCloud Drive but not downloaded on this Mac”</td><td>其内容仅在 iCloud 中（优化 Mac 储存空间）。请将文件下载到 Mac 或关闭该选项：参见 <a href="#icloud">iCloud 云盘中的文件</a>。</td></tr>
 </table>
 <h3 id="logs">日志</h3>
 <ul>

@@ -16,7 +16,7 @@
 <h2>注册代理</h2>
 <ol>
   <li>在 <a href="/agents">Agent</a> 页面上点击<b>创建注册令牌</b>。控制台会显示一个<b>注册码</b>（<code>BZ1-…</code>），有效期 7 天，可用于任意数量的机器。它包含供代理使用的控制台地址（带代理端口，通常为 8443，即使页面是通过 Web 端口 443 打开的）、令牌和证书指纹。0.33.6 及以后的代理也可以使用旧版控制台在 Web 端口上生成的注册码进行注册。</li>
-  <li>Windows：运行 MSI，在安装程序要求时粘贴注册码。Linux：运行显示的命令。macOS：安装安装包，然后在“终端”中运行显示的命令（参见 <a href="/docs/macos#enroll">macOS 代理</a>）。</li>
+  <li>Windows：运行 MSI，在安装程序要求时粘贴注册码。Linux：运行显示的命令。macOS：安装安装包，在菜单栏 App 要求时粘贴注册码，或在“终端”中运行显示的命令（参见 <a href="/docs/macos#enroll">macOS 代理</a>）。</li>
   <li>机器会在一分钟内出现在代理列表中。</li>
 </ol>
 <p>如果安装期间无法连接控制台，代理会保留注册码并不断重试，直到注册成功。升级会保留注册，不会再次询问。在已注册的机器上使用 <code>ENROLLCODE</code> 进行静默安装时，如果注册码属于同一控制台，则保留注册（GPO 或 RMM 可以安全地重复执行）；如果属于其他控制台，则迁移该机器；之前的注册会以 <code>agent.json.replaced-<i>日期</i></code> 保存在 <code>agent.json</code> 旁边，将其改回原名即可让机器以同一代理身份回到旧控制台。</p>
@@ -29,7 +29,7 @@ backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre>
 <h3 id="macos">macOS</h3>
 <pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre>
-<p>在安装 <code>.pkg</code> 后运行。使用 MDM 时，则改为在安装安装包之前将注册码写入 <code>/Library/Application Support/BackupZit/enroll-code</code>。之后必须由 Mac 的用户授予完全磁盘访问权限；参见 <a href="/docs/macos">macOS 代理</a>。</p>
+<p>在安装 <code>.pkg</code> 后运行，或将注册码粘贴到 BackupZit 菜单栏 App 中，该 App 会在安装后要求输入注册码（以后：在其菜单中选择 <b>Enroll this Mac…</b>）。使用 MDM 时，则改为在安装安装包之前将注册码写入 <code>/Library/Application Support/BackupZit/enroll-code</code>。之后必须由 Mac 的用户授予完全磁盘访问权限；参见 <a href="/docs/macos">macOS 代理</a>。</p>
 
 <h2>从控制台安装代理</h2>
 <p>无需把安装程序复制到每台机器，可以让控制台安装代理：在 <a href="/agents">Agent</a> 页面打开<b>从此处安装到机器</b>，选择 Linux 或 Windows，输入机器地址和管理员帐户。</p>

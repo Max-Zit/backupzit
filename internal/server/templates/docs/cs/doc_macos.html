@@ -31,16 +31,17 @@
 <p>Program se nepřidává do <code>PATH</code>: v Terminálu ho volejte celou cestou.</p>
 
 <h2 id="enroll">Registrace</h2>
-<p>Služba je nainstalovaná a běží, ještě než se Mac zaregistruje; pracovat začne, jakmile k tomu dojde. Na stránce <a href="/agents">Agenti</a> zobrazí <b>Vytvořit registrační token</b> příkazy pro macOS vedle příkazů pro Windows a Linux. Zvolte jeden ze tří způsobů:</p>
+<p>Služba je nainstalovaná a běží, ještě než se Mac zaregistruje; pracovat začne, jakmile k tomu dojde. Na stránce <a href="/agents">Agenti</a> zobrazí <b>Vytvořit registrační token</b> kód a příkazy pro macOS vedle příkazů pro Windows a Linux. Zvolte jeden ze čtyř způsobů:</p>
 <ol>
-  <li><b>V Terminálu po instalaci</b> (obvyklý způsob):
+  <li id="menu-bar"><b>V aplikaci v řádku nabídek po instalaci</b> (obvyklý způsob, agenti 0.60 a novější): dokud Mac není zaregistrovaný, požádá aplikace BackupZit v řádku nabídek o kód hned po instalaci. Vložte ho, klikněte na <b>Enroll</b> a zadejte jméno a heslo administrátora, když o ně macOS požádá. Aplikace pak oznámí, zda registrace proběhla, a pokud ne, proč. Později, nebo po <b>Later</b>, zvolte v její nabídce <b>Enroll this Mac…</b>; položka tam je, dokud Mac není zaregistrovaný.</li>
+  <li><b>V Terminálu po instalaci</b>:
 <pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
   <li id="mdm"><b>Přes MDM</b> (Jamf, Intune, Mosyle…): před instalací balíčku skript zapíše kód do souboru, jehož vlastníkem je root:
 <pre>echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat &gt; "/Library/Application Support/BackupZit/enroll-code"'</pre>
   Pak balíček nasaďte. Jeho instalace Mac tímto kódem zaregistruje a soubor smaže. Soubor, jehož vlastníkem není root, se ignoruje. Takto lze také přesunout registrovaný Mac do jiné konzole.</li>
   <li><b>Soubor vedle balíčku</b>: <code>backupzit-enroll.txt</code> s kódem, ve stejné složce jako <code>.pkg</code> na spouštěcím disku Macu (například v <code>/Users/Shared</code>; z USB disku nebo síťové sdílené složky oba soubory nejdřív zkopírujte: na takovém svazku může kterýkoli soubor tvrdit, že patří rootovi). Použije se jen dokud Mac ještě není zaregistrovaný, a jen pokud ho nemohl zapsat nikdo jiný: soubor patří rootovi nebo správci Macu, má jediné jméno a měnit ho smí jen jeho vlastník, a jeho složka patří rootovi nebo správci a jiní uživatelé do ní nesmějí zapisovat (nebo má sticky bit, jako <code>/Users/Shared</code>).</li>
 </ol>
-<p>Pokud konzole během instalace není dostupná, agent si kód ponechá a zkouší to znovu. Pokud registrace selže, důvod je v <code>/Library/Application Support/BackupZit/enroll-error.log</code>; zaregistrujte pak Mac v Terminálu. Upgrady a přeinstalace registraci zachovávají.</p>
+<p>Pokud konzole během instalace není dostupná, agent si kód ponechá a zkouší to znovu. Pokud registrace selže, důvod je v <code>/Library/Application Support/BackupZit/enroll-error.log</code>; zaregistrujte pak Mac z aplikace v řádku nabídek nebo v Terminálu. Upgrady a přeinstalace registraci zachovávají.</p>
 
 <h2 id="permissions">Oprávnění</h2>
 <p>macOS chrání některá data před každým programem, i před programem běžícím jako root, dokud to uživatel nepovolí v Nastavení systému. Tato oprávnění může udělit jen uživatel u Macu; poslední stránka instalátoru a aplikace v řádku nabídek ho jimi provedou.</p>
@@ -79,6 +80,13 @@
 <p>Některé systémové složky pod zálohovanou složkou se uloží jako prázdné složky: jiné svazky (<code>/Volumes</code>), odkládací prostor (<code>/System/Volumes/VM</code>, <code>/private/var/vm</code>), podpůrné svazky v <code>/System/Volumes</code>, <code>/dev</code>, dočasné soubory (<code>/private/tmp</code>, <code>/private/var/folders</code>), mezipaměti (<code>/Library/Caches</code>, <code>/System/Library/Caches</code>, <code>~/Library/Caches</code>), Koš (<code>~/.Trash</code>, <code>.Trashes</code>), Spotlight, FSEvents, verze dokumentů a lokální zálohy Time Machine i zálohy Time Machine na HFS+. Se zdrojem <code>/</code> se složky datového svazku, které <code>/</code> už zobrazuje (<code>/Users</code>, <code>/Applications</code>…), nečtou dvakrát. Složka uvedená jako zdroj úlohy se čte vždy, např. <code>/Volumes/USB</code> nebo <code>~/.Trash</code>.</p>
 <h3 id="warnings">Varování ve zprávě o běhu</h3>
 <p>Bez plného přístupu k disku nelze číst složky chráněné macOS: Mail, Zprávy, Safari, Plochu a Dokumenty, data jiných aplikací, vyměnitelné a síťové svazky. Záloha, jejíž zdroje sahají do <code>/Users</code> (kromě <code>/Users/Shared</code>), <code>/Library</code> nebo <code>/Volumes</code>, nebo do složky nad nimi jako <code>/</code>, pak skončí varováním <i>Full Disk Access is not granted to the BackupZit agent</i>. Zálohy jiných složek (např. <code>/opt/data</code>) nevarují.</p>
+<h3 id="icloud">Soubory na iCloud Drive</h3>
+<p>Když jsou <i>Plocha a Dokumenty</i> na iCloud Drive a je zapnuté <b>Optimalizovat úložiště Macu</b>, macOS uchovává obsah souborů, které se nějakou dobu nepoužívaly, jen na iCloudu. Soubor zůstává ve Finderu se svým názvem a velikostí, ale jeho data na Macu nejsou (soubor „dataless“, zobrazený se šipkou stažení z iCloudu). Záloha takový soubor přečíst nemůže: snímek APFS jeho obsah neobsahuje a čtení přímo z disku by přimělo iCloud soubor stáhnout v relaci jeho vlastníka, což selže, dokud tento uživatel není přihlášený. Od 0.60 agent tyto soubory nikdy neotevírá a nikdy nenechá iCloud žádný z nich stáhnout:</p>
+<ul>
+  <li>Soubor, který byl v předchozí záloze a od té doby se nezměnil (stejná velikost a čas změny), si ponechá obsah z ní, takže soubor, jehož místo se po záloze uvolnilo, v zálohách zůstává.</li>
+  <li>Každý jiný takový soubor se ze zálohy vynechá a počítá se zvlášť od chyb čtení. Běh skončí varováním, například <i>3360 files (1.2 GiB) are in iCloud Drive but not downloaded on this Mac</i>, a stránka běhu je vypíše po složkách (např. <code>/Users/anna/Documents</code>) s počtem souborů a jejich velikostí.</li>
+</ul>
+<p>Aby se zálohovaly, stáhněte je před zálohou na Mac: ve Finderu klikněte pravým tlačítkem na složku → <b>Download Now</b>, nebo v Terminálu jako tento uživatel <code>find ~/Documents -type f -exec brctl download {} \;</code>. Aby zůstaly na Macu natrvalo, vypněte <b>Optimalizovat úložiště Macu</b> v <i>Nastavení systému → vaše jméno → iCloud</i>. Soubory uživatele, který není na Macu přihlášený, lze stáhnout až po přihlášení tohoto uživatele.</p>
 
 <h2 id="restore">Obnova</h2>
 <p>Soubory Macu se obnovují jako všechny <a href="/docs/restore">zálohy souborů</a>: celá záloha nebo jen některé cesty, do složky nebo na původní místo, na Macu nebo na jiném agentovi; jednotlivé soubory lze stáhnout z konzole. Obnova na Macu znovu nastaví výše uvedená metadata. Stejně jako ve Windows a Linuxu zapisuje jen přes složky, které otevřela, nikdy podle cesty, takže odkaz podstrčený během obnovy se nenásleduje. Obnova přes zamčené soubory nejprve zruší jejich příznaky zamčení a jen připisování a pak znovu nastaví uložené (systémové příznaky nelze na běžícím Macu zrušit).</p>
@@ -110,6 +118,7 @@ sudo /Library/BackupZit/uninstall.sh --purge    # deletes them too</pre>
   <tr><td>Běh uvádí, že soubory byly přečteny „without a snapshot“</td><td>„No APFS local snapshot … was taken“: udělte plný přístup k disku. „Not on the startup disk's data volume“: cesta je na externím disku nebo sdílené složce, které lokální snímky APFS nepokrývají; zálohuje se i tak. Jakýkoli jiný důvod je ve zprávě.</td></tr>
   <tr><td>Běh aktualizace selhal</td><td>Běh ukáže důvod, např. odmítnutí úlohy instalátoru službou launchd. Výstup instalátoru je v <code>/Library/Application Support/BackupZit/updates</code> (<b>Získat protokol</b> na stránce Agenti ho obsahuje). Funguje i ruční instalace novějšího <code>.pkg</code>; registrace se zachová.</td></tr>
   <tr><td>Systémová úloha pro Mac je odmítnuta</td><td>Očekávané: viz <a href="#limits">Co agent na Macu neumí</a>.</td></tr>
+  <tr><td>„… are in iCloud Drive but not downloaded on this Mac“</td><td>Jejich obsah je jen na iCloudu (Optimalizovat úložiště Macu). Stáhněte je na Mac nebo tuto volbu vypněte: viz <a href="#icloud">Soubory na iCloud Drive</a>.</td></tr>
 </table>
 <h3 id="logs">Protokoly</h3>
 <ul>

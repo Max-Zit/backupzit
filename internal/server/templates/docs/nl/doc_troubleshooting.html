@@ -82,6 +82,7 @@
 
 <h2>Een back-up eindigt met "waarschuwing"</h2>
 <p>Sommige bestanden konden niet worden gelezen — meestal bestanden die door een toepassing zijn vergrendeld terwijl VSS niet beschikbaar is, of bestanden waarvoor de agent geen rechten heeft. De lijst staat op de runpagina. Al het andere is geback-upt. Op een Mac geeft ook ontbrekende volledige schijftoegang een waarschuwing (<a href="/docs/macos#warnings">macOS-agents</a>).</p>
+<p id="cloud-only"><b>Bestanden alleen in de cloud.</b> iCloud Drive op een Mac (<i>Optimaliseer Mac-opslag</i>) en OneDrive op Windows (<i>Bestanden op aanvraag</i>, bestanden gemarkeerd als alleen online beschikbaar) bewaren de inhoud van veel bestanden alleen in de cloud. Een back-up kan ze niet lezen, en sinds 0.60 probeert de agent het niet. Een bestand dat ongewijzigd in de vorige back-up zit, behoudt de inhoud daaruit. De andere worden weggelaten en apart van de leesfouten per map vermeld onder <i>Alleen in de cloud, niet geback-upt</i> op de runpagina. De run eindigt met een waarschuwing, omdat die inhoud niet in de back-up zit. Download de bestanden vóór de back-up op de computer (Mac: Finder → <b>Download nu</b>; Windows: rechtsklikken → <b>Altijd op dit apparaat behouden</b>), of zet Optimaliseer Mac-opslag uit. OneDrive voor werk of school kan ook vanuit de cloud worden geback-upt met een <a href="/docs/m365">Microsoft 365</a>-taak, inclusief bestanden die alleen online beschikbaar zijn. Zie ook <a href="/docs/macos#icloud">Bestanden in iCloud Drive</a>.</p>
 
 <h2>Back-ups zijn traag</h2>
 <ul>

@@ -82,6 +82,7 @@
 
 <h2>Um backup termina com "aviso"</h2>
 <p>Alguns arquivos não puderam ser lidos — geralmente arquivos bloqueados por um aplicativo enquanto o VSS não está disponível, ou arquivos para os quais o agente não tem permissão. A lista está na página da execução. Todo o resto foi copiado. Num Mac, a falta do Acesso completo ao disco também gera um aviso (<a href="/docs/macos#warnings">Agentes macOS</a>).</p>
+<p id="cloud-only"><b>Arquivos só na nuvem.</b> O iCloud Drive num Mac (<i>Otimizar Armazenamento do Mac</i>) e o OneDrive no Windows (<i>Arquivos Sob Demanda</i>, arquivos marcados como disponíveis somente online) mantêm o conteúdo de muitos arquivos só na nuvem. Um backup não consegue lê-los, e desde a 0.60 o agente não tenta. Um arquivo que o backup anterior tem sem alterações mantém o conteúdo de lá. Os outros ficam de fora e são listados à parte dos erros de leitura, por pasta, em <i>Só na nuvem, sem cópia</i> na página da execução. A execução termina com um aviso, porque esse conteúdo não está no backup. Baixe os arquivos no computador antes do backup (Mac: Finder → <b>Baixar Agora</b>; Windows: botão direito → <b>Sempre manter neste dispositivo</b>) ou desative Otimizar Armazenamento do Mac. O OneDrive corporativo ou de estudante também pode ter backup direto da nuvem com um job do <a href="/docs/m365">Microsoft 365</a>, incluindo os arquivos somente online. Veja também <a href="/docs/macos#icloud">Arquivos no iCloud Drive</a>.</p>
 
 <h2>Os backups estão lentos</h2>
 <ul>

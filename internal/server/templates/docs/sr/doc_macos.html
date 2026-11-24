@@ -31,16 +31,17 @@
 <p>Program se ne dodaje u <code>PATH</code>: u Terminalu ga pozivajte punom putanjom.</p>
 
 <h2 id="enroll">Registracija</h2>
-<p>Servis je instaliran i radi i pre nego što se Mac registruje; počinje da radi čim se to desi. Na stranici <a href="/agents">Agenti</a>, <b>Napravi token za registraciju</b> prikazuje komande za macOS pored onih za Windows i Linux. Izaberite jedan od tri načina:</p>
+<p>Servis je instaliran i radi i pre nego što se Mac registruje; počinje da radi čim se to desi. Na stranici <a href="/agents">Agenti</a>, <b>Napravi token za registraciju</b> prikazuje kod i komande za macOS pored onih za Windows i Linux. Izaberite jedan od četiri načina:</p>
 <ol>
-  <li><b>U Terminalu, posle instalacije</b> (uobičajen način):
+  <li id="menu-bar"><b>U aplikaciji na traci menija, posle instalacije</b> (uobičajen način, agenti 0.60 i noviji): dok Mac nije registrovan, BackupZit aplikacija na traci menija traži kod odmah posle instalacije. Nalepite ga, kliknite <b>Enroll</b> i unesite ime i lozinku administratora kada macOS to zatraži. Aplikacija zatim javlja da li je registracija uspela, a ako nije, zašto. Kasnije, ili posle <b>Later</b>, izaberite <b>Enroll this Mac…</b> u njenom meniju; stavka postoji dok Mac nije registrovan.</li>
+  <li><b>U Terminalu, posle instalacije</b>:
 <pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
   <li id="mdm"><b>Preko MDM-a</b> (Jamf, Intune, Mosyle…): pre instalacije paketa skripta upisuje kod u fajl čiji je vlasnik root:
 <pre>echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat &gt; "/Library/Application Support/BackupZit/enroll-code"'</pre>
   Zatim rasporedite paket. Njegova instalacija registruje Mac tim kodom i briše fajl. Fajl čiji vlasnik nije root se zanemaruje. Ovo je i način da se registrovani Mac premesti na drugu konzolu.</li>
   <li><b>Fajl pored paketa</b>: <code>backupzit-enroll.txt</code> sa kodom, u istom folderu kao <code>.pkg</code> na Mac-ovom disku za pokretanje (na primer u <code>/Users/Shared</code>; sa USB stika ili mrežnog deljenog foldera prvo kopirajte oba fajla na Mac: na takvom volumenu svaki fajl može da tvrdi da pripada root-u). Koristi se samo dok Mac još nije registrovan, i samo ako niko drugi nije mogao da ga upiše: fajl pripada root-u ili administratoru Mac-a, ima samo jedno ime i sme da ga menja samo vlasnik, a njegov folder pripada root-u ili administratoru i drugi korisnici ne mogu da pišu u njega (ili ima sticky bit, kao <code>/Users/Shared</code>).</li>
 </ol>
-<p>Ako konzola nije dostupna tokom instalacije, agent čuva kod i pokušava ponovo. Ako registracija ne uspe, razlog je u <code>/Library/Application Support/BackupZit/enroll-error.log</code>; registrujte Mac posle toga u Terminalu. Nadogradnje i ponovne instalacije zadržavaju registraciju.</p>
+<p>Ako konzola nije dostupna tokom instalacije, agent čuva kod i pokušava ponovo. Ako registracija ne uspe, razlog je u <code>/Library/Application Support/BackupZit/enroll-error.log</code>; registrujte Mac posle toga iz aplikacije na traci menija ili u Terminalu. Nadogradnje i ponovne instalacije zadržavaju registraciju.</p>
 
 <h2 id="permissions">Dozvole</h2>
 <p>macOS štiti deo podataka od svakog programa, i od onog koji radi kao root, dok korisnik to ne dozvoli u System Settings. Samo korisnik za Mac računarom može da da ove dozvole; poslednja stranica instalacije i aplikacija na traci menija vode ga kroz njih.</p>
@@ -79,6 +80,13 @@
 <p>Neki sistemski folderi ispod foldera koji se bekapuje čuvaju se kao prazni folderi: drugi volumeni (<code>/Volumes</code>), swap (<code>/System/Volumes/VM</code>, <code>/private/var/vm</code>), pomoćni volumeni u <code>/System/Volumes</code>, <code>/dev</code>, privremeni fajlovi (<code>/private/tmp</code>, <code>/private/var/folders</code>), keševi (<code>/Library/Caches</code>, <code>/System/Library/Caches</code>, <code>~/Library/Caches</code>), Trash (<code>~/.Trash</code>, <code>.Trashes</code>), Spotlight, FSEvents, verzije dokumenata i lokalni i HFS+ Time Machine bekapi. Sa <code>/</code> kao izvorom, folderi volumena podataka koje <code>/</code> već prikazuje (<code>/Users</code>, <code>/Applications</code>…) ne čitaju se dvaput. Folder naveden kao izvor posla uvek se čita, npr. <code>/Volumes/USB</code> ili <code>~/.Trash</code>.</p>
 <h3 id="warnings">Upozorenja u izveštaju pokretanja</h3>
 <p>Bez punog pristupa disku folderi koje macOS štiti ne mogu da se pročitaju: Mail, Messages, Safari, Desktop i Documents, podaci drugih aplikacija, prenosivi i mrežni volumeni. Bekap čiji izvori obuhvataju <code>/Users</code> (osim <code>/Users/Shared</code>), <code>/Library</code> ili <code>/Volumes</code>, ili folder iznad njih kao <code>/</code>, tada se završava upozorenjem <i>Full Disk Access is not granted to the BackupZit agent</i>. Bekapi drugih foldera (npr. <code>/opt/data</code>) ne upozoravaju.</p>
+<h3 id="icloud">Fajlovi u iCloud Drive-u</h3>
+<p>Kada su <i>Desktop &amp; Documents</i> u iCloud Drive-u, a uključeno je <b>Optimize Mac Storage</b>, macOS sadržaj fajlova koji se neko vreme ne koriste čuva samo u iCloud-u. Fajl ostaje u Finderu sa svojim imenom i veličinom, ali njegovi podaci nisu na Mac-u („dataless” fajl, prikazan sa iCloud strelicom za preuzimanje). Bekap ne može da pročita takav fajl: APFS snimak ne sadrži njegov sadržaj, a čitanje direktno sa diska bi nateralo iCloud da ga preuzme u sesiji njegovog vlasnika, što ne uspeva dok taj korisnik nije prijavljen. Od 0.60 agent nikada ne otvara ove fajlove i nikada ne tera iCloud da preuzme bilo koji od njih:</p>
+<ul>
+  <li>Fajl koji je bio u prethodnom bekapu i od tada se nije menjao (ista veličina i vreme izmene) zadržava sadržaj odande, pa fajl čiji je prostor oslobođen posle bekapa ostaje u bekapima.</li>
+  <li>Svaki drugi takav fajl se izostavlja iz bekapa i broji odvojeno od grešaka čitanja. Pokretanje se završava upozorenjem kao što je <i>3360 files (1.2 GiB) are in iCloud Drive but not downloaded on this Mac</i>, a stranica pokretanja ih navodi po folderima (npr. <code>/Users/anna/Documents</code>) sa brojem fajlova i njihovom veličinom.</li>
+</ul>
+<p>Da bi ušli u bekap, preuzmite ih na Mac pre bekapa: u Finderu desni klik na folder → <b>Download Now</b>, ili u Terminalu kao taj korisnik <code>find ~/Documents -type f -exec brctl download {} \;</code>. Da bi trajno ostali na Mac-u, isključite <b>Optimize Mac Storage</b> u <i>System Settings → vaše ime → iCloud</i>. Fajlovi korisnika koji nije prijavljen na Mac mogu da se preuzmu tek kada se taj korisnik prijavi.</p>
 
 <h2 id="restore">Vraćanje</h2>
 <p>Fajlovi Mac računara se vraćaju kao svi <a href="/docs/restore">bekapi fajlova</a>: ceo bekap ili samo neke putanje, u folder ili na originalnu lokaciju, na Mac ili na drugog agenta; pojedinačni fajlovi mogu da se preuzmu iz konzole. Vraćanje na Mac ponovo postavlja gore navedene metapodatke. Kao na Windowsu i Linuxu, upisuje samo kroz foldere koje je otvorilo, nikad po putanji, pa se link podmetnut tokom vraćanja ne prati. Vraćanje preko zaključanih fajlova prvo skida njihove flegove zaključavanja i samo-dodavanja, pa ponovo postavlja sačuvane (sistemski flegovi ne mogu da se skinu na Mac računaru koji radi).</p>
@@ -110,6 +118,7 @@ sudo /Library/BackupZit/uninstall.sh --purge    # briše i njih</pre>
   <tr><td>Pokretanje kaže da su fajlovi pročitani „without a snapshot”</td><td>„No APFS local snapshot … was taken”: dajte pun pristup disku. „Not on the startup disk's data volume”: putanja je na eksternom disku ili deljenom folderu, koje lokalni APFS snimci ne pokrivaju; svejedno se bekapuje. Svaki drugi razlog je u poruci.</td></tr>
   <tr><td>Ažuriranje nije uspelo</td><td>Pokretanje prikazuje razlog, npr. da je launchd odbio posao instalacije. Izlaz instalacije je u <code>/Library/Application Support/BackupZit/updates</code> (<b>Preuzmi log</b> na stranici Agenti ga uključuje). Ručna instalacija novijeg <code>.pkg</code> takođe radi; registracija se zadržava.</td></tr>
   <tr><td>Sistemski posao za Mac je odbijen</td><td>Očekivano: vidi <a href="#limits">Šta Mac agent ne može</a>.</td></tr>
+  <tr><td>„… are in iCloud Drive but not downloaded on this Mac”</td><td>Njihov sadržaj je samo u iCloud-u (Optimize Mac Storage). Preuzmite ih na Mac ili isključite tu opciju: vidi <a href="#icloud">Fajlovi u iCloud Drive-u</a>.</td></tr>
 </table>
 <h3 id="logs">Logovi</h3>
 <ul>

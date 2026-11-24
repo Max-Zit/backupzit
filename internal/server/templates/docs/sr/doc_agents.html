@@ -16,7 +16,7 @@
 <h2>Registracija agenata</h2>
 <ol>
   <li>Na stranici <a href="/agents">Agenti</a> kliknite <b>Napravi token za registraciju</b>. Konzola prikazuje <b>kod za registraciju</b> (<code>BZ1-…</code>), koji važi 7 dana i može da se koristi za bilo koliko mašina. Sadrži adresu konzole za agente (sa portom za agente, obično 8443, čak i kada je stranica otvorena na web portu 443), token i otisak sertifikata. Agenti od verzije 0.33.6 se registruju i kodovima koje su starije konzole napravile na web portu.</li>
-  <li>Windows: pokrenite MSI i nalepite kod kada ga instalacija zatraži. Linux: pokrenite prikazanu komandu. macOS: instalirajte paket, a zatim u Terminalu pokrenite prikazanu komandu (vidi <a href="/docs/macos#enroll">macOS agenti</a>).</li>
+  <li>Windows: pokrenite MSI i nalepite kod kada ga instalacija zatraži. Linux: pokrenite prikazanu komandu. macOS: instalirajte paket i nalepite kod kada ga aplikacija na traci menija zatraži, ili u Terminalu pokrenite prikazanu komandu (vidi <a href="/docs/macos#enroll">macOS agenti</a>).</li>
   <li>Mašina se pojavljuje u listi agenata za manje od minuta.</li>
 </ol>
 <p>Ako konzola nije dostupna tokom instalacije, agent čuva kod i pokušava ponovo dok ne uspe da se registruje. Nadogradnje zadržavaju registraciju i ne pitaju ponovo. Tiha instalacija sa <code>ENROLLCODE</code> na mašini koja je već registrovana zadržava registraciju kada je kod za istu konzolu (GPO ili RMM mogu bezbedno da je ponavljaju), a premešta mašinu kada je kod za drugu konzolu; prethodna registracija se čuva kao <code>agent.json.replaced-<i>datum</i></code> pored <code>agent.json</code>, pa vraćanje starog imena vraća mašinu na staru konzolu kao istog agenta.</p>
@@ -29,7 +29,7 @@ backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre>
 <h3 id="macos">macOS</h3>
 <pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre>
-<p>Pokrenite je posle instalacije <code>.pkg</code> paketa. MDM umesto toga upisuje kod u <code>/Library/Application Support/BackupZit/enroll-code</code> pre instalacije paketa. Pun pristup disku (Full Disk Access) zatim mora da da korisnik Mac-a; vidi <a href="/docs/macos">macOS agenti</a>.</p>
+<p>Pokrenite je posle instalacije <code>.pkg</code> paketa, ili nalepite kod u BackupZit aplikaciju na traci menija, koja ga traži posle instalacije (kasnije: <b>Enroll this Mac…</b> u njenom meniju). MDM umesto toga upisuje kod u <code>/Library/Application Support/BackupZit/enroll-code</code> pre instalacije paketa. Pun pristup disku (Full Disk Access) zatim mora da da korisnik Mac-a; vidi <a href="/docs/macos">macOS agenti</a>.</p>
 
 <h2>Instalacija agenata iz konzole</h2>
 <p>Umesto da instalaciju kopirate na svaku mašinu, prepustite instalaciju konzoli: na stranici <a href="/agents">Agenti</a> otvorite <b>Instaliraj na mašinu odavde</b>, izaberite Linux ili Windows i unesite adresu mašine i administratorski nalog.</p>

@@ -16,7 +16,7 @@
 <h2>Agenten registrieren</h2>
 <ol>
   <li>Klicken Sie auf der Seite <a href="/agents">Agenten</a> auf <b>Registrierungstoken erstellen</b>. Die Konsole zeigt einen <b>Registrierungscode</b> (<code>BZ1-…</code>), 7 Tage gültig und für beliebig viele Rechner nutzbar. Er enthält die Konsolenadresse für Agenten (mit dem Agenten-Port, meist 8443, auch wenn die Seite über den Web-Port 443 geöffnet ist), das Token und den Zertifikat-Fingerabdruck. Agenten ab 0.33.6 registrieren sich auch mit Codes, die ältere Konsolen auf dem Web-Port erstellt haben.</li>
-  <li>Windows: Führen Sie das MSI aus und fügen Sie den Code ein, wenn das Installationsprogramm danach fragt. Linux: Führen Sie den angezeigten Befehl aus. macOS: Installieren Sie das Paket und führen Sie dann den angezeigten Befehl im Terminal aus (siehe <a href="/docs/macos#enroll">macOS-Agenten</a>).</li>
+  <li>Windows: Führen Sie das MSI aus und fügen Sie den Code ein, wenn das Installationsprogramm danach fragt. Linux: Führen Sie den angezeigten Befehl aus. macOS: Installieren Sie das Paket und fügen Sie den Code ein, wenn die Menüleisten-App danach fragt, oder führen Sie den angezeigten Befehl im Terminal aus (siehe <a href="/docs/macos#enroll">macOS-Agenten</a>).</li>
   <li>Der Rechner erscheint innerhalb einer Minute in der Agentenliste.</li>
 </ol>
 <p>Ist die Konsole während der Installation nicht erreichbar, behält der Agent den Code und versucht es erneut, bis er sich registrieren kann. Upgrades behalten die Registrierung und fragen nicht erneut. Eine stille Installation mit <code>ENROLLCODE</code> auf einem bereits registrierten Rechner behält die Registrierung, wenn der Code für dieselbe Konsole ist (GPO oder RMM können sie gefahrlos wiederholen), und verschiebt den Rechner, wenn der Code für eine andere Konsole ist; die vorherige Registrierung bleibt als <code>agent.json.replaced-<i>Datum</i></code> neben <code>agent.json</code> erhalten, sodass das Zurückbenennen den Rechner als denselben Agenten zu seiner alten Konsole zurückbringt.</p>
@@ -29,7 +29,7 @@ backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre>
 <h3 id="macos">macOS</h3>
 <pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre>
-<p>Führen Sie ihn nach der Installation des <code>.pkg</code> aus. Ein MDM schreibt den Code stattdessen vor der Installation des Pakets nach <code>/Library/Application Support/BackupZit/enroll-code</code>. Den Festplattenvollzugriff muss danach der Benutzer des Macs erteilen; siehe <a href="/docs/macos">macOS-Agenten</a>.</p>
+<p>Führen Sie ihn nach der Installation des <code>.pkg</code> aus, oder fügen Sie den Code in die BackupZit-Menüleisten-App ein, die nach der Installation danach fragt (später: <b>Enroll this Mac…</b> in ihrem Menü). Ein MDM schreibt den Code stattdessen vor der Installation des Pakets nach <code>/Library/Application Support/BackupZit/enroll-code</code>. Den Festplattenvollzugriff muss danach der Benutzer des Macs erteilen; siehe <a href="/docs/macos">macOS-Agenten</a>.</p>
 
 <h2>Agenten aus der Konsole installieren</h2>
 <p>Statt Installationsprogramme auf jeden Rechner zu kopieren, lassen Sie die Konsole den Agenten installieren: Öffnen Sie unter <a href="/agents">Agenten</a> <b>Von hier aus auf einem Rechner installieren</b>, wählen Sie Linux oder Windows und geben Sie die Adresse des Rechners und ein Administratorkonto ein.</p>

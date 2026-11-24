@@ -16,7 +16,7 @@
 <h2>Rejestrowanie agentów</h2>
 <ol>
   <li>Na stronie <a href="/agents">Agenci</a> kliknij <b>Utwórz token rejestracji</b>. Konsola pokaże <b>kod rejestracji</b> (<code>BZ1-…</code>), ważny 7 dni i używalny na dowolnej liczbie maszyn. Zawiera adres konsoli dla agentów (z portem agentów, zwykle 8443, także gdy strona jest otwarta na porcie WWW 443), token i odcisk certyfikatu. Agenci od 0.33.6 rejestrują się także kodami, które starsze konsole utworzyły na porcie WWW.</li>
-  <li>Windows: uruchom MSI i wklej kod, gdy instalator o niego poprosi. Linux: wykonaj pokazane polecenie. macOS: zainstaluj pakiet, a potem wykonaj pokazane polecenie w Terminalu (zobacz <a href="/docs/macos#enroll">Agenci macOS</a>).</li>
+  <li>Windows: uruchom MSI i wklej kod, gdy instalator o niego poprosi. Linux: wykonaj pokazane polecenie. macOS: zainstaluj pakiet i wklej kod, gdy aplikacja na pasku menu o niego poprosi, albo wykonaj pokazane polecenie w Terminalu (zobacz <a href="/docs/macos#enroll">Agenci macOS</a>).</li>
   <li>Maszyna pojawi się na liście agentów w ciągu minuty.</li>
 </ol>
 <p>Jeśli konsola jest niedostępna podczas instalacji, agent zachowuje kod i ponawia próby, aż zdoła się zarejestrować. Aktualizacje zachowują rejestrację i nie pytają ponownie. Cicha instalacja z <code>ENROLLCODE</code> na już zarejestrowanej maszynie zachowuje rejestrację, gdy kod dotyczy tej samej konsoli (GPO lub RMM mogą ją bezpiecznie powtarzać), i przenosi maszynę, gdy kod dotyczy innej konsoli; poprzednia rejestracja jest zachowywana jako <code>agent.json.replaced-<i>data</i></code> obok <code>agent.json</code>, więc przywrócenie nazwy przenosi maszynę z powrotem do starej konsoli jako tego samego agenta.</p>
@@ -29,7 +29,7 @@ backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre>
 <h3 id="macos">macOS</h3>
 <pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre>
-<p>Wykonaj je po zainstalowaniu <code>.pkg</code>. MDM zamiast tego zapisuje kod do <code>/Library/Application Support/BackupZit/enroll-code</code> przed instalacją pakietu. Pełny dostęp do dysku musi potem przyznać użytkownik Maca; zobacz <a href="/docs/macos">Agenci macOS</a>.</p>
+<p>Wykonaj je po zainstalowaniu <code>.pkg</code> albo wklej kod do aplikacji BackupZit na pasku menu, która prosi o niego po instalacji (później: <b>Enroll this Mac…</b> w jej menu). MDM zamiast tego zapisuje kod do <code>/Library/Application Support/BackupZit/enroll-code</code> przed instalacją pakietu. Pełny dostęp do dysku musi potem przyznać użytkownik Maca; zobacz <a href="/docs/macos">Agenci macOS</a>.</p>
 
 <h2>Instalowanie agentów z konsoli</h2>
 <p>Zamiast kopiować instalatory na każdą maszynę, pozwól konsoli zainstalować agenta: na stronie <a href="/agents">Agenci</a> otwórz <b>Zainstaluj na maszynie stąd</b>, wybierz Linux lub Windows i podaj adres maszyny oraz konto administratora.</p>

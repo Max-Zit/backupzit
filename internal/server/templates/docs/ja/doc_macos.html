@@ -31,16 +31,17 @@
 <p>プログラムは <code>PATH</code> に追加されません。ターミナルではフル パスで呼び出してください。</p>
 
 <h2 id="enroll">登録</h2>
-<p>サービスは Mac が登録される前からインストールされて動作しており、登録されるとすぐに作業を始めます。<a href="/agents">エージェント</a>ページの<b>登録トークンを作成</b>で、Windows と Linux のコマンドの隣に macOS のコマンドが表示されます。次の 3 つの方法から 1 つを選びます:</p>
+<p>サービスは Mac が登録される前からインストールされて動作しており、登録されるとすぐに作業を始めます。<a href="/agents">エージェント</a>ページの<b>登録トークンを作成</b>で、Windows と Linux のコマンドの隣に macOS 用のコードとコマンドが表示されます。次の 4 つの方法から 1 つを選びます:</p>
 <ol>
-  <li><b>インストール後にターミナルで</b>（通常の方法）:
+  <li id="menu-bar"><b>インストール後にメニュー バー アプリで</b>（通常の方法、エージェント 0.60 以降）: Mac が登録されていない間、BackupZit のメニュー バー アプリはインストール直後にコードを求めます。コードを貼り付けて <b>Enroll</b> をクリックし、macOS に求められたら管理者の名前とパスワードを入力します。その後、アプリは登録が成功したかどうか、失敗した場合はその理由を表示します。後から登録する場合や <b>Later</b> を選んだ後は、アプリのメニューで <b>Enroll this Mac…</b> を選びます。この項目は Mac が登録されていない間表示されます。</li>
+  <li><b>インストール後にターミナルで</b>:
 <pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
   <li id="mdm"><b>MDM で</b>（Jamf、Intune、Mosyle…）: パッケージをインストールする前に、スクリプトでコードを root 所有のファイルに書き込みます:
 <pre>echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat &gt; "/Library/Application Support/BackupZit/enroll-code"'</pre>
   その後パッケージを配布します。インストール時にこのコードで Mac が登録され、ファイルは削除されます。root 所有でないファイルは無視されます。登録済みの Mac を別のコンソールに移すのもこの方法です。</li>
   <li><b>パッケージの隣のファイル</b>: コードを書いた <code>backupzit-enroll.txt</code> を、Mac の起動ディスク上の <code>.pkg</code> と同じフォルダーに置きます (たとえば <code>/Users/Shared</code>。USB メモリーやネットワーク共有からは、先に両方を Mac にコピーしてください。そのようなボリュームでは、どのファイルでも root のものだと称することができます)。Mac がまだ登録されていない間だけ、しかもほかの誰も書き込めなかった場合だけ使われます。ファイルは root または Mac の管理者のもので、名前は 1 つだけ、変更できるのは所有者だけであり、そのフォルダーは root または管理者のもので、ほかのユーザーは書き込めません (または <code>/Users/Shared</code> のようにスティッキー ビットがあります)。</li>
 </ol>
-<p>インストール中にコンソールに接続できない場合、エージェントはコードを保持して再試行します。登録に失敗した場合、理由は <code>/Library/Application Support/BackupZit/enroll-error.log</code> にあります。その後ターミナルで登録してください。アップグレードと再インストールでは登録が保持されます。</p>
+<p>インストール中にコンソールに接続できない場合、エージェントはコードを保持して再試行します。登録に失敗した場合、理由は <code>/Library/Application Support/BackupZit/enroll-error.log</code> にあります。その後メニュー バー アプリまたはターミナルで登録してください。アップグレードと再インストールでは登録が保持されます。</p>
 
 <h2 id="permissions">アクセス権</h2>
 <p>macOS は一部のデータを、root として動作するものも含むすべてのプログラムから保護し、ユーザーがシステム設定で許可するまで読ませません。これらのアクセス権を許可できるのは Mac の前にいるユーザーだけです。インストーラーの最後のページとメニュー バー アプリがその手順を案内します。</p>
@@ -79,6 +80,13 @@
 <p>バックアップするフォルダーの下にある一部のシステム フォルダーは、空のフォルダーとして保存されます: ほかのボリューム（<code>/Volumes</code>）、スワップ（<code>/System/Volumes/VM</code>、<code>/private/var/vm</code>）、<code>/System/Volumes</code> 内のサポート ボリューム、<code>/dev</code>、一時ファイル（<code>/private/tmp</code>、<code>/private/var/folders</code>）、キャッシュ（<code>/Library/Caches</code>、<code>/System/Library/Caches</code>、<code>~/Library/Caches</code>）、ゴミ箱（<code>~/.Trash</code>、<code>.Trashes</code>）、Spotlight、FSEvents、書類のバージョン、ローカルおよび HFS+ の Time Machine バックアップ。<code>/</code> をソースにした場合、<code>/</code> がすでに表示しているデータ ボリュームのフォルダー（<code>/Users</code>、<code>/Applications</code>…）は二重に読み取られません。ジョブのソースとして指定したフォルダーは常に読み取られます（例: <code>/Volumes/USB</code> や <code>~/.Trash</code>）。</p>
 <h3 id="warnings">実行レポートの警告</h3>
 <p>フルディスクアクセスがないと、macOS が保護するフォルダーは読み取れません: メール、メッセージ、Safari、デスクトップと書類、ほかのアプリのデータ、リムーバブル ボリュームとネットワーク ボリューム。ソースが <code>/Users</code>（<code>/Users/Shared</code> を除く）、<code>/Library</code>、<code>/Volumes</code>、またはそれらより上のフォルダー（<code>/</code> など）に及ぶバックアップは、その場合 <i>Full Disk Access is not granted to the BackupZit agent</i> という警告で終わります。ほかのフォルダー（例: <code>/opt/data</code>）のバックアップでは警告は出ません。</p>
+<h3 id="icloud">iCloud Drive 内のファイル</h3>
+<p><i>デスクトップと書類</i> を iCloud Drive に置き、<b>Macストレージを最適化</b> をオンにしていると、macOS はしばらく使われていないファイルの内容を iCloud にだけ保存します。ファイルは名前とサイズとともに Finder に残りますが、そのデータは Mac 上にありません（「dataless」ファイル。iCloud のダウンロード矢印付きで表示されます）。バックアップはこのようなファイルを読み取れません: APFS スナップショットにはその内容が含まれず、稼働中のディスクで読み取ると iCloud が所有者のセッションでそのファイルをダウンロードすることになり、そのユーザーがサインインしていない間は失敗します。0.60 以降、エージェントはこれらのファイルを一切開かず、iCloud にダウンロードさせることもありません:</p>
+<ul>
+  <li>前回のバックアップにあり、その後変更されていない（サイズと更新日時が同じ）ファイルは、そのバックアップの内容を引き継ぎます。そのため、バックアップ後に領域が解放されたファイルもバックアップに残ります。</li>
+  <li>それ以外のこのようなファイルはバックアップから除外され、読み取りエラーとは別に数えられます。実行は <i>3360 files (1.2 GiB) are in iCloud Drive but not downloaded on this Mac</i> のような警告で終わり、実行ページにはフォルダーごと（例: <code>/Users/anna/Documents</code>）にファイル数とサイズが一覧表示されます。</li>
+</ul>
+<p>バックアップに含めるには、バックアップの前に Mac にダウンロードしてください: Finder でフォルダーを右クリック → <b>今すぐダウンロード</b>、またはターミナルでそのユーザーとして <code>find ~/Documents -type f -exec brctl download {} \;</code> を実行します。Mac に常に保持するには、<i>システム設定 → ユーザ名 → iCloud</i> で <b>Macストレージを最適化</b> をオフにします。Mac にサインインしていないユーザーのファイルは、そのユーザーがサインインするまでダウンロードできません。</p>
 
 <h2 id="restore">復元</h2>
 <p>Mac のファイルは、すべての<a href="/docs/restore">ファイル バックアップ</a>と同様に復元します: バックアップ全体または一部のパスだけを、フォルダーまたは元の場所へ、その Mac または別のエージェント上に。個別のファイルはコンソールからダウンロードできます。Mac 上での復元では、上記のメタデータが再び設定されます。Windows や Linux と同様に、復元は開いたフォルダーを通してのみ書き込み、パスでは書き込まないため、復元中に途中に置かれたリンクはたどられません。ロックされたファイルに上書きで復元する場合は、まずロックと append-only のフラグを解除し、保存されていたフラグを再び設定します（システム フラグは稼働中の Mac では解除できません）。</p>
@@ -110,6 +118,7 @@ sudo /Library/BackupZit/uninstall.sh --purge    # deletes them too</pre>
   <tr><td>実行でファイルが「without a snapshot」で読み取られたと表示される</td><td>「No APFS local snapshot … was taken」: フルディスクアクセスを許可してください。「Not on the startup disk's data volume」: パスが外部ディスクまたは共有上にあり、APFS ローカル スナップショットの対象外です。それでもバックアップはされます。その他の理由はメッセージに表示されます。</td></tr>
   <tr><td>更新の実行が失敗した</td><td>実行に理由が表示されます（例: launchd によるインストーラー ジョブの拒否）。インストーラーの出力は <code>/Library/Application Support/BackupZit/updates</code> にあります（エージェント ページの<b>ログを取得</b>にも含まれます）。新しい <code>.pkg</code> を手動でインストールしても構いません。登録は保持されます。</td></tr>
   <tr><td>Mac のシステム ジョブが拒否される</td><td>想定どおりです: <a href="#limits">Mac エージェントにできないこと</a>を参照してください。</td></tr>
+  <tr><td>「… are in iCloud Drive but not downloaded on this Mac」</td><td>内容が iCloud にしかありません（Macストレージを最適化）。Mac にダウンロードするか、このオプションをオフにしてください: <a href="#icloud">iCloud Drive 内のファイル</a>を参照してください。</td></tr>
 </table>
 <h3 id="logs">ログ</h3>
 <ul>
