@@ -453,6 +453,7 @@
   "Dashboard": "Kontrolna tabla",
   "Data": "Podaci",
   "Data check": "Provera podataka",
+  "Data packs checked: %d / %d": "Provereni paketi podataka: %d / %d",
   "Data read: %s": "Pročitano podataka: %s",
   "Data repair": "Popravka podataka",
   "Database": "Baza",

@@ -453,6 +453,7 @@
   "Dashboard": "ダッシュボード",
   "Data": "データ",
   "Data check": "データ確認",
+  "Data packs checked: %d / %d": "確認済みのデータ パック: %d / %d",
   "Data read: %s": "読み取ったデータ: %s",
   "Data repair": "データ修復",
   "Database": "データベース",

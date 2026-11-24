@@ -85,3 +85,35 @@ func TestRunProgress(t *testing.T) {
 		t.Fatal("progress shown for a finished run")
 	}
 }
+
+// A data check reports how many data packs it read, not bytes: the pages
+// show the count of packs, not "5.2 KiB / 7.1 KiB".
+func TestRunProgressDataCheckCountsPacks(t *testing.T) {
+	x := newRemoveEnv(t, "0.54.2")
+	ctx := x.e.ctx
+	jobs, err := x.e.store.ListJobs(ctx)
+	if err != nil || len(jobs) != 1 {
+		t.Fatalf("jobs: %v %v", jobs, err)
+	}
+	runID, err := x.e.store.QueueRepoCheck(ctx, jobs[0].ID, "manual")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run, err := x.e.store.ClaimRun(ctx, x.agentID); err != nil || run == nil || run.ID != runID || run.Kind != api.KindRepoCheck {
+		t.Fatalf("claim: %+v %v", run, err)
+	}
+	x.call("POST", api.PathPoll, api.PollRequest{Hostname: "PC-17", OS: "Windows 11", Arch: "amd64", Version: "0.54.2", Running: 1,
+		Progress: []api.RunProgress{{RunID: runID, Done: 5300, Total: 7300}}}, nil)
+	for _, p := range []string{"/runs", fmt.Sprint("/runs/", runID)} {
+		code, _, b := x.admin.do("GET", p, nil)
+		if code != 200 {
+			t.Fatalf("%s: %d", p, code)
+		}
+		if !strings.Contains(b, "<b>72%</b>") || !strings.Contains(b, "Data packs checked: 5300 / 7300") {
+			t.Fatalf("%s: data check progress not shown as packs", p)
+		}
+		if strings.Contains(b, "KiB / ") {
+			t.Fatalf("%s: pack counts shown as bytes", p)
+		}
+	}
+}

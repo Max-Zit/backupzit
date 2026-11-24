@@ -453,6 +453,7 @@
   "Dashboard": "Painel",
   "Data": "Dados",
   "Data check": "Verificação de dados",
+  "Data packs checked: %d / %d": "Pacotes de dados verificados: %d / %d",
   "Data read: %s": "Dados lidos: %s",
   "Data repair": "Reparo de dados",
   "Database": "Banco de dados",

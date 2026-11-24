@@ -453,6 +453,7 @@
   "Dashboard": "Přehled",
   "Data": "Data",
   "Data check": "Kontrola dat",
+  "Data packs checked: %d / %d": "Zkontrolované datové balíčky: %d / %d",
   "Data read: %s": "Přečtená data: %s",
   "Data repair": "Oprava dat",
   "Database": "Databáze",

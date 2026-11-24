@@ -453,6 +453,7 @@
   "Dashboard": "Pano",
   "Data": "Veri",
   "Data check": "Veri denetimi",
+  "Data packs checked: %d / %d": "Denetlenen veri paketleri: %d / %d",
   "Data read: %s": "Okunan veri: %s",
   "Data repair": "Veri onarımı",
   "Database": "Veritabanı",

@@ -453,6 +453,7 @@
   "Dashboard": "Dashboard",
   "Data": "Daten",
   "Data check": "Datenprüfung",
+  "Data packs checked: %d / %d": "Geprüfte Datenpakete: %d / %d",
   "Data read: %s": "Gelesene Daten: %s",
   "Data repair": "Datenreparatur",
   "Database": "Datenbank",

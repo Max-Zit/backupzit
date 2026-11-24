@@ -58,8 +58,12 @@ type runProgress struct {
 	Estimated bool
 	Done      string // bytes processed
 	Total     string // "" if unknown
-	Files     int
-	FilesAll  uint64 // files of the previous backup, 0 if unknown
+	// Packs marks a data check or repair: the agent counts data packs, not
+	// bytes, so PacksDone/PacksTotal are shown instead of Done/Total.
+	Packs                 bool
+	PacksDone, PacksTotal uint64
+	Files                 int
+	FilesAll              uint64 // files of the previous backup, 0 if unknown
 	// Stage is a step after the data ("locks": extending object locks)
 	// with its own count.
 	Stage                 string
@@ -87,6 +91,9 @@ func (s *Server) withProgress(ctx context.Context, runs []Run) []Run {
 		if x.VM != "" {
 			p.VMNumber = min(x.VMsDone+1, x.VMsTotal)
 		}
+		if countsPacks(runs[i].Kind) {
+			p.Packs, p.PacksDone, p.PacksTotal = true, x.Done, x.Total
+		}
 		switch {
 		case x.Total > 0:
 			p.Total = humanBytes(x.Total)
@@ -101,6 +108,13 @@ func (s *Server) withProgress(ctx context.Context, runs []Run) []Run {
 		runs[i].Progress = p
 	}
 	return runs
+}
+
+// countsPacks reports whether the agent reports the progress of a run of
+// this kind as a number of data packs (the data check and the repair read
+// pack by pack) rather than bytes.
+func countsPacks(kind string) bool {
+	return kind == api.KindRepoCheck || kind == api.KindRepoRepair
 }
 
 // estimatePercent estimates a file backup from the previous one: the share
