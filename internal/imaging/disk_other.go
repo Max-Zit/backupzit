@@ -33,40 +33,60 @@ func Backup(context.Context, *repo.Repository, BackupOptions) (*repo.Snapshot, e
 	return nil, ErrUnsupported
 }
 
-// RestoreOptions configure an image restore.
-type RestoreOptions struct {
-	TargetDisk  int
-	Image       int
-	Progress    func(done, total uint64)
-	KeepOffline bool
-}
-
-// RestoreStats summarises an image restore.
-type RestoreStats struct {
-	Partitions   int
-	BytesWritten uint64
-	Duration     time.Duration
-}
-
 // Restore is not supported on this platform yet.
 func Restore(context.Context, *repo.Repository, *repo.Snapshot, RestoreOptions) (*RestoreStats, error) {
 	return nil, ErrUnsupported
 }
 
-// HardwareReport describes what PrepareForNewHardware changed.
-type HardwareReport struct {
-	WindowsVolume  string   `json:"windows_volume"`
-	DriversEnabled []string `json:"drivers_enabled"`
-	DriversAdded   int      `json:"drivers_added"`
-	DriverSources  []string `json:"driver_sources,omitempty"`
-	BootRebuilt    bool     `json:"boot_rebuilt"`
-	Warnings       []string `json:"warnings,omitempty"`
-}
+// DetectFirmware is Windows only; elsewhere the firmware is unknown.
+func DetectFirmware() Firmware { return Firmware{} }
 
 // PrepareForNewHardware is Windows only.
-func PrepareForNewHardware(context.Context, int, []string, func(string)) (*HardwareReport, error) {
+func PrepareForNewHardware(context.Context, DiskRef, []string, func(string)) (*HardwareReport, error) {
 	return nil, ErrUnsupported
 }
 
 // RecoveryDriverDirs is Windows only.
 func RecoveryDriverDirs() []string { return nil }
+
+// FinishLayout is Windows only.
+func FinishLayout(context.Context, DiskRef, *RestoreStats, func(string)) []string { return nil }
+
+// RebuildBoot is Windows only.
+func RebuildBoot(context.Context, DiskRef, uint64, func(string)) (*BootReport, error) {
+	return nil, ErrUnsupported
+}
+
+// FindWindowsInstalls is Windows only.
+func FindWindowsInstalls(context.Context) ([]WindowsInstall, error) { return nil, ErrUnsupported }
+
+// RepairBoot is Windows only.
+func RepairBoot(context.Context, WindowsInstall, BootRepairOptions, func(string)) (*BootReport, error) {
+	return nil, ErrUnsupported
+}
+
+// LoadDrivers is Windows only.
+func LoadDrivers(context.Context, string, func(string)) (*LoadDriversResult, error) {
+	return nil, ErrUnsupported
+}
+
+// ProblemDevices is Windows only.
+func ProblemDevices(context.Context) ([]ProblemDevice, error) { return nil, ErrUnsupported }
+
+// AddDriversToWindows is Windows only.
+func AddDriversToWindows(context.Context, WindowsInstall, string) (int, error) {
+	return 0, ErrUnsupported
+}
+
+// RestorePartition is Windows only.
+func RestorePartition(context.Context, *repo.Repository, *repo.Snapshot, PartitionRestoreOptions) (*RestoreStats, error) {
+	return nil, ErrUnsupported
+}
+
+// LockedBitLockerVolumes is Windows only.
+func LockedBitLockerVolumes() ([]LockedVolume, error) { return nil, ErrUnsupported }
+
+// UnlockBitLocker is Windows only.
+func UnlockBitLocker(context.Context, LockedVolume, string) (string, error) {
+	return "", ErrUnsupported
+}

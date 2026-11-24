@@ -25,6 +25,7 @@ const (
 type Disk struct {
 	Number       int    `json:"number"`
 	Model        string `json:"model,omitempty"`
+	Serial       string `json:"serial,omitempty"`
 	Size         uint64 `json:"size"`
 	SectorSize   uint32 `json:"sector_size"`
 	Style        string `json:"style"`

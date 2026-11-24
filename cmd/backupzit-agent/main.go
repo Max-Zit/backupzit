@@ -50,9 +50,16 @@ Disk images (Windows):
   disks          Show disks and partitions
   image-backup   Back up a whole disk or selected partitions
   image-restore  Write an image onto a disk (erases it)
+  partition-restore  Write one partition of an image to a disk; its other partitions stay
+  image-layout   Show the target layout of an image restore (sizes, minimum sizes)
+  ntfs-check     Check an NTFS volume of a disk or image read-only (as before a shrink)
   image-ls       List files inside an imaged partition
   image-extract  Copy files out of an imaged partition
   prepare-hardware  Prepare a restored Windows disk for different hardware
+  drivers           Devices without driver, load drivers (recovery environment), add drivers to a Windows
+  bitlocker         List locked BitLocker volumes, unlock one with its recovery key
+  boot-repair       Make an existing Windows start again (boot files, MBR, active partition)
+  access-package    Store repository credentials encrypted for the recovery medium (create, show)
 
 Linux system (bare-metal restore, P2V):
   system-backup  Back up all local file systems and the disk layout
@@ -183,9 +190,23 @@ func main() {
 	defer stop()
 	if err := run(ctx, os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
+		var ec exitCodeError
+		if errors.As(err, &ec) {
+			os.Exit(ec.code)
+		}
 		os.Exit(1)
 	}
 }
+
+// exitCodeError ends the program with its own exit code, e.g.
+// recovery.ExitIncomplete for a restore that wrote the data but could not
+// finish the disk: scripts can tell it from success and from failure.
+type exitCodeError struct {
+	code int
+	msg  string
+}
+
+func (e exitCodeError) Error() string { return e.msg }
 
 func run(ctx context.Context, args []string) error {
 	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" || args[0] == "help" {
@@ -215,6 +236,20 @@ func run(ctx context.Context, args []string) error {
 		return cmdImageBackup(ctx, rest)
 	case "image-restore":
 		return cmdImageRestore(ctx, rest)
+	case "access-package":
+		return cmdAccessPackage(ctx, rest)
+	case "drivers":
+		return cmdDrivers(ctx, rest)
+	case "bitlocker":
+		return cmdBitLocker(ctx, rest)
+	case "ntfs-check":
+		return cmdNTFSCheck(rest)
+	case "boot-repair":
+		return cmdBootRepair(ctx, rest)
+	case "partition-restore":
+		return cmdPartitionRestore(ctx, rest)
+	case "image-layout":
+		return cmdImageLayout(ctx, rest)
 	case "image-ls":
 		return cmdImageLs(ctx, rest)
 	case "image-extract":

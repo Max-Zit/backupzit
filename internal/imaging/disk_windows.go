@@ -12,6 +12,7 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
 )
 
 // Windows I/O control codes used for imaging.
@@ -109,6 +110,7 @@ func ListDisks() ([]Disk, error) {
 	if err != nil {
 		return nil, err
 	}
+	sysVol := runningSystemVolume()
 	var disks []Disk
 	for n := 0; n < 64; n++ {
 		h, err := openDevice(physicalDrivePath(n), false)
@@ -137,7 +139,7 @@ func ListDisks() ([]Disk, error) {
 				}
 			}
 		}
-		d.System = systemDisk(d)
+		d.System = systemDisk(d) || holdsVolume(d, sysVol)
 		disks = append(disks, d)
 	}
 	return disks, nil
@@ -150,6 +152,52 @@ func systemDisk(d Disk) bool {
 			if len(win) >= 2 && strings.EqualFold(strings.TrimRight(m, `\`), win[:2]) {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+// runningSystemVolume returns the volume GUID path of the system partition
+// the running Windows started from (its EFI or System Reserved partition,
+// which may be on another disk than C:), or "" in Windows PE and when it
+// is not known. Setup records it as \Device\HarddiskVolumeN.
+func runningSystemVolume() string {
+	if inWinPE() {
+		return ""
+	}
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SYSTEM\Setup`, registry.QUERY_VALUE)
+	if err != nil {
+		return ""
+	}
+	dev, _, err := k.GetStringValue("SystemPartition")
+	_ = k.Close()
+	if err != nil || dev == "" {
+		return ""
+	}
+	vols, err := listVolumes()
+	if err != nil {
+		return ""
+	}
+	for _, v := range vols {
+		// QueryDosDevice takes "Volume{…}", without \\?\ and the slash.
+		name := strings.TrimSuffix(strings.TrimPrefix(v.guidPath, `\\?\`), `\`)
+		n, _ := windows.UTF16PtrFromString(name)
+		buf := make([]uint16, 512)
+		if _, err := windows.QueryDosDevice(n, &buf[0], uint32(len(buf))); err == nil && strings.EqualFold(windows.UTF16ToString(buf), dev) { // #nosec G115 -- length of a small buffer for a Windows API call
+			return v.guidPath
+		}
+	}
+	return ""
+}
+
+// holdsVolume tells whether a partition of d is the volume guidPath.
+func holdsVolume(d Disk, guidPath string) bool {
+	if guidPath == "" {
+		return false
+	}
+	for _, p := range d.Partitions {
+		if strings.EqualFold(p.VolumeGUIDPath, guidPath) {
+			return true
 		}
 	}
 	return false
@@ -168,7 +216,7 @@ func readDisk(h windows.Handle, n int) (Disk, error) {
 	}
 	d.SectorSize = binary.LittleEndian.Uint32(geo[20:24])
 	d.Size = binary.LittleEndian.Uint64(geo[24:32])
-	d.Model, d.Bus = storageInfo(h)
+	d.Model, d.Bus, d.Serial = storageInfo(h)
 
 	lay, err := ioctl(h, ioctlDiskGetDriveLayoutEx, nil, 48+144*16)
 	if err != nil {
@@ -216,13 +264,14 @@ func readDisk(h windows.Handle, n int) (Disk, error) {
 	return d, nil
 }
 
-// storageInfo returns "Vendor Product" and the bus kind ("usb", "sd",
-// "virtual-file", "removable" or "") from IOCTL_STORAGE_QUERY_PROPERTY.
-func storageInfo(h windows.Handle) (model, bus string) {
+// storageInfo returns "Vendor Product", the bus kind ("usb", "sd",
+// "virtual-file", "removable" or "") and the serial number (empty when the
+// device reports none) from IOCTL_STORAGE_QUERY_PROPERTY.
+func storageInfo(h windows.Handle) (model, bus, serial string) {
 	q := make([]byte, 12) // PropertyId=StorageDeviceProperty(0), QueryType=PropertyStandardQuery(0)
 	out, err := ioctl(h, ioctlStorageQueryProperty, q, 1024)
 	if err != nil || len(out) < 28 {
-		return "", ""
+		return "", "", ""
 	}
 	// STORAGE_DEVICE_DESCRIPTOR: RemovableMedia at 10, BusType at 28.
 	if len(out) >= 32 {
@@ -248,7 +297,9 @@ func storageInfo(h windows.Handle) (model, bus string) {
 		}
 		return strings.TrimSpace(string(out[off:end]))
 	}
-	return strings.TrimSpace(str(binary.LittleEndian.Uint32(out[12:16])) + " " + str(binary.LittleEndian.Uint32(out[16:20]))), bus
+	// SerialNumberOffset at 24.
+	model = strings.TrimSpace(str(binary.LittleEndian.Uint32(out[12:16])) + " " + str(binary.LittleEndian.Uint32(out[16:20])))
+	return model, bus, str(binary.LittleEndian.Uint32(out[24:28]))
 }
 
 type volumeInfo struct {
@@ -320,4 +371,37 @@ func describeVolume(guidPath string) (volumeInfo, bool) {
 		v.fs = windows.UTF16ToString(fs)
 	}
 	return v, true
+}
+
+// openTargetChecked opens disk n for writing and checks, on the opened device,
+// that it is still the disk the restore was confirmed for (want; nil: not
+// checked). The check runs after the open, so a disk that arrives under
+// the same number in between is refused, not written.
+func openTargetChecked(n int, want *DiskIdentity) (windows.Handle, error) {
+	h, err := openDevice(physicalDrivePath(n), true)
+	if err != nil {
+		return 0, fmt.Errorf("open target disk: %w", err)
+	}
+	if want == nil {
+		return h, nil
+	}
+	d, err := readDisk(h, n)
+	if err == nil {
+		err = want.Matches(d)
+	}
+	if err != nil {
+		_ = windows.CloseHandle(h)
+		return 0, err
+	}
+	return h, nil
+}
+
+// hasNumber tells whether disks has a disk with number n.
+func hasNumber(disks []Disk, n int) bool {
+	for _, d := range disks {
+		if d.Number == n {
+			return true
+		}
+	}
+	return false
 }

@@ -26,55 +26,21 @@ var bootStorageDrivers = []string{
 	"SmartPqi", "arcsas", "ADP80XX", "HpSAMD", "storvsc", "pvscsi", "vioscsi", "viostor", "VMSCSI",
 }
 
-// HardwareReport describes what PrepareForNewHardware changed.
-type HardwareReport struct {
-	WindowsVolume  string   `json:"windows_volume"`
-	DriversEnabled []string `json:"drivers_enabled"`
-	DriversAdded   int      `json:"drivers_added"`
-	DriverSources  []string `json:"driver_sources,omitempty"`
-	BootRebuilt    bool     `json:"boot_rebuilt"`
-	Warnings       []string `json:"warnings,omitempty"`
-}
-
 // PrepareForNewHardware makes a restored Windows installation start on
 // different hardware ("universal restore"): it enables the boot start of
 // common disk controller drivers in the offline registry, adds drivers from
 // driverDirs (INF folders, searched recursively) with DISM and rebuilds the
 // boot files with bcdboot.
-func PrepareForNewHardware(ctx context.Context, diskNumber int, driverDirs []string, log func(string)) (*HardwareReport, error) {
+func PrepareForNewHardware(ctx context.Context, disk DiskRef, driverDirs []string, log func(string)) (*HardwareReport, error) {
 	if log == nil {
 		log = func(string) {}
 	}
 	rep := &HardwareReport{}
-	// Wait for Windows to mount the restored volumes.
-	var disk *Disk
-	for i := 0; i < 30; i++ {
-		disks, err := ListDisks()
-		if err != nil {
-			return nil, err
-		}
-		for j := range disks {
-			if disks[j].Number == diskNumber {
-				disk = &disks[j]
-			}
-		}
-		if disk != nil && findWindowsPartition(disk) != nil {
-			break
-		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(2 * time.Second):
-		}
+	d, winPart, err := waitForWindows(ctx, disk, 0)
+	if err != nil {
+		return nil, err
 	}
-	if disk == nil {
-		return nil, fmt.Errorf("disk %d not found after the restore", diskNumber)
-	}
-	winPart := findWindowsPartition(disk)
-	if winPart == nil {
-		return nil, errors.New("no Windows installation found on the restored disk")
-	}
-	sysPart := findSystemPartition(disk, winPart)
+	sysPart := findSystemPartition(d, winPart)
 
 	win, unmountWin, err := letterFor(winPart.VolumeGUIDPath)
 	if err != nil {
@@ -107,33 +73,133 @@ func PrepareForNewHardware(ctx context.Context, diskNumber int, driverDirs []str
 	}
 
 	// 3. Boot files for this machine's firmware.
-	if sysPart != nil {
-		sys, unmountSys, err := letterFor(sysPart.VolumeGUIDPath)
-		if err != nil {
-			rep.Warnings = append(rep.Warnings, "mount the system partition: "+err.Error())
-		} else {
-			fw := "UEFI"
-			if disk.Style == StyleMBR {
-				fw = "BIOS"
-			}
-			out, err := runRetry(ctx, "bcdboot.exe", win+`\Windows`, "/s", sys, "/f", fw)
-			unmountSys()
-			if err != nil {
-				rep.Warnings = append(rep.Warnings, fmt.Sprintf(`bcdboot %s\Windows /s %s /f %s: %v: %s`, win, sys, fw, err, strings.TrimSpace(out)))
-			} else {
-				rep.BootRebuilt = true
-			}
-		}
-	} else {
-		rep.Warnings = append(rep.Warnings, "no system (boot) partition found; boot files were not rebuilt")
-	}
+	br := writeBootFiles(ctx, d, win, sysPart, log)
+	rep.Firmware, rep.BootFiles, rep.BootRebuilt = br.Firmware, br.BootFiles, br.Rebuilt
+	rep.Warnings = append(rep.Warnings, br.Warnings...)
 	return rep, nil
 }
 
-func findWindowsPartition(d *Disk) *Partition {
+// waitForWindows waits until Windows has mounted the volumes of a freshly
+// written disk and returns the disk and its Windows partition: the one at
+// offset at, or the first one with at 0. A disk with the number that is
+// not ref's disk is refused at once.
+func waitForWindows(ctx context.Context, ref DiskRef, at uint64) (*Disk, *Partition, error) {
+	var disk *Disk
+	for i := 0; i < 30; i++ {
+		disks, err := ListDisks()
+		if err != nil {
+			return nil, nil, err
+		}
+		disk, err = ref.Pick(disks)
+		if err != nil && ref.ID != nil && disk == nil && hasNumber(disks, ref.Number) {
+			return nil, nil, err
+		}
+		if disk != nil && findWindowsPartition(disk, at) != nil {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return nil, nil, ctx.Err()
+		case <-time.After(2 * time.Second):
+		}
+	}
+	if disk == nil {
+		return nil, nil, fmt.Errorf("disk %d not found after the restore", ref.Number)
+	}
+	winPart := findWindowsPartition(disk, at)
+	if winPart == nil {
+		return disk, nil, errors.New("no Windows installation found on the disk")
+	}
+	return disk, winPart, nil
+}
+
+// writeBootFiles runs bcdboot for this machine's firmware (not just the
+// partition style: an MBR disk on a UEFI machine needs both).
+func writeBootFiles(ctx context.Context, disk *Disk, win string, sysPart *Partition, log func(string)) BootReport {
+	br := BootReport{WindowsVolume: win, Firmware: DetectFirmware()}
+	fw, warn := BootFilesFor(br.Firmware, disk.Style)
+	br.BootFiles = fw
+	if warn != "" {
+		br.Warnings = append(br.Warnings, warn)
+	}
+	log("firmware " + firmwareLabel(br.Firmware) + ", boot files for " + fw)
+	if sysPart == nil {
+		br.Warnings = append(br.Warnings, "no system (boot) partition found; boot files were not rebuilt")
+		return br
+	}
+	sys, unmountSys, err := letterFor(sysPart.VolumeGUIDPath)
+	if err != nil {
+		br.Warnings = append(br.Warnings, "mount the system partition: "+err.Error())
+		return br
+	}
+	defer unmountSys()
+	out, err := runBcdboot(ctx, win, sys, fw)
+	if err != nil && fw == "ALL" {
+		// An MBR disk on a UEFI machine gets both. If the UEFI part fails
+		// on its NTFS system partition, BIOS boot files still let it start
+		// in legacy mode.
+		br.Warnings = append(br.Warnings, fmt.Sprintf(`bcdboot %s\Windows /s %s /f ALL: %v: %s; writing the BIOS boot files only`, win, sys, err, strings.TrimSpace(out)))
+		fw = "BIOS"
+		br.BootFiles = fw
+		out, err = runBcdboot(ctx, win, sys, fw)
+	}
+	if err != nil {
+		br.Warnings = append(br.Warnings, fmt.Sprintf(`bcdboot %s\Windows /s %s /f %s: %v: %s`, win, sys, fw, err, strings.TrimSpace(out)))
+		return br
+	}
+	br.Rebuilt = true
+	return br
+}
+
+// runBcdboot writes the boot files of the Windows at win to the system
+// partition sys. Outside Windows PE the computer runs its own Windows: the
+// new firmware boot entry goes last (/addlast), so the computer keeps
+// starting from its own disk and not from the restored one.
+func runBcdboot(ctx context.Context, win, sys, fw string) (string, error) {
+	args := []string{win + `\Windows`, "/s", sys, "/f", fw}
+	if fw != "BIOS" && !inWinPE() {
+		args = append(args, "/addlast")
+	}
+	return runRetry(ctx, "bcdboot.exe", args...)
+}
+
+// inWinPE tells whether this is Windows PE (the recovery medium), which
+// marks itself with the MiniNT key.
+func inWinPE() bool {
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SYSTEM\CurrentControlSet\Control\MiniNT`, registry.QUERY_VALUE)
+	if err != nil {
+		return false
+	}
+	_ = k.Close()
+	return true
+}
+
+// RebuildBoot writes the boot files of the Windows installation at offset
+// windowsAt of a disk (0: the first one found) for this machine's
+// firmware, e.g. after partitions were moved.
+func RebuildBoot(ctx context.Context, disk DiskRef, windowsAt uint64, log func(string)) (*BootReport, error) {
+	if log == nil {
+		log = func(string) {}
+	}
+	d, winPart, err := waitForWindows(ctx, disk, windowsAt)
+	if err != nil {
+		return nil, err
+	}
+	win, unmountWin, err := letterFor(winPart.VolumeGUIDPath)
+	if err != nil {
+		return nil, fmt.Errorf("mount the Windows volume: %w", err)
+	}
+	defer unmountWin()
+	br := writeBootFiles(ctx, d, win, findSystemPartition(d, winPart), log)
+	return &br, nil
+}
+
+// findWindowsPartition returns the partition at offset at (any, with at 0)
+// that holds a Windows installation.
+func findWindowsPartition(d *Disk, at uint64) *Partition {
 	for i := range d.Partitions {
 		p := &d.Partitions[i]
-		if p.VolumeGUIDPath == "" {
+		if p.VolumeGUIDPath == "" || at != 0 && p.Offset != at {
 			continue
 		}
 		if _, err := os.Stat(p.VolumeGUIDPath + `Windows\System32\config\SYSTEM`); err == nil {

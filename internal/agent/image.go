@@ -106,7 +106,7 @@ func (a *Agent) imageRestore(ctx context.Context, run api.Run) api.RunResult {
 				dirs = append(dirs, d)
 			}
 		}
-		hw, err := imaging.PrepareForNewHardware(ctx, run.TargetDisk, dirs, func(s string) { a.log.Info("new hardware", "run", run.ID, "step", s) })
+		hw, err := imaging.PrepareForNewHardware(ctx, imaging.DiskRef{Number: run.TargetDisk, ID: st.Table}, dirs, func(s string) { a.log.Info("new hardware", "run", run.ID, "step", s) })
 		if err != nil {
 			res.Status = api.StatusWarning
 			res.Errors = append(res.Errors, "preparing for new hardware failed: "+err.Error())
