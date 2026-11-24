@@ -77,7 +77,8 @@ lipo -create -output "$BIN/backupzit-agent" "$WORK/backupzit-agent-arm64" "$WORK
 lipo -create -output "$APP/Contents/MacOS/backupzit-tray" "$WORK/backupzit-tray-arm64" "$WORK/backupzit-tray-amd64"
 for f in "$BIN/backupzit-agent" "$APP/Contents/MacOS/backupzit-tray"; do
     archs=$(lipo -archs "$f")
-    case " $archs " in *" arm64 "*" x86_64 "* | *" x86_64 "*" arm64 "*) ;; *) die "$f is not universal: $archs" ;; esac
+    case " $archs " in *" arm64 "*) ;; *) die "$f has no arm64 code: $archs" ;; esac
+    case " $archs " in *" x86_64 "*) ;; *) die "$f has no x86_64 code: $archs" ;; esac
 done
 
 # The license texts of all bundled components ship with the package, as
