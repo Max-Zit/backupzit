@@ -39,9 +39,9 @@ jobs:
           v="${INPUT_VERSION:-${GITHUB_REF_NAME#v}}"
           case "$v" in *[!0-9A-Za-z.-]* | '') echo "bad version: $v" >&2; exit 1 ;; esac
           OUT_DIR="$RUNNER_TEMP/pkg" WORK_DIR="$RUNNER_TEMP/pkgwork" ./packaging/macos/build-pkg.sh "$v"
-          pkg="$RUNNER_TEMP/pkg/backupzit-agent_${v}_darwin_arm64.pkg"
+          pkg="$RUNNER_TEMP/pkg/backupzit-agent_${v}_darwin_universal.pkg"
           pkgutil --payload-files "$pkg" | grep -qx './Library/BackupZit/bin/backupzit-agent'
-          cd "$RUNNER_TEMP/pkg" && shasum -a 256 "backupzit-agent_${v}_darwin_arm64.pkg" > SHA256SUMS && cat SHA256SUMS
+          cd "$RUNNER_TEMP/pkg" && shasum -a 256 "backupzit-agent_${v}_darwin_universal.pkg" > SHA256SUMS && cat SHA256SUMS
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: macos-pkg

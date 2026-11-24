@@ -35,7 +35,7 @@ fi
 # Likewise Macs, from the package the "macOS package" workflow built on a
 # Mac for the tag: sh packaging/macos/fetch-pkg.sh VERSION (NO_PKG=1 builds
 # without it, e.g. a quick test build).
-if ! cp dist/backupzit-agent_${VERSION}_darwin_arm64.pkg bin/linux/agents/ 2>/dev/null; then
+if ! cp dist/backupzit-agent_${VERSION}_darwin_universal.pkg bin/linux/agents/ 2>/dev/null; then
     [ -n "${NO_PKG:-}" ] || { echo "no macOS package for $VERSION in dist/: fetch it first (sh packaging/macos/fetch-pkg.sh $VERSION), or build it on a Mac (packaging/macos/build-pkg.sh $VERSION)" >&2; exit 1; }
     echo "note: no macOS package for $VERSION (NO_PKG set)"
 fi

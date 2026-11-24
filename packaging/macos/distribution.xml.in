@@ -11,7 +11,7 @@
     <conclusion file="conclusion.html" mime-type="text/html"/>
     <!-- One component, always installed on the startup disk: the daemon
          and the paths in the scripts are those of the running system. -->
-    <options customize="never" require-scripts="true" hostArchitectures="arm64"/>
+    <options customize="never" require-scripts="true" hostArchitectures="arm64,x86_64"/>
     <domains enable_localSystem="true" enable_anywhere="false" enable_currentUserHome="false"/>
     <!-- Oldest macOS still getting security updates when this was written. -->
     <volume-check>

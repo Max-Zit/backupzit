@@ -125,7 +125,7 @@ func TestSignFile(t *testing.T) {
 // in the signed lists the console and the agents check.
 func TestPackagesListsMacPackage(t *testing.T) {
 	dir := t.TempDir()
-	for _, n := range []string{"backupzit-agent_0.59.0_darwin_arm64.pkg", "backupzit-agent_0.58.0_darwin_arm64.pkg", "notes.txt"} {
+	for _, n := range []string{"backupzit-agent_0.59.0_darwin_universal.pkg", "backupzit-agent_0.58.0_darwin_universal.pkg", "notes.txt"} {
 		if err := os.WriteFile(filepath.Join(dir, n), []byte("x"), 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -134,7 +134,7 @@ func TestPackagesListsMacPackage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(files) != 1 || files[0].Name != "backupzit-agent_0.59.0_darwin_arm64.pkg" || files[0].Kind != "agent" || files[0].Format != "pkg" || files[0].Arch != "arm64" {
+	if len(files) != 1 || files[0].Name != "backupzit-agent_0.59.0_darwin_universal.pkg" || files[0].Kind != "agent" || files[0].Format != "pkg" || files[0].Arch != "universal" {
 		t.Fatalf("%+v", files)
 	}
 }

@@ -10,7 +10,7 @@ VERSION=${1:?usage: fetch-pkg.sh <version>}
 case $VERSION in *[!0-9A-Za-z.-]*) echo "bad version: $VERSION" >&2; exit 1 ;; esac
 cd "$(dirname "$0")/../.."
 REPO=${REPO:-Max-Zit/backupzit}
-PKG=backupzit-agent_${VERSION}_darwin_arm64.pkg
+PKG=backupzit-agent_${VERSION}_darwin_universal.pkg
 
 # The newest run of the workflow for the tag.
 id=$(gh run list -R "$REPO" --workflow macos-pkg.yml --branch "v$VERSION" --limit 1 --json databaseId --jq '.[0].databaseId // empty')

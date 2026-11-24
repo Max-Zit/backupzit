@@ -9,7 +9,7 @@ var docPages = []struct{ Slug, Title string }{
 	{"agents", "Agents"},
 	// Right after Agents: installing, enrolling and the permissions of a Mac
 	// follow on from the agents page, before storage and jobs.
-	{"macos", "macOS agents (Apple silicon)"},
+	{"macos", "macOS agents"},
 	{"storage", "Storage targets"},
 	{"jobs", "Backup jobs & schedules"},
 	{"restore", "Restoring"},

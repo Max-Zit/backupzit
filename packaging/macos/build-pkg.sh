@@ -1,8 +1,8 @@
 #!/bin/sh
-# Builds the macOS (Apple silicon) agent, its menu bar app and the installer
-# package.
+# Builds the macOS agent, its menu bar app and the installer package, as
+# universal programs (Apple silicon and Intel): one package for every Mac.
 #   ./packaging/macos/build-pkg.sh 0.59.0
-# Output: dist/backupzit-agent_<version>_darwin_arm64.pkg
+# Output: dist/backupzit-agent_<version>_darwin_universal.pkg
 # Runs on a Mac with Go and the Xcode command line tools (pkgbuild,
 # productbuild, codesign, sips, iconutil). OUT_DIR overrides dist/, WORK_DIR
 # the build directory bin/macos (CI builds into its temporary directory).
@@ -61,11 +61,24 @@ BIN=$PAY/Library/BackupZit/bin
 APP=$PAY/Applications/BackupZit.app
 mkdir -p "$BIN" "$APP/Contents/MacOS" "$APP/Contents/Resources" "$PAY/Library/LaunchAgents"
 
-# Programs. cgo stays on: the menu bar app talks to AppKit.
-export GOOS=darwin GOARCH=arm64 CGO_ENABLED=1
+# Programs, for Apple silicon and Intel, joined by lipo into universal
+# programs. cgo stays on: the menu bar app talks to AppKit; clang builds for
+# the other architecture with -arch.
 LDFLAGS="-s -w -X main.version=$VERSION"
-go build -trimpath -ldflags "$LDFLAGS" -o "$BIN/backupzit-agent" ./cmd/backupzit-agent
-go build -trimpath -ldflags "$LDFLAGS" -o "$APP/Contents/MacOS/backupzit-tray" ./cmd/backupzit-tray
+for arch in arm64 amd64; do
+    cc_arch=$arch
+    [ "$arch" = amd64 ] && cc_arch=x86_64
+    GOOS=darwin GOARCH=$arch CGO_ENABLED=1 CC="clang -arch $cc_arch" \
+        go build -trimpath -ldflags "$LDFLAGS" -o "$WORK/backupzit-agent-$arch" ./cmd/backupzit-agent
+    GOOS=darwin GOARCH=$arch CGO_ENABLED=1 CC="clang -arch $cc_arch" \
+        go build -trimpath -ldflags "$LDFLAGS" -o "$WORK/backupzit-tray-$arch" ./cmd/backupzit-tray
+done
+lipo -create -output "$BIN/backupzit-agent" "$WORK/backupzit-agent-arm64" "$WORK/backupzit-agent-amd64"
+lipo -create -output "$APP/Contents/MacOS/backupzit-tray" "$WORK/backupzit-tray-arm64" "$WORK/backupzit-tray-amd64"
+for f in "$BIN/backupzit-agent" "$APP/Contents/MacOS/backupzit-tray"; do
+    archs=$(lipo -archs "$f")
+    case " $archs " in *" arm64 "*" x86_64 "* | *" x86_64 "*" arm64 "*) ;; *) die "$f is not universal: $archs" ;; esac
+done
 
 # The license texts of all bundled components ship with the package, as
 # with the Linux packages; uninstall.sh stays on the disk for removal.
@@ -152,7 +165,7 @@ pkgbuild --root "$PAY" --component-plist "$WORK/components.plist" --scripts "$WO
     --identifier com.backupzit.agent --version "$PKG_VERSION" --install-location / \
     --ownership recommended "$WORK/packages/backupzit-agent-component.pkg"
 
-PKG=$OUT_DIR/backupzit-agent_${VERSION}_darwin_arm64.pkg
+PKG=$OUT_DIR/backupzit-agent_${VERSION}_darwin_universal.pkg
 rm -f "$PKG"
 if [ -n "${BACKUPZIT_MAC_INSTALLER_IDENTITY:-}" ]; then
     productbuild --distribution "$WORK/distribution.xml" --resources "$WORK/resources" \

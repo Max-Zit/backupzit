@@ -34,12 +34,11 @@ func classify(name string) (title, desc string, order int, primary, ok bool) {
 		return "Linux agent — Debian / Ubuntu", "deb package", 3, false, true
 	case strings.HasPrefix(n, "backupzit-agent") && strings.HasSuffix(n, ".rpm"):
 		return "Linux agent — AlmaLinux / Rocky Linux", "rpm package", 4, false, true
-	// The full suffix, not just ".pkg": the package is built for Apple
-	// silicon only (packaging/macos/build-pkg.sh), and naming the
-	// architecture leaves room for another package without offering it to
-	// the wrong Macs.
-	case strings.HasPrefix(n, "backupzit-agent") && strings.HasSuffix(n, "_darwin_arm64.pkg"):
-		return "macOS agent — Apple silicon", "pkg installer for Macs with Apple silicon, macOS 13 or newer", 4, false, true
+	// The full suffix, not just ".pkg": since 0.60 the package is universal
+	// (Apple silicon and Intel, packaging/macos/build-pkg.sh). Older
+	// packages were for Apple silicon only and are not offered any more.
+	case strings.HasPrefix(n, "backupzit-agent") && strings.HasSuffix(n, "_darwin_universal.pkg"):
+		return "macOS agent", "pkg installer for Macs with Apple silicon or Intel, macOS 13 or newer", 4, false, true
 	case strings.HasPrefix(n, "backupzit-repo") && (strings.HasSuffix(n, ".deb") || strings.HasSuffix(n, ".rpm")):
 		return "Hardened repository", "for a dedicated Linux backup server (" + n[strings.LastIndex(n, ".")+1:] + ")", 6, false, true
 	case n == "backupzit-agent.exe":
@@ -131,12 +130,11 @@ func packageKind(a Agent) string {
 		return ""
 	}
 	// Macs are recognised by their system name, not by the architecture:
-	// the Windows and Linux packages are amd64 only, while the macOS agent
-	// is built for Apple silicon only (Intel Macs, which Apple no longer
-	// supports in current macOS releases, get no package). Checked before
-	// the amd64 rule below, which would otherwise exclude every Mac.
+	// the Windows and Linux packages are amd64 only, while the macOS package
+	// is universal (Apple silicon and Intel). Checked before the amd64 rule
+	// below, which would otherwise exclude the Apple silicon Macs.
 	if agentPlatform(a) == GroupMacOS {
-		if a.Arch != "arm64" {
+		if a.Arch != "arm64" && a.Arch != "amd64" {
 			return ""
 		}
 		return "pkg"
@@ -175,9 +173,9 @@ func fileKind(name string) string {
 		return "deb"
 	case strings.HasSuffix(n, ".rpm"):
 		return "rpm"
-	// Only the Apple silicon package is an installer the console serves to
-	// agents (/api/agent/download refuses other names): see classify.
-	case strings.HasSuffix(n, "_darwin_arm64.pkg"):
+	// Only the universal package is an installer the console serves to
+	// Macs (/api/agent/download refuses other names): see classify.
+	case strings.HasSuffix(n, "_darwin_universal.pkg"):
 		return "pkg"
 	}
 	return ""

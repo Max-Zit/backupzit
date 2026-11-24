@@ -7,7 +7,7 @@ import (
 )
 
 // Each agent is offered the installer of its own system and architecture;
-// a Mac gets the Apple silicon package.
+// a Mac gets the universal package (Apple silicon and Intel).
 func TestPackageKind(t *testing.T) {
 	for _, c := range []struct {
 		os, arch, want string
@@ -17,7 +17,8 @@ func TestPackageKind(t *testing.T) {
 		{"Rocky Linux 9.4 (Blue Onyx)", "amd64", "rpm"},
 		{"Ubuntu 24.04.1 LTS", "arm64", ""}, // no Linux arm64 packages
 		{"macOS 27.0.1 (26A434)", "arm64", "pkg"},
-		{"macOS 14.6 (23G80)", "amd64", ""}, // Intel Macs: no package
+		{"macOS 26.5.2 (25F79)", "amd64", "pkg"}, // Intel Macs too, since 0.60
+		{"macOS 26.5.2 (25F79)", "386", ""},
 		{"", "amd64", ""},
 	} {
 		if got := packageKind(Agent{OS: c.os, Arch: c.arch}); got != c.want {
@@ -30,16 +31,18 @@ func TestPackageKind(t *testing.T) {
 }
 
 func TestFileKindAndDownloadsOfMacPackage(t *testing.T) {
-	if got := fileKind("backupzit-agent_0.59.0_darwin_arm64.pkg"); got != "pkg" {
+	if got := fileKind("backupzit-agent_0.60.0_darwin_universal.pkg"); got != "pkg" {
 		t.Errorf("fileKind: %q", got)
 	}
-	for _, n := range []string{"backupzit-agent_0.59.0_darwin_amd64.pkg", "other_0.59.0_darwin_arm64.pkg"} {
+	// The Apple silicon packages of 0.59 are not offered: an Intel Mac would
+	// get one it cannot run.
+	for _, n := range []string{"backupzit-agent_0.59.0_darwin_arm64.pkg", "backupzit-agent_0.59.0_darwin_amd64.pkg", "other_0.60.0_darwin_universal.pkg"} {
 		if got := fileKind(n); got != "" {
 			t.Errorf("fileKind(%s): %q", n, got)
 		}
 	}
-	title, _, _, _, ok := classify("backupzit-agent_0.59.0_darwin_arm64.pkg")
-	if !ok || title != "macOS agent — Apple silicon" {
+	title, _, _, _, ok := classify("backupzit-agent_0.60.0_darwin_universal.pkg")
+	if !ok || title != "macOS agent" {
 		t.Errorf("classify: %q %v", title, ok)
 	}
 }
@@ -48,20 +51,24 @@ func TestFileKindAndDownloadsOfMacPackage(t *testing.T) {
 func TestAvailableUpdatesForMac(t *testing.T) {
 	dir := t.TempDir()
 	for _, n := range []string{
-		"backupzit-agent_0.58.1_darwin_arm64.pkg",
 		"backupzit-agent_0.59.0_darwin_arm64.pkg",
-		"backupzit-agent-0.60.0-x64.msi",
+		"backupzit-agent_0.60.0_darwin_universal.pkg",
+		"backupzit-agent-0.61.0-x64.msi",
 	} {
 		if err := os.WriteFile(filepath.Join(dir, n), []byte("x"), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
 	s := &Server{DistDir: dir}
-	mac := Agent{ID: 1, OS: "macOS 27.0.1 (26A434)", Arch: "arm64", Version: "0.58.0"}
-	current := Agent{ID: 2, OS: "macOS 27.0.1 (26A434)", Arch: "arm64", Version: "0.59.0"}
-	got := s.availableUpdates([]Agent{mac, current})
-	if u := got[1]; u.File != "backupzit-agent_0.59.0_darwin_arm64.pkg" || u.Version != "0.59.0" {
+	mac := Agent{ID: 1, OS: "macOS 27.0.1 (26A434)", Arch: "arm64", Version: "0.59.1"}
+	current := Agent{ID: 2, OS: "macOS 27.0.1 (26A434)", Arch: "arm64", Version: "0.60.0"}
+	intel := Agent{ID: 3, OS: "macOS 26.5.2 (25F79)", Arch: "amd64", Version: "0.59.9"}
+	got := s.availableUpdates([]Agent{mac, current, intel})
+	if u := got[1]; u.File != "backupzit-agent_0.60.0_darwin_universal.pkg" || u.Version != "0.60.0" {
 		t.Errorf("older Mac: %+v", u)
+	}
+	if u := got[3]; u.File != "backupzit-agent_0.60.0_darwin_universal.pkg" {
+		t.Errorf("Intel Mac: %+v", u)
 	}
 	if u, ok := got[2]; ok {
 		t.Errorf("up-to-date Mac offered %+v", u)
@@ -72,7 +79,7 @@ func TestAvailableUpdatesForMac(t *testing.T) {
 // package after the rpm, whatever order the folder lists them in.
 func TestDownloadsOrderStable(t *testing.T) {
 	dir := t.TempDir()
-	for _, n := range []string{"backupzit-agent_0.59.0_darwin_arm64.pkg", "backupzit-agent-0.59.0-1.x86_64.rpm", "backupzit-agent_0.59.0_amd64.deb"} {
+	for _, n := range []string{"backupzit-agent_0.59.0_darwin_universal.pkg", "backupzit-agent-0.59.0-1.x86_64.rpm", "backupzit-agent_0.59.0_amd64.deb"} {
 		if err := os.WriteFile(filepath.Join(dir, n), []byte("x"), 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -80,7 +87,7 @@ func TestDownloadsOrderStable(t *testing.T) {
 	s := &Server{DistDir: dir}
 	for range 20 {
 		d := s.downloads()
-		if len(d) != 3 || d[1].Title != "Linux agent — AlmaLinux / Rocky Linux" || d[2].Title != "macOS agent — Apple silicon" {
+		if len(d) != 3 || d[1].Title != "Linux agent — AlmaLinux / Rocky Linux" || d[2].Title != "macOS agent" {
 			t.Fatalf("order: %+v", d)
 		}
 	}
