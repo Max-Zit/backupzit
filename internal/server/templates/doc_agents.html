@@ -16,7 +16,7 @@
 <h2>Enrolling agents</h2>
 <ol>
   <li>On the <a href="/agents">Agents</a> page click <b>Create enrollment token</b>. The console shows an <b>enrollment code</b> (<code>BZ1-…</code>), valid for 7 days and usable for any number of machines. It contains the console address for agents (with the agents' port, usually 8443, also when the page is open on the web port 443), the token and the certificate fingerprint. Agents from 0.33.6 also enroll with codes that older consoles made on the web port.</li>
-  <li>Windows: run the MSI and paste the code when the installer asks for it. Linux: run the command shown. macOS: install the package, then run the command shown in Terminal (see <a href="/docs/macos#enroll">macOS agents</a>).</li>
+  <li>Windows: run the MSI and paste the code when the installer asks for it. Linux: run the command shown. macOS: install the package and paste the code when the menu bar app asks for it, or run the command shown in Terminal (see <a href="/docs/macos#enroll">macOS agents</a>).</li>
   <li>The machine appears in the agent list within a minute.</li>
 </ol>
 <p>If the console cannot be reached during installation, the agent keeps the code and retries until it can enroll. Upgrades keep the enrollment and do not ask again. A silent install with <code>ENROLLCODE</code> on a machine that is already enrolled keeps the enrollment when the code is for the same console (GPO or RMM can repeat it safely), and moves the machine when the code is for another console; the previous enrollment is kept as <code>agent.json.replaced-<i>date</i></code> next to <code>agent.json</code>, so renaming it back returns the machine to its old console as the same agent.</p>
@@ -29,7 +29,7 @@ backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre>
 <h3 id="macos">macOS</h3>
 <pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre>
-<p>Run it after installing the <code>.pkg</code>. An MDM writes the code to <code>/Library/Application Support/BackupZit/enroll-code</code> before installing the package instead. Full Disk Access must then be granted by the user of the Mac; see <a href="/docs/macos">macOS agents</a>.</p>
+<p>Run it after installing the <code>.pkg</code>, or paste the code into the BackupZit menu bar app, which asks for it after the installation (later: <b>Enroll this Mac…</b> in its menu). An MDM writes the code to <code>/Library/Application Support/BackupZit/enroll-code</code> before installing the package instead. Full Disk Access must then be granted by the user of the Mac; see <a href="/docs/macos">macOS agents</a>.</p>
 
 <h2>Installing agents from the console</h2>
 <p>Instead of copying installers to each machine, let the console install the agent: on <a href="/agents">Agents</a> open <b>Install on a machine from here</b>, choose Linux or Windows and enter the machine's address and an administrator account.</p>

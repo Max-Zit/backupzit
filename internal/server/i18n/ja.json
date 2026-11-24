@@ -697,7 +697,7 @@
   "Install on a machine from here": "ここからマシンにインストール",
   "Install on another machine": "別のマシンにインストール",
   "Install the MSI on Windows (double-click, or silently with the command shown after": "Windows で MSI をインストールします（ダブルクリック、または次の後に表示されるコマンドでサイレント インストール:",
-  "Install the macOS agent package below, then enroll the Mac in Terminal. For an MDM, write the code to the file below before installing the package. The installer then shows how to grant Full Disk Access, which only the user of the Mac can do.": "下の macOS エージェントのパッケージをインストールしてから、ターミナルで Mac を登録します。MDM の場合は、パッケージをインストールする前にコードを下のファイルに書き込みます。その後インストーラが、Mac のユーザーにしかできないフルディスクアクセスの許可方法を表示します。",
+  "Install the macOS agent package below. After the installation the BackupZit menu bar app asks for this code, and macOS for an administrator's password; later, choose Enroll this Mac… in its menu. Enrolling in Terminal (first command) works too. For an MDM, write the code to the file below before installing the package. The installer then shows how to grant Full Disk Access, which only the user of the Mac can do.": "下の macOS エージェントパッケージをインストールしてください。インストール後、メニューバーの BackupZit アプリがこのコードを、macOS が管理者のパスワードを求めます。後からはアプリのメニューで Enroll this Mac… を選びます。ターミナルでの登録 (1 つ目のコマンド) も使えます。MDM の場合は、パッケージをインストールする前にコードを下のファイルに書き込みます。その後インストーラーが、Mac のユーザーにしかできないフルディスクアクセスの許可方法を表示します。",
   "Install the newest agent version on all %v agents that run an older one?": "古いバージョンを実行している %v 台すべてのエージェントに最新版をインストールしますか？",
   "Install the uploaded release? The database is backed up first; the console restarts.": "アップロードしたリリースをインストールしますか？最初にデータベースをバックアップします。コンソールは再起動します。",
   "Installed version": "インストール済みバージョン",

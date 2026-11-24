@@ -86,9 +86,9 @@ func summarize(st *localipc.Status, callErr error, now time.Time) Summary {
 		s.State, s.Headline = "offline", "This computer is not enrolled yet"
 		switch {
 		case st.ServerURL != "" && st.LastError != "":
-			s.Detail = "Enrolling with " + st.ServerURL + " failed: " + st.LastError + ". Create a new enrollment code on the console's agent port (usually :8443) and run the installer again."
+			s.Detail = "Enrolling with " + st.ServerURL + " failed: " + st.LastError + ". " + enrollRetryHint
 		default:
-			s.Detail = "Run the installer again and paste the enrollment code from the console (Agents page)."
+			s.Detail = enrollHint
 		}
 		return s
 	}

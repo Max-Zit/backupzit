@@ -28,7 +28,7 @@ sudo systemctl enable --now backupzit-agent</pre>
        user may read it (sudo tee would leave it 0644). Full Disk Access
        cannot be granted by a script or this console, only by the user. */}}
     <h3 class="mt">{{T "macOS (Apple silicon)"}}</h3>
-    <p class="small">{{T "Install the macOS agent package below, then enroll the Mac in Terminal. For an MDM, write the code to the file below before installing the package. The installer then shows how to grant Full Disk Access, which only the user of the Mac can do."}}</p>
+    <p class="small">{{T "Install the macOS agent package below. After the installation the BackupZit menu bar app asks for this code, and macOS for an administrator's password; later, choose Enroll this Mac… in its menu. Enrolling in Terminal (first command) works too. For an MDM, write the code to the file below before installing the package. The installer then shows how to grant Full Disk Access, which only the user of the Mac can do."}}</p>
     <pre id="cmd-mac">sudo /Library/BackupZit/bin/backupzit-agent enroll --code "{{.Code}}"
 
 # MDM, before the package (the file readable by root only):

@@ -53,6 +53,7 @@ type tray struct {
 	jobItems []*systray.MenuItem
 	jobIDs   []int64
 	console  *systray.MenuItem
+	enroll   *systray.MenuItem
 	permHead *systray.MenuItem
 	permItem map[permKey]*systray.MenuItem
 	hide     *systray.MenuItem
@@ -64,6 +65,12 @@ type tray struct {
 	login    permState
 	permAt   time.Time
 	permDone bool // a first check was made
+
+	// Enrollment (enroll_darwin.go): enrolling while its dialogs are open
+	// (the permission assistant waits meanwhile), enrollAsked once the app
+	// asked by itself in this login.
+	enrolling   bool
+	enrollAsked bool
 }
 
 func main() {
@@ -110,6 +117,8 @@ func (t *tray) ready() {
 		}(i, it)
 	}
 	t.console = systray.AddMenuItem("Open console in browser", "Open the BackupZit management console")
+	t.enroll = systray.AddMenuItem("Enroll this Mac…", "Enter the enrollment code from the console")
+	t.enroll.Hide()
 	systray.AddSeparator()
 	t.addPermissionItems()
 	systray.AddSeparator()
@@ -120,6 +129,8 @@ func (t *tray) ready() {
 			select {
 			case <-t.console.ClickedCh:
 				t.openConsole()
+			case <-t.enroll.ClickedCh:
+				t.startEnroll(false)
 			case <-t.hide.ClickedCh:
 				systray.Quit()
 				return
@@ -184,6 +195,11 @@ func (t *tray) refresh() Summary {
 	} else {
 		t.console.Enable()
 	}
+	if sum.Status != nil && !sum.Status.Enrolled {
+		t.enroll.Show()
+	} else {
+		t.enroll.Hide()
+	}
 	return sum
 }
 
@@ -242,6 +258,11 @@ func (t *tray) checkPermissions(sum Summary) {
 	for _, k := range permOrder {
 		t.permItem[k].SetTitle(p.title(k))
 	}
+	if t.enrolling {
+		// One dialog at a time: the permissions come after the enrollment.
+		t.mu.Unlock()
+		return
+	}
 	askNotify := t.guide.requestNotifications(p)
 	d, changed := t.guide.next(p, time.Now())
 	mem := t.guide.mem
@@ -274,6 +295,15 @@ func (t *tray) showGuidance(d *dialog) {
 func (t *tray) loop() {
 	for {
 		sum := t.refresh()
+		t.mu.Lock()
+		ask := !t.enrollAsked && shouldAskEnroll(sum.Status)
+		if ask {
+			t.enrollAsked = true
+		}
+		t.mu.Unlock()
+		if ask {
+			t.startEnroll(true)
+		}
 		t.checkPermissions(sum)
 		every := 10 * time.Second
 		if sum.State == "running" {

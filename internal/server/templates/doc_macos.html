@@ -31,16 +31,17 @@
 <p>The program is not added to the <code>PATH</code>: in Terminal, call it with its full path.</p>
 
 <h2 id="enroll">Enrolling</h2>
-<p>The service is installed and running even before the Mac is enrolled; it starts working as soon as it is. On the <a href="/agents">Agents</a> page, <b>Create enrollment token</b> shows the commands for macOS next to those for Windows and Linux. Choose one of three ways:</p>
+<p>The service is installed and running even before the Mac is enrolled; it starts working as soon as it is. On the <a href="/agents">Agents</a> page, <b>Create enrollment token</b> shows the code and the commands for macOS next to those for Windows and Linux. Choose one of four ways:</p>
 <ol>
-  <li><b>In Terminal, after the installation</b> (the usual way):
+  <li id="menu-bar"><b>In the menu bar app, after the installation</b> (the usual way, agents 0.60 and newer): while the Mac is not enrolled, the BackupZit menu bar app asks for the code right after the installation. Paste it, click <b>Enroll</b> and enter an administrator's name and password when macOS asks. The app then says whether the enrollment worked, and why not. Later, or after <b>Later</b>, choose <b>Enroll this Mac…</b> in its menu; the item is there while the Mac is not enrolled.</li>
+  <li><b>In Terminal, after the installation</b>:
 <pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
   <li id="mdm"><b>With an MDM</b> (Jamf, Intune, Mosyle…): before the package is installed, a script writes the code to a file owned by root:
 <pre>echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat &gt; "/Library/Application Support/BackupZit/enroll-code"'</pre>
   Then deploy the package. Its installation enrolls the Mac with the code and deletes the file. A file not owned by root is ignored. This is also the way to move an enrolled Mac to another console.</li>
   <li><b>A file next to the package</b>: <code>backupzit-enroll.txt</code> with the code, in the same folder as the <code>.pkg</code> on the Mac's startup disk (for example in <code>/Users/Shared</code>; copy both from a USB stick or a network share first: on such a volume any file can claim to belong to root). It is used only while the Mac is not enrolled yet, and only if nobody else could have written it: the file belongs to root or an administrator of the Mac, has one name and only its owner may change it, and its folder belongs to root or an administrator and is not writable by other users (or has the sticky bit, like <code>/Users/Shared</code>).</li>
 </ol>
-<p>If the console cannot be reached during the installation, the agent keeps the code and retries. If the enrollment fails, the reason is in <code>/Library/Application Support/BackupZit/enroll-error.log</code>; enroll in Terminal afterwards. Upgrades and reinstallations keep the enrollment.</p>
+<p>If the console cannot be reached during the installation, the agent keeps the code and retries. If the enrollment fails, the reason is in <code>/Library/Application Support/BackupZit/enroll-error.log</code>; enroll from the menu bar app or in Terminal afterwards. Upgrades and reinstallations keep the enrollment.</p>
 
 <h2 id="permissions">Permissions</h2>
 <p>macOS protects some data from every program, also from one running as root, until the user allows it in System Settings. Only the user at the Mac can grant these permissions; the installer's last page and the menu bar app walk him through them.</p>

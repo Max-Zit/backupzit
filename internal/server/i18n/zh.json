@@ -697,7 +697,7 @@
   "Install on a machine from here": "从此处安装到机器",
   "Install on another machine": "安装到其他机器",
   "Install the MSI on Windows (double-click, or silently with the command shown after": "在 Windows 上安装 MSI（双击，或使用以下步骤后显示的命令静默安装：",
-  "Install the macOS agent package below, then enroll the Mac in Terminal. For an MDM, write the code to the file below before installing the package. The installer then shows how to grant Full Disk Access, which only the user of the Mac can do.": "安装下方的 macOS 代理安装包，然后在“终端”中注册这台 Mac。如使用 MDM，请在安装安装包之前将代码写入下方的文件。随后安装程序会说明如何授予完全磁盘访问权限，这只能由 Mac 的用户完成。",
+  "Install the macOS agent package below. After the installation the BackupZit menu bar app asks for this code, and macOS for an administrator's password; later, choose Enroll this Mac… in its menu. Enrolling in Terminal (first command) works too. For an MDM, write the code to the file below before installing the package. The installer then shows how to grant Full Disk Access, which only the user of the Mac can do.": "请安装下方的 macOS 代理软件包。安装后，菜单栏中的 BackupZit 应用会要求输入此代码，macOS 会要求管理员密码；之后可在其菜单中选择 Enroll this Mac…。也可以在终端中注册（第一条命令）。使用 MDM 时，请在安装软件包之前将代码写入下方的文件。随后安装程序会说明如何授予“完全磁盘访问权限”，这只能由 Mac 的用户完成。",
   "Install the newest agent version on all %v agents that run an older one?": "在所有运行旧版本的 %v 个 agent 上安装最新版本？",
   "Install the uploaded release? The database is backed up first; the console restarts.": "安装已上传的版本？会先备份数据库；控制台将重启。",
   "Installed version": "已安装版本",
