@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/max-zit/backupzit/internal/recovery"
 )
 
 // Recovery codes are enrollment tokens with a longer lifetime, meant to be
@@ -16,6 +18,10 @@ const recoveryTokenTTL = 30 * 24 * time.Hour
 const LinuxRecoveryISO = "backupzit-recovery-linux.iso"
 
 func (s *Server) recoveryPage(w http.ResponseWriter, r *http.Request, user string, token string, exp time.Time) {
+	s.recoveryPageWith(w, r, user, token, exp, "")
+}
+
+func (s *Server) recoveryPageWith(w http.ResponseWriter, r *http.Request, user string, token string, exp time.Time, errMsg string) {
 	var isos []download
 	for _, d := range s.downloads() {
 		if strings.HasSuffix(strings.ToLower(d.Name), ".iso") {
@@ -43,9 +49,25 @@ func (s *Server) recoveryPage(w http.ResponseWriter, r *http.Request, user strin
 			rec = append(rec, a)
 		}
 	}
-	s.render(w, r, "recovery", pageData{Title: "Recovery", Nav: "recovery", User: user, Data: map[string]any{
+	repos, err := s.store.recoveryRepos(r.Context())
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	targets, err := s.store.ListTargets(r.Context())
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	records, _ := s.store.loadAccessRecords(r.Context())
+	// A fresh random passphrase to copy into the form; it is not kept.
+	suggested, _ := recovery.GeneratePassphrase()
+	s.render(w, r, "recovery", pageData{Title: "Recovery", Nav: "recovery", User: user, Error: errMsg, Data: map[string]any{
 		"ISOs": isos, "Token": token, "Expires": exp, "ServerURL": s.publicURL(r),
 		"Fingerprint": s.CertFingerprint, "Agents": rec, "OnlineISO": online,
+		"Repos": repos, "AccessPackages": records, "StaleAccess": staleAccessPackages(records, targets),
+		"MinPassphrase": recovery.MinPassphraseLength, "MinPassphraseTwoKinds": recovery.MinPassphraseLengthTwoKinds,
+		"MinPassphraseOneKind": recovery.MinPassphraseLengthOneKind, "SuggestedPassphrase": suggested,
 	}})
 }
 

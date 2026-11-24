@@ -43,6 +43,36 @@
 </div>
 
 <div class="panel">
+  <h2>{{T "Access package for restores without the console"}}</h2>
+  <p class="muted">{{T "The Windows recovery environment can open backups directly, also when this console is not reachable. An access package holds the locations and credentials of the chosen backups, encrypted with a passphrase of its own. Put it into the backupzit folder on the recovery stick; in an emergency only the passphrase is needed."}}</p>
+  {{range .Data.StaleAccess}}<div class="flash err">{{template "icon" "alert"}}<span>{{T "An access package from %v no longer matches: the credentials of this storage changed. Create a new one and destroy the old one." .}}</span></div>{{end}}
+  {{if $.Me.Can "storage"}}
+  {{if .Data.Repos}}
+  <form method="post" action="/recovery/access-package" class="mt">
+    <div class="table-wrap"><table>
+      <tr><th></th><th>{{T "Computer"}}</th><th>{{T "Storage"}}</th><th>{{T "Last backup"}}</th></tr>
+      {{range .Data.Repos}}<tr><td><input type="checkbox" name="repo" value="{{.Key}}" checked></td><td>{{.Hostname}}</td><td>{{.TargetName}}<br><span class="mono small muted">{{.URL}}</span></td><td>{{ts .Last}}</td></tr>{{end}}
+    </table></div>
+    {{with .Data.SuggestedPassphrase}}<div class="callout tip">
+      <p>{{T "Suggested passphrase, newly generated and not stored: copy it into both fields and keep it safe, for example in a password manager. Its letters sit on the same keys on QWERTY, QWERTZ and AZERTY keyboards, so it can be typed in the recovery environment whatever the keyboard layout."}}</p>
+      <pre id="accesspass">{{.}}</pre>
+      <button type="button" class="secondary" data-copy="#accesspass">{{T "Copy"}}</button>
+    </div>{{end}}
+    <label class="mt">{{T "Passphrase"}} <input name="passphrase" type="password" autocomplete="new-password" required minlength="{{.Data.MinPassphrase}}"></label>
+    <p class="muted small">{{T "At least %v characters with three kinds of characters (lower case, upper case, digits, others such as spaces or symbols), %v with two kinds or %v with one kind. Common passwords, repeats, sequences such as 1234 or qwerty and your console password are refused." .Data.MinPassphrase .Data.MinPassphraseTwoKinds .Data.MinPassphraseOneKind}}</p>
+    <label>{{T "Repeat the passphrase"}} <input name="passphrase2" type="password" autocomplete="new-password" required minlength="{{.Data.MinPassphrase}}"></label>
+    {{template "reauth" $.Me}}
+    <button class="mt">{{template "icon" "download"}} {{T "Create access package"}}</button>
+  </form>
+  {{else}}<p class="muted">{{T "No disk image or virtual machine backups yet."}}</p>{{end}}
+  {{if .Data.AccessPackages}}
+  <p class="muted small mt">{{T "Access packages created so far:"}} {{range $i, $p := .Data.AccessPackages}}{{if $i}}, {{end}}{{ts $p.Created}} ({{$p.User}}){{end}}</p>
+  <form method="post" action="/recovery/access-packages/forget" class="inline" data-confirm="{{T "Forget the list of access packages? Do this after destroying the old packages."}}"><button class="link">{{T "Forget the list"}}</button></form>
+  {{end}}
+  {{end}}
+</div>
+
+<div class="panel">
   <h2>{{T "Connected recovery agents"}}</h2>
   {{if .Data.Agents}}
   <div class="table-wrap"><table>
