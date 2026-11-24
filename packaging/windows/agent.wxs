@@ -86,9 +86,13 @@
         </Component>
         <!-- Graphical recovery program and its manifest, for building the
              Windows recovery ISO (packaging\winpe\build-winpe.ps1); not run here. -->
+        <!-- One file per component: WiX generates the GUID of a component
+             only from its single key file. -->
         <Component Id="RecoveryExe" Bitness="always64">
           <File Id="RecoveryExeFile" Source="$(var.RecoveryExe)" Name="backupzit-recovery.exe" KeyPath="yes" />
-          <File Id="RecoveryManifestFile" Source="$(var.RootDir)\cmd\backupzit-recovery\backupzit-recovery.exe.manifest" Name="backupzit-recovery.exe.manifest" />
+        </Component>
+        <Component Id="RecoveryManifest" Bitness="always64">
+          <File Id="RecoveryManifestFile" Source="$(var.RootDir)\cmd\backupzit-recovery\backupzit-recovery.exe.manifest" Name="backupzit-recovery.exe.manifest" KeyPath="yes" />
         </Component>
         <!-- License of BackupZit and of the third-party components it includes. -->
         <Component Id="License" Bitness="always64">
