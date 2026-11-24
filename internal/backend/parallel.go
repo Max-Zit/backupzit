@@ -23,6 +23,19 @@ func Concurrency(be Backend) int {
 	return 1
 }
 
+// fileReadConcurrency is how many blocks a restore reads at once from a
+// backend that keeps uploads one after another (local disks, SMB, SFTP).
+// Reading is cheap there and the server answers several requests at once;
+// one read at a time left a 1 GBit/s link 60 % idle on an image restore
+// from SMB, since network and target disk waited for each other.
+const fileReadConcurrency = 3
+
+// ReadConcurrency tells how many blocks a restore may read at once: as
+// many as uploads on object stores, fileReadConcurrency elsewhere.
+func ReadConcurrency(be Backend) int {
+	return max(Concurrency(be), fileReadConcurrency)
+}
+
 func (s *S3) Concurrency() int       { return objectStoreConcurrency }
 func (a *Azure) Concurrency() int    { return objectStoreConcurrency }
 func (h *Hardened) Concurrency() int { return objectStoreConcurrency }

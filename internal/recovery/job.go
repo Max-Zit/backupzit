@@ -325,22 +325,35 @@ func Verify(ctx context.Context, r *repo.Repository, j Job, progress Progress) e
 		if err != nil {
 			return fmt.Errorf("partition %d: %w", p.Number, err)
 		}
-		for b, id := range ids {
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			if id.IsNull() {
-				continue
-			}
-			data, err := r.LoadBlob(ctx, repo.DataBlob, id)
-			if err != nil {
-				return fmt.Errorf("partition %d block %d: %w", p.Number, b, err)
-			}
-			done += uint64(len(data))
+		if err := verifyBlocks(ctx, r, p.Number, ids, func(n int) {
+			done += uint64(n) // #nosec G115 -- a block length, not negative
 			if progress != nil {
 				progress("verify", done, total)
 			}
+		}); err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+// verifyBlocks reads (and so verifies) every stored block of a partition,
+// a few at once (ReadAhead); read is called with each block's length.
+func verifyBlocks(ctx context.Context, r *repo.Repository, number int, ids []repo.ID, read func(n int)) error {
+	ra := r.ReadAhead(ctx, ids, func(b int) bool { return !ids[b].IsNull() })
+	defer ra.Close()
+	for b, id := range ids {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if id.IsNull() {
+			continue
+		}
+		data, err := ra.Get(b)
+		if err != nil {
+			return fmt.Errorf("partition %d block %d: %w", number, b, err)
+		}
+		read(len(data))
 	}
 	return nil
 }

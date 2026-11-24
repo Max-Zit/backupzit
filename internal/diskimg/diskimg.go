@@ -44,8 +44,8 @@ func Write(ctx context.Context, r *repo.Repository, img *repo.DiskImage, w io.Wr
 	if err != nil {
 		return err
 	}
-	ra := newReadAhead(ctx, r, ids, func(i int) bool { return !ids[i].IsNull() })
-	defer ra.close()
+	ra := r.ReadAhead(ctx, ids, func(i int) bool { return !ids[i].IsNull() })
+	defer ra.Close()
 	for i, id := range ids {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -61,7 +61,7 @@ func Write(ctx context.Context, r *repo.Repository, img *repo.DiskImage, w io.Wr
 			progress(n)
 			continue
 		}
-		b, err := ra.get(i)
+		b, err := ra.Get(i)
 		if err != nil {
 			return fmt.Errorf("block %d: %w", i, err)
 		}
@@ -297,8 +297,8 @@ func WriteChanges(ctx context.Context, r *repo.Repository, img, prev *repo.DiskI
 			old = nil // e.g. removed by retention: write everything
 		}
 	}
-	ra := newReadAhead(ctx, r, ids, func(i int) bool { return !ids[i].IsNull() && !(i < len(old) && old[i] == ids[i]) })
-	defer ra.close()
+	ra := r.ReadAhead(ctx, ids, func(i int) bool { return !ids[i].IsNull() && !(i < len(old) && old[i] == ids[i]) })
+	defer ra.Close()
 	for i, id := range ids {
 		if err := ctx.Err(); err != nil {
 			return written, err
@@ -313,7 +313,7 @@ func WriteChanges(ctx context.Context, r *repo.Repository, img, prev *repo.DiskI
 		if id.IsNull() {
 			b = zeroBlock[:n]
 		} else {
-			if b, err = ra.get(i); err != nil {
+			if b, err = ra.Get(i); err != nil {
 				return written, fmt.Errorf("block %d: %w", i, err)
 			}
 			if uint64(len(b)) != n {

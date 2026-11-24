@@ -269,6 +269,13 @@ func writePartition(ctx context.Context, r *repo.Repository, f *os.File, w parti
 	// Every block goes through the partition's bounds: image metadata
 	// cannot make a write leave [Offset, Offset+Length).
 	part := &sectionWriter{f: f, base: w.Offset, size: w.Length}
+	// The next blocks load while one is written (issue: ~45 MB/s from SMB
+	// on a 1 GBit/s link with one block at a time).
+	ra := r.ReadAhead(ctx, ids, func(b int) bool {
+		_, ok := w.blockRel(b)
+		return ok && !ids[b].IsNull()
+	})
+	defer ra.Close()
 	for b, id := range ids {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -280,7 +287,7 @@ func writePartition(ctx context.Context, r *repo.Repository, f *os.File, w parti
 		if !ok {
 			continue
 		}
-		data, err := r.LoadBlob(ctx, repo.DataBlob, id)
+		data, err := ra.Get(b)
 		if err != nil {
 			return fmt.Errorf("partition %d block %d: %w", p.Number, b, err)
 		}
