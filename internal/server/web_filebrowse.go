@@ -55,8 +55,8 @@ func (s *Server) fileSnapshot(ctx context.Context, run Run) (*repo.Repository, *
 	if err != nil {
 		return nil, nil, errors.New("storage target was deleted")
 	}
-	if t.SFTPKey != "" {
-		return nil, nil, errors.New("browsing storage that uses SSH key authentication is not supported yet")
+	if err := browseRefused(t); err != nil {
+		return nil, nil, err
 	}
 	var r *repo.Repository
 	var sn *repo.Snapshot

@@ -70,16 +70,40 @@ func (c *repoCache) expire() {
 // ErrBrowseLocal means the repository lives on the agent's own disk.
 var ErrBrowseLocal = errors.New("this backup is stored on a local path of the agent; the console can only browse backups on network storage (SFTP, S3, SMB, Azure or a hardened repository)")
 
+// ErrBrowseAgentsOnly means the repository is on storage reachable by
+// agents only (#63): the console does not connect to it, so it answers at
+// once instead of waiting for a connection that times out.
+var ErrBrowseAgentsOnly = errors.New("this backup is on storage reachable by agents only; the console does not connect to it — restore with the paths instead")
+
+// browseRefused tells why the console cannot read the backups on t
+// itself, nil when it can.
+func browseRefused(t Target) error {
+	switch {
+	case localTarget(t):
+		return ErrBrowseLocal
+	case t.AgentsOnly:
+		return ErrBrowseAgentsOnly
+	case t.SFTPKey != "":
+		return errors.New("browsing storage that uses SSH key authentication is not supported yet")
+	}
+	return nil
+}
+
 func (c *repoCache) repo(ctx context.Context, t Target, url string) (*repo.Repository, error) {
+	if localTarget(t) {
+		return nil, ErrBrowseLocal
+	}
+	// Also when the repository is still cached from before the target was
+	// marked.
+	if t.AgentsOnly {
+		return nil, ErrBrowseAgentsOnly
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.expire()
 	if cr, ok := c.repos[url]; ok {
 		cr.used = time.Now()
 		return cr.r, nil
-	}
-	if t.Kind == "local" || t.Kind == "usb" {
-		return nil, ErrBrowseLocal
 	}
 	// The repository is used for many requests; do not tie it to one.
 	be, err := backend.Open(context.WithoutCancel(ctx), url, backend.Options{
@@ -122,8 +146,8 @@ func (s *Server) imageVolume(ctx context.Context, run Run, part int) (*imaging.V
 	if err != nil {
 		return nil, nil, errors.New("storage target was deleted")
 	}
-	if t.SFTPKey != "" {
-		return nil, nil, errors.New("browsing storage that uses SSH key authentication is not supported yet")
+	if err := browseRefused(t); err != nil {
+		return nil, nil, err
 	}
 	var p *repo.PartitionImage
 	var v *imaging.Volume

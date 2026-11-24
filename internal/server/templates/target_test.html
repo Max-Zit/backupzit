@@ -1,0 +1,24 @@
+{{define "content"}}
+{{$t := .Data.Target}}
+<h1>{{T "Test the connection to %v" $t.Name}}</h1>
+<div class="panel">
+  <p class="mono small muted wrap-any">{{$t.URL}}</p>
+  {{with .Data.Run}}
+  <div class="callout tip" data-autorefresh><p>{{T "The agent on %s is testing the connection; this page reloads by itself and then shows the result on the Storage page." .Hostname}} <a href="/runs/{{.ID}}">{{T "run"}} #{{.ID}}</a></p></div>
+  {{else}}
+  {{if $t.AgentsOnly}}<p>{{T "This storage is reachable by agents only, so the console does not connect to it. Choose an agent that reaches it (agent 0.60.0 or newer). It writes a small file, reads it back and removes it; on immutable storage it only signs in and lists."}}</p>
+  {{else}}<p>{{T "Choose where the test runs: on the console, or on an agent, for example one at the site of the storage (agent 0.60.0 or newer). It writes a small file, reads it back and removes it; on immutable storage it only signs in and lists."}}</p>{{end}}
+  {{if or (not $t.AgentsOnly) .Data.Agents}}
+  <form method="post" action="/targets/{{$t.ID}}/test" class="row">
+    <label>{{T "Test from"}}
+      <select name="from">
+        {{if not $t.AgentsOnly}}<option value="console"{{if not .Data.Last}} selected{{end}}>{{T "This console"}}</option>{{end}}
+        {{if .Data.Agents}}<optgroup label="{{T "Agents"}}">{{range .Data.Agents}}<option value="{{.ID}}"{{if eq .ID $.Data.Last}} selected{{end}}>{{.Label}}{{if eq .ID $.Data.Last}} — {{T "used this storage last"}}{{end}}{{if not .Online}} ({{T "offline"}}){{end}}</option>{{end}}</optgroup>{{end}}
+      </select>
+    </label>
+    <div class="actions"><button>{{T "Test now"}}</button> <a class="btn secondary-link" href="/targets">{{T "Cancel"}}</a></div>
+  </form>
+  {{else}}<p class="muted">{{T "No agents yet."}}</p>{{end}}
+  {{end}}
+</div>
+{{end}}

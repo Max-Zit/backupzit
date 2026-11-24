@@ -19,6 +19,11 @@ func TestUIWalk(t *testing.T) {
 	e := setup(t)
 	ctx := e.ctx
 	target, _ := e.store.CreateTarget(ctx, server.Target{Name: "local", Kind: "local", URL: t.TempDir()})
+	// Storage the console never connects to (#63): its test and search
+	// pages are walked without a network.
+	if _, err := e.store.CreateTarget(ctx, server.Target{Name: "site nas", Kind: "smb", URL: "smb://backup@10.0.0.20/Backups", SMBPassword: "nas-secret-2", AgentsOnly: true}); err != nil {
+		t.Fatal(err)
+	}
 	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
 	enroll := func(host, os, inv string) server.Agent {
 		cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")

@@ -471,6 +471,9 @@ func (s *Server) cleanupRepo(ctx context.Context, x agentRepo, mode string) (str
 	if t.SFTPKey != "" {
 		return "not deleted: the console cannot use SSH key sign-in to the storage; delete the folder there", nil
 	}
+	if t.AgentsOnly { // instead of waiting for a connection that times out (#63)
+		return "not deleted: the storage is reachable by agents only; delete the folder there", nil
+	}
 	s.cache.drop(x.URL)
 	be, err := backend.Open(ctx, x.URL, backend.Options{
 		SFTPPassword: t.SFTPPassword, SFTPHostKey: t.SFTPHostKey,

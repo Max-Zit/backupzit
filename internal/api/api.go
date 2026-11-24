@@ -182,7 +182,9 @@ const (
 	// index, so that later backups store their data again (agents 0.54.2+).
 	KindRepoRepair = "repo-repair"
 	// KindRepoScan lists the repositories and their backups on a local or
-	// USB disk of the agent (Details: RepoScan), 0.44.0 and newer.
+	// USB disk of the agent (Details: RepoScan), 0.44.0 and newer; since
+	// 0.60.0 also on network storage reachable by agents only, opened with
+	// the credentials in Run.Repository.
 	KindRepoScan = "repo-scan"
 	// KindLeftoverCleanup removes what earlier backups left on a hypervisor:
 	// the agent's ledger (Proxmox VE, Hyper-V; VMware with Run.VMware) and the
@@ -192,7 +194,28 @@ const (
 	// proxy agent and returns what the console needs of it (Details:
 	// VMwareProbe), so the console needs no route to the host (agents 0.56+).
 	KindVMwareProbe = "vmware-probe"
+	// KindTargetTest tests the connection to the storage of Run.Repository
+	// from the agent, with the steps of the console's own test: write, read
+	// back and remove a small file, only a listing on immutable storage
+	// (Details: TargetTest). It serves storage the console cannot reach,
+	// such as a NAS on a customer's network (agents 0.60.0+, #63).
+	KindTargetTest = "target-test"
 )
+
+// TargetTest is the result of a target-test run that passed; a failed one
+// reports the failed step in RunResult.Message.
+type TargetTest struct {
+	// Immutable: the storage keeps what is written, so only a listing was
+	// done.
+	Immutable bool `json:"immutable,omitempty"`
+	// RetentionChecked: the default Object Lock retention of the S3 bucket
+	// was read (RetentionMode, RetentionDays), or RetentionError says why
+	// it could not be.
+	RetentionChecked bool   `json:"retention_checked,omitempty"`
+	RetentionMode    string `json:"retention_mode,omitempty"`
+	RetentionDays    int    `json:"retention_days,omitempty"`
+	RetentionError   string `json:"retention_error,omitempty"`
+}
 
 // RepoScan is the result of a repo-scan run.
 type RepoScan struct {

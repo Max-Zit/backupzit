@@ -16,13 +16,19 @@ import (
 )
 
 // Local and USB disks are only reachable by the agent of the machine they
-// are connected to: Find backups asks that agent to search the disk
-// (a repo-scan run) and shows what it found.
+// are connected to, and network storage marked reachable by agents only
+// (#63) by the agents at its site: Find backups asks such an agent to
+// search the storage (a repo-scan run) and shows what it found.
 
 // minRepoScanVersion is the first agent version that searches its disks.
 const minRepoScanVersion = "0.44.0"
 
+// localTarget: a disk of an agent's computer.
 func localTarget(t Target) bool { return t.Kind == "local" || t.Kind == "usb" }
+
+// agentSearched: Find backups on t runs on an agent, since the console
+// cannot reach the storage.
+func agentSearched(t Target) bool { return localTarget(t) || t.AgentsOnly }
 
 // QueueRepoScan asks an agent to search target t.
 func (s *Store) QueueRepoScan(ctx context.Context, t Target, agentID int64) (int64, error) {
@@ -33,21 +39,35 @@ func (s *Store) QueueRepoScan(ctx context.Context, t Target, agentID int64) (int
 	if agentOlder(a, minRepoScanVersion) {
 		return 0, fmt.Errorf("the agent on %s (%s) cannot search its disks yet; update it to %s or newer", a.Hostname, a.Version, minRepoScanVersion)
 	}
+	// Older agents open the storage without its credentials.
+	if !localTarget(t) && agentOlder(a, minTargetTestVersion) {
+		return 0, textError{"the agent on %s (%s) cannot search network storage yet; update it to %s or newer", []any{a.Hostname, a.Version, minTargetTestVersion}}
+	}
 	var id int64
 	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, kind, trigger, repo_url, target_id, notified) VALUES($1,'repo-scan','manual','',$2,true) RETURNING id`,
 		agentID, t.ID).Scan(&id)
 	return id, err
 }
 
-// scanAgents are the agents that can search a local disk, the one that
+// lastTargetAgent is the agent whose run used target t last, 0 if none:
+// it reaches the storage. Searches and connection tests do not count, so
+// a test from a wrong agent does not become the default.
+func (s *Store) lastTargetAgent(ctx context.Context, t Target) int64 {
+	var last int64
+	_ = s.db.QueryRow(ctx, `SELECT r.agent_id FROM runs r JOIN agents a ON a.id=r.agent_id
+		WHERE r.target_id=$1 AND r.kind NOT IN ('repo-scan','target-test') AND a.removed_at IS NULL AND NOT a.recovery
+		ORDER BY r.queued_at DESC LIMIT 1`, t.ID).Scan(&last)
+	return last
+}
+
+// scanAgents are the agents that can search or test storage, the one that
 // used the target last first.
 func (s *Store) scanAgents(ctx context.Context, t Target) ([]Agent, error) {
 	agents, err := s.ListAgents(ctx)
 	if err != nil {
 		return nil, err
 	}
-	var last int64
-	_ = s.db.QueryRow(ctx, `SELECT agent_id FROM runs WHERE target_id=$1 AND kind<>'repo-scan' ORDER BY queued_at DESC LIMIT 1`, t.ID).Scan(&last)
+	last := s.lastTargetAgent(ctx, t)
 	var out []Agent
 	for _, a := range agents {
 		if a.Recovery {
@@ -152,11 +172,12 @@ func (s *Server) scanFromRun(ctx context.Context, t Target, run Run) (scanResult
 	return res, nil
 }
 
-// handleTargetScanStart serves POST /targets/{id}/scan (local and USB disks).
+// handleTargetScanStart serves POST /targets/{id}/scan (local and USB
+// disks, storage reachable by agents only).
 func (s *Server) handleTargetScanStart(w http.ResponseWriter, r *http.Request, _ string) {
 	id, _ := pathID(r)
 	t, err := s.store.GetTarget(r.Context(), id)
-	if err != nil || !localTarget(t) {
+	if err != nil || !agentSearched(t) {
 		http.NotFound(w, r)
 		return
 	}
@@ -164,7 +185,7 @@ func (s *Server) handleTargetScanStart(w http.ResponseWriter, r *http.Request, _
 	agentID, _ := strconv.ParseInt(r.FormValue("agent_id"), 10, 64)
 	rid, err := s.store.QueueRepoScan(r.Context(), t, agentID)
 	if err != nil {
-		redirectErr(w, r, back, err)
+		redirectErr(w, r, back, errors.New(errorIn(requestLanguage(r), err)))
 		return
 	}
 	s.audit(r, "storage.scan", "search of storage %s by agent %d, run %d", t.Name, agentID, rid)

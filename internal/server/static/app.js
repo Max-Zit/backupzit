@@ -21,12 +21,13 @@ document.addEventListener("submit", function (e) {
   if (msg && !window.confirm(msg)) e.preventDefault();
 });
 
-// Show only the fields of the selected storage type.
+// Show only the fields of the selected storage type. data-kind lists the
+// types a field belongs to, separated by spaces.
 function syncKind() {
   var sel = document.getElementById("kind");
   if (!sel) return;
   document.querySelectorAll("[data-kind]").forEach(function (el) {
-    el.hidden = el.getAttribute("data-kind") !== sel.value;
+    el.hidden = el.getAttribute("data-kind").split(" ").indexOf(sel.value) < 0;
     el.querySelectorAll("input,textarea,select").forEach(function (i) { i.disabled = el.hidden; });
   });
 }

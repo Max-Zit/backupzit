@@ -60,8 +60,8 @@ func (s *Server) vmDisk(ctx context.Context, run Run, vmid int, disk string) (*c
 	if err != nil {
 		return nil, errors.New("storage target was deleted")
 	}
-	if t.SFTPKey != "" {
-		return nil, errors.New("browsing storage that uses SSH key authentication is not supported yet")
+	if err := browseRefused(t); err != nil {
+		return nil, err
 	}
 	bg := context.WithoutCancel(ctx)
 	var sn *repo.Snapshot

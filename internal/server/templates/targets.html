@@ -4,15 +4,17 @@
   {{if .Data.Targets}}
   <div class="table-wrap"><table>
     <tr><th>{{T "Name"}}</th><th>{{T "Type"}}</th><th>{{T "Location"}}</th><th>{{T "Encryption"}}</th><th>{{T "Immutability"}}</th><th></th></tr>
+    {{$agentsOnly := false}}
     {{range .Data.Targets}}
     <tr>
-      <td class="strong">{{.Name}}</td><td><span class="badge">{{.Kind}}</span></td><td class="mono">{{.URL}}</td>
+      <td class="strong">{{.Name}}</td><td><span class="badge">{{.Kind}}</span>{{if .AgentsOnly}}{{$agentsOnly = true}} <span class="badge" title="{{T "The console does not connect to this storage: agents test it and search it for backups."}}">{{T "agents only"}}</span>{{end}}</td><td class="mono">{{.URL}}</td>
       <td>{{if .Encrypted}}{{T "AES-256"}} {{if $.Me.Can "storage"}}<form method="post" action="/targets/{{.ID}}/recovery-key" class="inline"><button class="link">{{T "Recovery key"}}</button></form>{{end}}{{else}}<span class="muted">{{T "none"}}</span>{{end}}</td>
       <td>{{if .S3LockDays}}{{days .S3LockDays}} {{T "(Object Lock)"}}{{else if eq .Kind "hardened"}}{{T "set on the repository server"}}{{else}}<span class="muted">{{T "none"}}</span>{{end}}</td>
-      <td>{{if $.Me.Can "storage"}}{{if and (ne .Kind "local") (ne .Kind "usb")}}<form method="post" action="/targets/{{.ID}}/test" class="inline"><button class="link">{{T "Test connection"}}</button></form> · {{end}}<a href="/targets/{{.ID}}/scan">{{T "Find backups"}}</a> · <form method="post" action="/targets/{{.ID}}/delete" class="inline" data-confirm="{{T "Remove storage target %v? Data on the storage is not deleted." .Name}}"><button class="link">{{T "Remove"}}</button></form>{{end}}</td>
+      <td>{{if $.Me.Can "storage"}}{{if and (ne .Kind "local") (ne .Kind "usb")}}<a href="/targets/{{.ID}}/test">{{if .AgentsOnly}}{{T "Test from an agent"}}{{else}}{{T "Test connection"}}{{end}}</a> · {{end}}<a href="/targets/{{.ID}}/scan">{{T "Find backups"}}</a> · {{if and (ne .Kind "local") (ne .Kind "usb")}}<form method="post" action="/targets/{{.ID}}/agents-only" class="inline">{{if .AgentsOnly}}<button class="link" title="{{T "The console connects to this storage again: it tests it, searches it and browses the files of its backups."}}">{{T "Let the console connect"}}</button>{{else}}<input type="hidden" name="on" value="on"><button class="link" title="{{T "For storage the console cannot reach: the console no longer connects to it, agents test it and search it."}}">{{T "Reachable by agents only"}}</button>{{end}}</form> · {{end}}<form method="post" action="/targets/{{.ID}}/delete" class="inline" data-confirm="{{T "Remove storage target %v? Data on the storage is not deleted." .Name}}"><button class="link">{{T "Remove"}}</button></form>{{end}}</td>
     </tr>
     {{end}}
   </table></div>
+  {{if $agentsOnly}}<div class="callout tip"><p>{{T "Storage marked agents only is reachable by the agents but not by the console, for example a NAS on a customer's network. The console never connects to it: Test connection and Find backups run on an agent, the console backup cannot use it, and the files of its backups are restored with paths instead of browsed in the console."}}</p></div>{{end}}
   <p class="muted">{{T "Each agent stores its backups in its own repository below the target location:"}} <code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>.</p>
   {{else}}<p class="muted">{{T "No storage targets yet."}}</p>{{end}}
 </div>
@@ -139,6 +141,13 @@
     </div>
     <label data-kind="sftp">{{T "Private key (optional, instead of password)"}} <textarea name="sftp_key" placeholder="{{T "-----BEGIN OPENSSH PRIVATE KEY-----"}}"></textarea></label>
     <label data-kind="local" hidden>{{T "Path on the agent"}} <small>{{T "e.g. D:\\Backups or /mnt/backup"}}</small><input name="url" disabled></label>
+    <label class="check" data-kind="sftp s3 azure hardened smb"><input type="checkbox" name="agents_only"> {{T "Reachable by agents only"}} <small>{{T "for storage the console cannot reach, e.g. a NAS on a customer's network: the console never connects to it, agents test it and search it for backups, the console backup cannot use it, and files of its backups are restored with paths instead of browsed"}}</small></label>
+    <label data-kind="sftp s3 azure hardened smb">{{T "Test the connection from"}} <small>{{T "the console, or an agent that reaches the storage (agent 0.60.0 or newer)"}}</small>
+      <select name="test_from">
+        <option value="console">{{T "This console"}}</option>
+        {{if .Data.Agents}}<optgroup label="{{T "Agents"}}">{{range .Data.Agents}}<option value="{{.ID}}">{{.Label}}{{if not .Online}} ({{T "offline"}}){{end}}</option>{{end}}</optgroup>{{end}}
+      </select>
+    </label>
     <label class="check"><input type="checkbox" name="encrypted" checked> {{T "Encrypt backups (AES-256)"}} <small>{{T "recommended — a recovery key is created; without it encrypted backups cannot be read"}}</small></label>
     <label>{{T "Existing recovery key (optional)"}} <small>{{T "only to read backups made earlier with this key, e.g. after reinstalling the console; empty creates a new key"}}</small><input name="recovery_key" autocomplete="off" placeholder="K7QM-2XRD-…"></label>
     <div><button>{{T "Add target"}}</button></div>

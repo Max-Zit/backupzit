@@ -80,6 +80,9 @@ func (s *Server) scanTarget(ctx context.Context, t Target) (scanResult, error) {
 	if t.Kind == "local" || t.Kind == "usb" {
 		return res, errScanLocal
 	}
+	if t.AgentsOnly { // searched by an agent (handleTargetScan)
+		return res, errAgentsOnly
+	}
 	be, done, err := openTargetBackend(ctx, t, t.URL)
 	if err != nil {
 		return res, fmt.Errorf("connect: %w", err)
@@ -390,9 +393,11 @@ func (s *Server) handleTargetScan(w http.ResponseWriter, r *http.Request, user s
 	defer cancel()
 	data := map[string]any{"Target": t, "Error": ""}
 	var res scanResult
-	if localTarget(t) {
+	if agentSearched(t) {
 		// Searched by an agent: choose it, wait for its run, then the result.
-		data["Local"] = true
+		// "Local" is the agent's search, "Network" words it for storage
+		// reachable by agents only.
+		data["Local"], data["Network"] = true, !localTarget(t)
 		run, ok := s.store.repoScanRun(ctx, t, r.URL.Query().Get("run"))
 		switch {
 		case !ok:
@@ -439,12 +444,17 @@ func (s *Server) handleTargetImport(w http.ResponseWriter, r *http.Request, user
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), scanTimeout)
 	defer cancel()
-	// Local and USB disks: the backups the agent's search found.
+	// Local and USB disks, storage reachable by agents only: the backups
+	// the agent's search found.
 	base, found := t.URL, map[string][]*repo.Snapshot(nil)
-	if localTarget(t) {
+	if agentSearched(t) {
 		run, ok := s.store.repoScanRun(ctx, t, r.FormValue("run"))
 		if !ok || run.Status != api.StatusSuccess {
-			redirectErr(w, r, back, errors.New(l.T("Search the disk again.")))
+			again := "Search the disk again."
+			if !localTarget(t) {
+				again = "Search the storage again."
+			}
+			redirectErr(w, r, back, errors.New(l.T(again)))
 			return
 		}
 		scan, sns, err := foundSnapshots(t, run)

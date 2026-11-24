@@ -416,7 +416,7 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 		out := []map[string]any{}
 		for _, t := range list { // no credentials
 			out = append(out, map[string]any{"id": t.ID, "name": t.Name, "kind": t.Kind, "location": t.URL,
-				"encrypted": t.Encrypted, "immutable_days": t.S3LockDays})
+				"encrypted": t.Encrypted, "immutable_days": t.S3LockDays, "agents_only": t.AgentsOnly})
 		}
 		return out, err
 	}))

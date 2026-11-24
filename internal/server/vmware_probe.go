@@ -101,12 +101,13 @@ func (s *Store) applyVMwareProbe(ctx context.Context, run Run, res api.RunResult
 	return s.renumberVMwareJobs(ctx, h.ID, p.Inventory)
 }
 
-// claimProbe hands a busy agent a queued check of a VMware host: it takes a
-// few seconds and must not wait for hours behind a long backup.
+// claimProbe hands a busy agent a queued check of a VMware host or a
+// storage connection test (#63): it takes a few seconds and must not wait
+// for hours behind a long backup.
 func (s *Store) claimProbe(ctx context.Context, agentID int64) (*Run, error) {
 	var id int64
 	err := s.db.QueryRow(ctx, `UPDATE runs SET status='running', started_at=now()
-		WHERE id = (SELECT id FROM runs WHERE agent_id=$1 AND status='queued' AND kind='vmware-probe' ORDER BY queued_at LIMIT 1 FOR UPDATE SKIP LOCKED)
+		WHERE id = (SELECT id FROM runs WHERE agent_id=$1 AND status='queued' AND kind IN ('vmware-probe','target-test') ORDER BY queued_at LIMIT 1 FOR UPDATE SKIP LOCKED)
 		RETURNING id`, agentID).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil

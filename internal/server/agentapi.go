@@ -115,12 +115,12 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 		resp.Cancel = s.store.cancelRequests(r.Context(), a.ID)
 	}
 	if !free && req.Parallel && !held {
-		// A check of a VMware host takes seconds: it does not wait behind
-		// the agent's backups (#51).
+		// A check of a VMware host or a storage connection test takes
+		// seconds: it does not wait behind the agent's backups (#51, #63).
 		if run, err := s.store.claimProbe(r.Context(), a.ID); err == nil && run != nil {
 			if ar, err := s.toAPIRun(r.Context(), run); err == nil {
 				resp.Run = ar
-			} else if s.store.FinishRun(r.Context(), a.ID, run.ID, api.RunResult{Status: api.StatusFailed, Message: err.Error()}) == nil {
+			} else if s.store.FinishRun(r.Context(), a.ID, run.ID, api.RunResult{Status: api.StatusFailed, Message: err.Error()}) == nil && run.Kind == api.KindVMwareProbe {
 				_ = s.store.applyVMwareProbe(r.Context(), *run, api.RunResult{Status: api.StatusFailed, Message: err.Error()})
 			}
 		}
@@ -193,6 +193,11 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 	switch run.Kind {
 	case api.KindRepoScan:
 		ar.Repository = targetRepository(t, t.URL)
+	case api.KindTargetTest:
+		// The storage and its credentials; the test opens no repository,
+		// so the recovery key stays on the console.
+		ar.Repository = targetRepository(t, t.URL)
+		ar.Repository.Password = ""
 	case api.KindRepoRepair:
 		// Removing the affected backups keeps the ones VMs run from (instant
 		// recovery) and stops while retention is paused after a suspicious
@@ -365,6 +370,12 @@ func (s *Server) handleRunFinish(w http.ResponseWriter, r *http.Request) {
 		if err := s.store.applyVMwareProbe(context.WithoutCancel(r.Context()), run, res); err != nil {
 			s.log.Error("store the VMware host check", "run", id, "err", err)
 		}
+		writeJSON(w, http.StatusOK, struct{}{})
+		return
+	} else if err == nil && run.Kind == api.KindTargetTest {
+		// A storage test the user waits for on its page (#63): no chains,
+		// no alerts; a failure goes to the console log.
+		s.finishTargetTest(context.WithoutCancel(r.Context()), a, run, res)
 		writeJSON(w, http.StatusOK, struct{}{})
 		return
 	}

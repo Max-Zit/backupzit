@@ -461,7 +461,9 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET /targets", s.ui(PermView, s.handleTargets))
 	mux.HandleFunc("POST /targets", s.ui(PermStorage, s.handleTargetCreate))
 	mux.HandleFunc("POST /targets/{id}/delete", s.ui(PermStorage, s.handleTargetDelete))
+	mux.HandleFunc("GET /targets/{id}/test", s.ui(PermStorage, s.handleTargetTestPage))
 	mux.HandleFunc("POST /targets/{id}/test", s.ui(PermStorage, s.handleTargetTest))
+	mux.HandleFunc("POST /targets/{id}/agents-only", s.ui(PermStorage, s.handleTargetAgentsOnly))
 	mux.HandleFunc("GET /targets/{id}/scan", s.ui(PermStorage, s.handleTargetScan))
 	mux.HandleFunc("POST /targets/{id}/scan", s.ui(PermStorage, s.handleTargetScanStart))
 	mux.HandleFunc("POST /targets/{id}/import", s.ui(PermStorage, s.handleTargetImport))
@@ -565,6 +567,8 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /approvals/{id}/{decision}", s.ui(PermView, s.handleApprovalDecision))
 	mux.HandleFunc("POST /recovery/token", s.ui(PermAgents, s.handleRecoveryToken))
 	mux.HandleFunc("POST /recovery/recovery.json", s.ui(PermAgents, s.handleRecoveryJSON))
+	mux.HandleFunc("POST /recovery/access-package", s.ui(PermStorage, s.handleAccessPackage))
+	mux.HandleFunc("POST /recovery/access-packages/forget", s.ui(PermStorage, s.handleAccessPackagesForget))
 
 	return securityHeaders(s.limitAccess(mux, main))
 }
@@ -912,8 +916,20 @@ func (s *Server) handleTargets(w http.ResponseWriter, r *http.Request, user stri
 		s.serverError(w, err)
 		return
 	}
+	// Agents a new target can be tested from (recovery media cannot).
+	all, err := s.store.ListAgents(r.Context())
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	var agents []Agent
+	for _, a := range all {
+		if !a.Recovery {
+			agents = append(agents, a)
+		}
+	}
 	s.render(w, r, "targets", pageData{Title: "Storage", Nav: "targets", User: user,
-		Data: map[string]any{"Targets": targets, "Usage": usage}})
+		Data: map[string]any{"Targets": targets, "Usage": usage, "Agents": agents}})
 }
 
 func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ string) {
@@ -925,6 +941,7 @@ func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ st
 		SFTPKey:      strings.TrimSpace(r.FormValue("sftp_key")),
 		SFTPHostKey:  r.FormValue("sftp_host_key"),
 		Encrypted:    r.FormValue("encrypted") == "on",
+		AgentsOnly:   r.FormValue("agents_only") == "on",
 	}
 	if t.Kind == "s3" {
 		u, err := s3Location(r.FormValue("s3_endpoint"), r.FormValue("s3_bucket"), r.FormValue("s3_prefix"), r.FormValue("s3_http") == "on")
@@ -998,19 +1015,63 @@ func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ st
 		redirectErr(w, r, "/targets", err)
 		return
 	}
-	s.audit(r, "storage.create", "%s (%s) %s", t.Name, t.Kind, t.URL)
-	// Test it right away, so a typo shows now and not at the first backup.
-	if saved, err := s.store.GetTarget(r.Context(), id); err == nil && saved.Kind != "local" && saved.Kind != "usb" {
-		l := requestLanguage(r)
-		ok, note, terr := testTargetLock(r.Context(), saved)
-		if msg, terr := targetTestMessage(l, saved.Name, ok, terr); terr != nil {
-			redirectErr(w, r, "/targets", fmt.Errorf("%s %w", l.T("Storage target added."), terr))
-		} else {
-			redirectMsg(w, r, "/targets", l.T("Storage target added.")+" "+msg+note.text(l))
-		}
+	agentsOnly := ""
+	if t.AgentsOnly && !localTarget(t) {
+		agentsOnly = " (reachable by agents only)"
+	}
+	s.audit(r, "storage.create", "%s (%s) %s%s", t.Name, t.Kind, t.URL, agentsOnly)
+	// Test it right away, so a typo shows now and not at the first backup:
+	// on the console, or on the agent chosen in the form (storage the
+	// console cannot reach, #63).
+	saved, err := s.store.GetTarget(r.Context(), id)
+	if err != nil || localTarget(saved) {
+		redirectMsg(w, r, "/targets", "Storage target added.")
 		return
 	}
-	redirectMsg(w, r, "/targets", "Storage target added.")
+	l := requestLanguage(r)
+	added := l.T("Storage target added.")
+	if from := r.FormValue("test_from"); from != "" && from != "console" {
+		agentID, _ := strconv.ParseInt(from, 10, 64)
+		s.startAgentTest(w, r, saved, agentID, "/targets", added)
+		return
+	}
+	if saved.AgentsOnly {
+		redirectMsg(w, r, "/targets", added+" "+l.T("It is reachable by agents only, so the console does not connect to it; Test from an agent tests it on an agent at its site."))
+		return
+	}
+	msg, terr := s.testTarget(r.Context(), l, saved)
+	if terr != nil {
+		redirectErr(w, r, "/targets", fmt.Errorf("%s %w", added, terr))
+		return
+	}
+	redirectMsg(w, r, "/targets", added+" "+msg)
+}
+
+// handleTargetAgentsOnly serves POST /targets/{id}/agents-only: the option
+// "Reachable by agents only" of an existing target, on or off (#63).
+func (s *Server) handleTargetAgentsOnly(w http.ResponseWriter, r *http.Request, _ string) {
+	id, _ := pathID(r)
+	t, err := s.store.GetTarget(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	on := r.FormValue("on") == "on"
+	// The console writes its own backup there: it must reach the storage.
+	if cb := s.consoleBackupSettings(r.Context()); on && cb.Enabled && cb.TargetID == t.ID {
+		redirectErr(w, r, "/targets", errors.New("the console backup goes to this storage target; choose another target under Settings → Console backup first"))
+		return
+	}
+	if err := s.store.SetTargetAgentsOnly(r.Context(), id, on); err != nil {
+		redirectErr(w, r, "/targets", err)
+		return
+	}
+	s.audit(r, "storage.agents_only", "storage %s reachable by agents only: %v", t.Name, on)
+	if on {
+		redirectMsg(w, r, "/targets", "The storage target is marked reachable by agents only: the console does not connect to it any more. Agents test it and search it for backups.")
+		return
+	}
+	redirectMsg(w, r, "/targets", "The console connects to the storage target again: it tests it, searches it and browses the files of its backups.")
 }
 
 func (s *Server) handleTargetDelete(w http.ResponseWriter, r *http.Request, _ string) {
@@ -1429,5 +1490,5 @@ func Shutdown(srv *http.Server) {
 
 // kindTitleEN names a run kind for people (English).
 func kindTitleEN(k string) string {
-	return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "agent-log": "Agent log", "repo-check": "Data check", "repo-repair": "Data repair", "repo-scan": "Find backups", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "Database backup", "sql-log": "Database log backup", "sql-restore": "Database restore", "leftover-cleanup": "Leftover clean-up"}[k]
+	return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "agent-log": "Agent log", "repo-check": "Data check", "repo-repair": "Data repair", "repo-scan": "Find backups", "target-test": "Connection test", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "Database backup", "sql-log": "Database log backup", "sql-restore": "Database restore", "leftover-cleanup": "Leftover clean-up"}[k]
 }

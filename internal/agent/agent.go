@@ -487,6 +487,8 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		res = a.repoRepair(ctx, run)
 	case api.KindRepoScan:
 		res = a.repoScan(ctx, run)
+	case api.KindTargetTest:
+		res = a.targetTest(ctx, run)
 	case api.KindLeftoverCleanup:
 		res = a.leftoverCleanup(ctx, run)
 	case api.KindVMwareProbe:
@@ -615,22 +617,33 @@ func trimResult(res api.RunResult) api.RunResult {
 	return res
 }
 
-func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*repo.Repository, func(), error) {
-	opts := backend.Options{SFTPPassword: rs.SFTPPassword, SFTPHostKey: rs.SFTPHostKey,
+// backendOptions are the credentials of rs for backend.Open. An SFTP key
+// is written to a temporary file for the SFTP client; cleanup removes it
+// once the storage is closed.
+func backendOptions(rs api.Repository) (opts backend.Options, cleanup func(), err error) {
+	opts = backend.Options{SFTPPassword: rs.SFTPPassword, SFTPHostKey: rs.SFTPHostKey,
 		S3AccessKey: rs.S3AccessKey, S3SecretKey: rs.S3SecretKey, S3Region: rs.S3Region, S3LockDays: rs.S3LockDays,
 		SMBPassword: rs.SMBPassword, SMBDomain: rs.SMBDomain,
 		HardenedKey: rs.HardenedKey, HardenedFingerprint: rs.HardenedFingerprint,
 		AzureKey: rs.AzureKey, AzureSAS: rs.AzureSAS}
-	var cleanup = func() {}
+	cleanup = func() {}
 	if rs.SFTPKey != "" {
 		f, err := os.CreateTemp("", "bz-key-*")
 		if err != nil {
-			return nil, nil, err
+			return opts, nil, err
 		}
 		_, _ = f.Write([]byte(rs.SFTPKey))
 		_ = f.Close()
 		opts.SFTPKeyFile = f.Name()
 		cleanup = func() { _ = os.Remove(f.Name()) }
+	}
+	return opts, cleanup, nil
+}
+
+func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*repo.Repository, func(), error) {
+	opts, cleanup, err := backendOptions(rs)
+	if err != nil {
+		return nil, nil, err
 	}
 	be, err := backend.Open(ctx, rs.URL, opts)
 	if err != nil {

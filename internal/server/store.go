@@ -134,8 +134,17 @@ type Target struct {
 	// Encrypted targets protect every repository with RecoveryKey.
 	Encrypted   bool
 	RecoveryKey string
-	CreatedAt   time.Time
+	// AgentsOnly: network storage only the agents reach, e.g. a NAS on a
+	// customer's network while the console runs elsewhere (#63). The console
+	// never connects to it: agents test and search it, the console backup
+	// does not use it and its backups are not browsed in the console.
+	AgentsOnly bool
+	CreatedAt  time.Time
 }
+
+// errAgentsOnlyLocal: local and USB disks are reachable by their agent
+// only anyway; the option is for network storage.
+var errAgentsOnlyLocal = errors.New("a local or USB disk is always reached by its agent only; the option is for network storage")
 
 func (s *Store) CreateTarget(ctx context.Context, t Target) (int64, error) {
 	if t.Encrypted && t.RecoveryKey == "" {
@@ -151,6 +160,9 @@ func (s *Store) CreateTarget(ctx context.Context, t Target) (int64, error) {
 	}
 	if t.Kind != "s3" {
 		t.S3LockDays = 0
+	}
+	if localTarget(t) {
+		t.AgentsOnly = false
 	}
 	switch t.Kind {
 	case "sftp":
@@ -201,20 +213,34 @@ func (s *Store) CreateTarget(ctx context.Context, t Target) (int64, error) {
 	}
 	s.encryptTarget(&t)
 	var id int64
-	err := s.db.QueryRow(ctx, `INSERT INTO storage_targets(name,kind,url,sftp_password,sftp_key,sftp_host_key,s3_access_key,s3_secret_key,s3_region,smb_password,smb_domain,encrypted,repo_password,s3_lock_days,hardened_key,hardened_fingerprint,azure_key,azure_sas)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id`,
-		t.Name, t.Kind, t.URL, t.SFTPPassword, t.SFTPKey, strings.TrimSpace(t.SFTPHostKey), strings.TrimSpace(t.S3AccessKey), t.S3SecretKey, strings.TrimSpace(t.S3Region), t.SMBPassword, strings.TrimSpace(t.SMBDomain), t.Encrypted, t.RecoveryKey, t.S3LockDays, t.HardenedKey, t.HardenedFingerprint, t.AzureKey, t.AzureSAS).Scan(&id)
+	err := s.db.QueryRow(ctx, `INSERT INTO storage_targets(name,kind,url,sftp_password,sftp_key,sftp_host_key,s3_access_key,s3_secret_key,s3_region,smb_password,smb_domain,encrypted,repo_password,s3_lock_days,hardened_key,hardened_fingerprint,azure_key,azure_sas,agents_only)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING id`,
+		t.Name, t.Kind, t.URL, t.SFTPPassword, t.SFTPKey, strings.TrimSpace(t.SFTPHostKey), strings.TrimSpace(t.S3AccessKey), t.S3SecretKey, strings.TrimSpace(t.S3Region), t.SMBPassword, strings.TrimSpace(t.SMBDomain), t.Encrypted, t.RecoveryKey, t.S3LockDays, t.HardenedKey, t.HardenedFingerprint, t.AzureKey, t.AzureSAS, t.AgentsOnly).Scan(&id)
 	if err != nil && strings.Contains(err.Error(), "duplicate key") {
 		return 0, errors.New("a storage target with that name already exists")
 	}
 	return id, err
 }
 
-const targetCols = `id, name, kind, url, sftp_password, sftp_key, sftp_host_key, created_at, s3_access_key, s3_secret_key, s3_region, smb_password, smb_domain, encrypted, repo_password, s3_lock_days, hardened_key, hardened_fingerprint, azure_key, azure_sas`
+// SetTargetAgentsOnly turns the option "Reachable by agents only" of a
+// network storage target on or off.
+func (s *Store) SetTargetAgentsOnly(ctx context.Context, id int64, on bool) error {
+	t, err := s.GetTarget(ctx, id)
+	if err != nil {
+		return err
+	}
+	if localTarget(t) {
+		return errAgentsOnlyLocal
+	}
+	_, err = s.db.Exec(ctx, `UPDATE storage_targets SET agents_only=$2 WHERE id=$1`, id, on)
+	return err
+}
+
+const targetCols = `id, name, kind, url, sftp_password, sftp_key, sftp_host_key, created_at, s3_access_key, s3_secret_key, s3_region, smb_password, smb_domain, encrypted, repo_password, s3_lock_days, hardened_key, hardened_fingerprint, azure_key, azure_sas, agents_only`
 
 func scanTarget(r pgx.Row) (Target, error) {
 	var t Target
-	err := r.Scan(&t.ID, &t.Name, &t.Kind, &t.URL, &t.SFTPPassword, &t.SFTPKey, &t.SFTPHostKey, &t.CreatedAt, &t.S3AccessKey, &t.S3SecretKey, &t.S3Region, &t.SMBPassword, &t.SMBDomain, &t.Encrypted, &t.RecoveryKey, &t.S3LockDays, &t.HardenedKey, &t.HardenedFingerprint, &t.AzureKey, &t.AzureSAS)
+	err := r.Scan(&t.ID, &t.Name, &t.Kind, &t.URL, &t.SFTPPassword, &t.SFTPKey, &t.SFTPHostKey, &t.CreatedAt, &t.S3AccessKey, &t.S3SecretKey, &t.S3Region, &t.SMBPassword, &t.SMBDomain, &t.Encrypted, &t.RecoveryKey, &t.S3LockDays, &t.HardenedKey, &t.HardenedFingerprint, &t.AzureKey, &t.AzureSAS, &t.AgentsOnly)
 	return t, err
 }
 

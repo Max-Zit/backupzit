@@ -239,6 +239,9 @@ func (s *Server) backupConsole(ctx context.Context, cfg *ConsoleBackupSettings) 
 	if t.Kind == "local" || t.Kind == "usb" {
 		return errors.New("console backups need network storage (SFTP, S3, SMB, Azure or a hardened repository), not a local path of an agent")
 	}
+	if t.AgentsOnly {
+		return errConsoleBackupAgentsOnly
+	}
 	ar := targetRepository(t, consoleRepoURL(t))
 	r, closeRepo, err := openRepository(ctx, ar, true)
 	if err != nil {
@@ -573,9 +576,13 @@ func (s *Server) StartConsoleBackup(ctx context.Context, dataDir string) {
 
 // ---- Settings → Console backup
 
+// errConsoleBackupAgentsOnly: the console writes its backup itself, so it
+// must reach the storage (#63).
+var errConsoleBackupAgentsOnly = errors.New("console backups need storage the console reaches; this storage target is reachable by agents only")
+
 type consoleBackupPage struct {
 	ConsoleBackupSettings
-	Targets []Target // network targets
+	Targets []Target // network targets the console reaches
 	RepoURL string
 }
 
@@ -583,7 +590,7 @@ func (s *Server) consoleBackupPage(ctx context.Context) consoleBackupPage {
 	p := consoleBackupPage{ConsoleBackupSettings: s.consoleBackupSettings(ctx)}
 	targets, _ := s.store.ListTargets(ctx)
 	for _, t := range targets {
-		if t.Kind != "local" && t.Kind != "usb" {
+		if t.Kind != "local" && t.Kind != "usb" && !t.AgentsOnly {
 			p.Targets = append(p.Targets, t)
 			if t.ID == p.TargetID {
 				p.RepoURL = consoleRepoURL(t)
@@ -609,6 +616,10 @@ func (s *Server) handleConsoleBackupSettings(w http.ResponseWriter, r *http.Requ
 		t, err := s.store.GetTarget(r.Context(), cfg.TargetID)
 		if err != nil || t.Kind == "local" || t.Kind == "usb" {
 			redirectErr(w, r, back, errors.New("choose a network storage target for the console backup"))
+			return
+		}
+		if t.AgentsOnly {
+			redirectErr(w, r, back, errConsoleBackupAgentsOnly)
 			return
 		}
 	}

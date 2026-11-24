@@ -18,9 +18,10 @@ import (
 // agent requests.
 const maxScanBytes = 3 << 20
 
-// repoScan lists the repositories on a storage only this machine reaches
-// (a local or USB disk) and reads their backups, for Find backups in the
-// console (KindRepoScan).
+// repoScan lists the repositories on a storage the console does not reach
+// (a local or USB disk of this machine, or network storage reachable by
+// agents only) and reads their backups, for Find backups in the console
+// (KindRepoScan). Network storage is opened with the run's credentials.
 func (a *Agent) repoScan(ctx context.Context, run api.Run) api.RunResult {
 	base := run.Repository.URL
 	var res api.RunResult
@@ -31,7 +32,12 @@ func (a *Agent) repoScan(ctx context.Context, run api.Run) api.RunResult {
 		}
 		base = loc
 	}
-	be, err := backend.Open(ctx, base, backend.Options{})
+	opts, cleanup, err := backendOptions(run.Repository)
+	if err != nil {
+		return failed(err)
+	}
+	defer cleanup()
+	be, err := backend.Open(ctx, base, opts)
 	if err != nil {
 		return failed(fmt.Errorf("open storage: %w", err))
 	}

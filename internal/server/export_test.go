@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/max-zit/backupzit/internal/api"
@@ -55,6 +56,9 @@ func SetOrphanGrace(d time.Duration) time.Duration {
 func (s *Store) ChainAfterRun(ctx context.Context, runID int64) ([]int64, error) {
 	return s.chainAfterRun(ctx, runID)
 }
+
+// SetLog replaces the console log (tests that read it).
+func (s *Server) SetLog(l *slog.Logger) { s.log = l }
 
 // AgentRepoURLs are the repositories agent removal treats as the agent's.
 func (s *Store) AgentRepoURLs(ctx context.Context, agentID int64) []string {

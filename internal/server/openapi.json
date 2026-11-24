@@ -560,6 +560,10 @@
       },
       "Target": {
         "properties": {
+          "agents_only": {
+            "description": "Reachable by agents only (0.60): the console does not connect to this storage; agents test it and search it for backups.",
+            "type": "boolean"
+          },
           "encrypted": {
             "type": "boolean"
           },
