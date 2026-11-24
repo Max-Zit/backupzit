@@ -94,6 +94,9 @@ const (
 
 var identity = []byte("backupzit-lab")
 
+// identityLen is len(identity), a small constant.
+const identityLen uint32 = 13
+
 func hr(r uintptr, what string) error {
 	if int32(r) < 0 { // #nosec G115 -- an HRESULT is a signed 32-bit value
 		return fmt.Errorf("%s: HRESULT 0x%08X: %v", what, uint32(r), windows.Errno(r&0xFFFF)) // #nosec G115 -- see above
@@ -108,14 +111,14 @@ func register(dir string) error {
 	reg := cfSyncRegistration{
 		ProviderName:           name,
 		ProviderVersion:        ver,
-		SyncRootIdentity:       uintptr(unsafe.Pointer(&identity[0])),
-		SyncRootIdentityLength: uint32(len(identity)),
+		SyncRootIdentity:       uintptr(unsafe.Pointer(&identity[0])), // #nosec G103 -- pointers passed to the Cloud Files API
+		SyncRootIdentityLength: identityLen,
 		ProviderID:             windows.GUID{Data1: 0x6b7a1c55, Data2: 0x2f3e, Data3: 0x4b8a, Data4: [8]byte{0x9a, 0x11, 0x5e, 0x42, 0x0b, 0x7c, 0x3d, 0x61}},
 	}
 	reg.StructSize = uint32(unsafe.Sizeof(reg))
 	pol := cfSyncPolicies{HydrationPrimary: cfHydrationFull, PopulationPrimary: cfPopulationAlwaysFull}
 	pol.StructSize = uint32(unsafe.Sizeof(pol))
-	r, _, _ := procRegisterSyncRoot.Call(uintptr(unsafe.Pointer(root)), uintptr(unsafe.Pointer(&reg)), uintptr(unsafe.Pointer(&pol)), cfRegisterFlagMarkRoot)
+	r, _, _ := procRegisterSyncRoot.Call(uintptr(unsafe.Pointer(root)), uintptr(unsafe.Pointer(&reg)), uintptr(unsafe.Pointer(&pol)), cfRegisterFlagMarkRoot) // #nosec G103 -- pointers passed to the Cloud Files API
 	return hr(r, "CfRegisterSyncRoot")
 }
 
@@ -132,17 +135,20 @@ func online(dir, name string, size int64, mtime time.Time) error {
 		ChangeTime:         t,
 		FileAttributes:     windows.FILE_ATTRIBUTE_NORMAL,
 		FileSize:           size,
-		FileIdentity:       uintptr(unsafe.Pointer(&identity[0])),
-		FileIdentityLength: uint32(len(identity)),
+		FileIdentity:       uintptr(unsafe.Pointer(&identity[0])), // #nosec G103 -- pointers passed to the Cloud Files API
+		FileIdentityLength: identityLen,
 		Flags:              cfCreateFlagMarkInSync,
 	}
 	base, _ := windows.UTF16PtrFromString(dir)
 	var done uint32
-	r, _, _ := procCreatePlaceholders.Call(uintptr(unsafe.Pointer(base)), uintptr(unsafe.Pointer(&info)), 1, 0, uintptr(unsafe.Pointer(&done)))
+	r, _, _ := procCreatePlaceholders.Call(uintptr(unsafe.Pointer(base)), uintptr(unsafe.Pointer(&info)), 1, 0, uintptr(unsafe.Pointer(&done))) // #nosec G103 -- pointers passed to the Cloud Files API
 	if err := hr(r, "CfCreatePlaceholders "+name); err != nil {
 		return err
 	}
-	return hr(uintptr(info.Result), "placeholder "+name)
+	if info.Result < 0 {
+		return fmt.Errorf("placeholder %s: HRESULT %d", name, info.Result)
+	}
+	return nil
 }
 
 func openRW(path string) (windows.Handle, error) {
@@ -155,7 +161,7 @@ func openRW(path string) (windows.Handle, error) {
 // device"). With dehydrate, its data is then dropped again ("Free up
 // space"), keeping its times.
 func downloaded(path string, data []byte, dehydrate bool) error {
-	if err := os.WriteFile(path, data, 0o600); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil { // #nosec G703 -- lab tool: the folder is named by whoever runs it
 		return err
 	}
 	h, err := openRW(path)
@@ -164,7 +170,7 @@ func downloaded(path string, data []byte, dehydrate bool) error {
 	}
 	defer windows.CloseHandle(h)
 	var usn int64
-	r, _, _ := procConvertToPlaceholder.Call(uintptr(h), uintptr(unsafe.Pointer(&identity[0])), uintptr(len(identity)), cfConvertFlagMarkInSync, uintptr(unsafe.Pointer(&usn)), 0)
+	r, _, _ := procConvertToPlaceholder.Call(uintptr(h), uintptr(unsafe.Pointer(&identity[0])), uintptr(len(identity)), cfConvertFlagMarkInSync, uintptr(unsafe.Pointer(&usn)), 0) // #nosec G103 -- pointers passed to the Cloud Files API
 	if err := hr(r, "CfConvertToPlaceholder "+path); err != nil {
 		return err
 	}
@@ -180,7 +186,7 @@ func content(i int) []byte {
 }
 
 func cmdMake(dir string) error {
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil { // #nosec G703 -- lab tool: the folder is named by whoever runs it
 		return err
 	}
 	if err := register(dir); err != nil {
@@ -192,7 +198,7 @@ func cmdMake(dir string) error {
 			return err
 		}
 	}
-	if err := os.WriteFile(filepath.Join(dir, "plain.txt"), content(0), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "plain.txt"), content(0), 0o600); err != nil { // #nosec G703 -- lab tool: the folder is named by whoever runs it
 		return err
 	}
 	if err := downloaded(filepath.Join(dir, "downloaded.txt"), content(1), false); err != nil {
@@ -223,7 +229,7 @@ func cmdStat(dir string) error {
 	for _, e := range entries {
 		p := filepath.Join(dir, e.Name())
 		fmt.Printf("== %s\n", e.Name())
-		if fi, err := os.Lstat(p); err != nil {
+		if fi, err := os.Lstat(p); err != nil { // #nosec G703 -- lab tool: the folder is named by whoever runs it
 			fmt.Printf("   Lstat: %v\n", err)
 		} else {
 			fmt.Printf("   Lstat: mode=%v regular=%v irregular=%v size=%d\n", fi.Mode(), fi.Mode().IsRegular(), fi.Mode()&os.ModeIrregular != 0, fi.Size())
@@ -242,7 +248,7 @@ func cmdStat(dir string) error {
 }
 
 func readSome(p string) ([]byte, error) {
-	f, err := os.Open(p)
+	f, err := os.Open(p) // #nosec G304 G703 -- lab tool: reads the files it just listed in the folder it was given
 	if err != nil {
 		return nil, err
 	}
@@ -264,7 +270,7 @@ func allZero(b []byte) bool {
 
 func cmdBackup(dir, repoDir string) error {
 	ctx := context.Background()
-	if err := os.MkdirAll(repoDir, 0o700); err != nil {
+	if err := os.MkdirAll(repoDir, 0o700); err != nil { // #nosec G703 -- lab tool: the folder is named by whoever runs it
 		return err
 	}
 	be, err := backend.OpenLocal(repoDir)
@@ -321,9 +327,9 @@ func walk(ctx context.Context, r *repo.Repository, id repo.ID, prefix string) er
 
 func cmdClean(dir string) error {
 	root, _ := windows.UTF16PtrFromString(dir)
-	r, _, _ := procUnregisterSyncRoot.Call(uintptr(unsafe.Pointer(root)))
+	r, _, _ := procUnregisterSyncRoot.Call(uintptr(unsafe.Pointer(root))) // #nosec G103 -- pointers passed to the Cloud Files API
 	uerr := hr(r, "CfUnregisterSyncRoot")
-	return errors.Join(uerr, os.RemoveAll(dir))
+	return errors.Join(uerr, os.RemoveAll(dir)) // #nosec G703 -- lab tool: the folder is named by whoever runs it
 }
 
 func main() {
