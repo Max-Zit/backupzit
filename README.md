@@ -64,7 +64,7 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
 
 | What | How | Restore |
 |---|---|---|
-| **Files and folders** (Windows, Linux, macOS) | incremental, from a VSS snapshot on Windows; `{users}` paths (e.g. the Documents of every user) and wildcards; one job can cover several or all agents | single files from the browser (download), into a folder or to the original location |
+| **Files and folders** (Windows, Linux, macOS) | incremental, from a VSS snapshot on Windows; `{users}` paths (e.g. the Documents of every user) and wildcards; one job can cover several or all agents; files that are only in the cloud (OneDrive online-only, iCloud Drive) are never downloaded | single files from the browser (download), into a folder or to the original location |
 | **Macs** (Apple silicon and Intel, macOS 13+) | files and folders from an APFS local snapshot, with owners, permissions, extended attributes, BSD file flags, creation times and sparse files; a menu bar app with a permission assistant for Full Disk Access | like other file backups, metadata included |
 | **Whole disks** (Windows) | disk images of one, several or all disks, changed blocks only | bare metal from the recovery ISO (graphical, also without the console), onto different hardware or a smaller or larger disk, single partitions, GPT↔MBR, boot repair; single files from the image |
 | **Linux systems** | all file systems and the disk layout | bare metal from the Linux recovery ISO, or as a new Proxmox VM (P2V) |
@@ -75,7 +75,7 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
 | **NAS shares** | SMB or NFS share read by any agent, nothing installed on the NAS | into a folder or back onto the share |
 | **Microsoft 365** | Exchange Online mail (.eml), calendars (.ics), contacts (.vcf), OneDrive and SharePoint through Microsoft Graph, read-only permissions | browse and download, or restore into a folder |
 
-**Storage:** SFTP, S3-compatible storage (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud Storage), SMB shares, Azure Blob Storage, rotating USB disks, local disks, and the **BackupZit hardened repository** (a write-once Linux server). Backup copy jobs keep a second copy elsewhere (3-2-1). *Find backups* adds backups that are already on a storage target (for example after a reinstall of the console), so they can be restored.
+**Storage:** SFTP, S3-compatible storage (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud Storage), SMB shares, Azure Blob Storage, rotating USB disks, local disks, and the **BackupZit hardened repository** (a write-once Linux server). Backup copy jobs keep a second copy elsewhere (3-2-1). *Find backups* adds backups that are already on a storage target (for example after a reinstall of the console), so they can be restored. A target can be marked *reachable by agents only* (for example a NAS at a site the console cannot reach): the console then never connects to it, and its connection test runs on an agent.
 
 **Protection against ransomware and mistakes:**
 - AES-256 encryption with a recovery key.
@@ -281,7 +281,7 @@ Open `https://<host>:8443` and sign in as `admin`. To update: `docker compose pu
 ## First steps
 
 1. **Sign in** at `https://<console>:8443` as `admin` and change the password (*My account*).
-2. **Add storage:** open *Storage → Add storage target* and choose, for example, an SFTP server, S3 bucket, SMB share or hardened repository. The console tests the connection when you save. Write down the **recovery key** it shows: with it, backups can be restored even without the console.
+2. **Add storage:** open *Storage → Add storage target* and choose, for example, an SFTP server, S3 bucket, SMB share or hardened repository. The connection is tested when you save, by the console or by an agent of your choice. Write down the **recovery key** it shows: with it, backups can be restored even without the console.
 3. **Enroll agents:** on *Agents* click *Create enrollment token* and install the agent on each machine with the code (see [Installing agents](#installing-agents)). Machines appear within a minute.
 4. **Create a backup job** under *Backup jobs*: choose the agent, what to back up, the storage, a schedule (e.g. daily at 22:00) and the retention (e.g. 14 daily, 8 weekly, 12 monthly).
 5. Optionally:
