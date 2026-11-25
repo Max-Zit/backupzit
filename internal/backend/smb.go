@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cloudsoda/go-smb2"
@@ -27,6 +28,42 @@ type SMB struct {
 	share   *smb2.Share
 	root    string
 	loc     string
+
+	// Open handles of recently read packs: a restore reads many blocks of
+	// a pack one after another, and opening and closing the file for each
+	// cost two extra round trips per block.
+	hmu     sync.Mutex
+	handles map[string]*smbHandle
+	hseq    uint64
+	openRO  func(name string) (smbFile, error) // tests; nil: open on the share
+}
+
+// smbFile is what a ranged read needs of an open file.
+type smbFile interface {
+	io.ReaderAt
+	io.Closer
+	Stat() (fs.FileInfo, error)
+}
+
+func (s *SMB) openFile(name string) (smbFile, error) {
+	if s.openRO != nil {
+		return s.openRO(name)
+	}
+	f, err := s.share.Open(s.p(name))
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
+}
+
+// smbHandleCache is how many pack files stay open for ranged reads.
+const smbHandleCache = 8
+
+type smbHandle struct {
+	f       smbFile
+	refs    int
+	used    uint64
+	evicted bool // out of the cache; closed when the last read ends
 }
 
 // OpenSMB connects and mounts the share named in u.
@@ -129,15 +166,31 @@ func (s *SMB) Load(_ context.Context, name string) ([]byte, error) {
 		return nil, smbNotFound(name, err)
 	}
 	defer f.Close()
-	return io.ReadAll(f)
+	// Sized from the file, read with one ReadAt (go-smb2 splits it into
+	// chunks of the largest size the server takes); io.ReadAll started
+	// with small reads and grew its buffer step by step.
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	buf := make([]byte, fi.Size())
+	n, err := f.ReadAt(buf, 0)
+	if n == len(buf) {
+		return buf, nil
+	}
+	if err == nil || errors.Is(err, io.EOF) {
+		err = io.ErrUnexpectedEOF
+	}
+	return nil, fmt.Errorf("read %s: %w", name, err)
 }
 
 func (s *SMB) LoadRange(_ context.Context, name string, offset int64, length int) ([]byte, error) {
-	f, err := s.share.Open(s.p(name))
+	h, err := s.acquire(name)
 	if err != nil {
 		return nil, smbNotFound(name, err)
 	}
-	defer f.Close()
+	defer s.release(h)
+	f := h.f
 	if offset < 0 {
 		fi, err := f.Stat()
 		if err != nil {
@@ -153,7 +206,111 @@ func (s *SMB) LoadRange(_ context.Context, name string, offset int64, length int
 	if err == nil {
 		err = io.ErrUnexpectedEOF
 	}
+	s.forget(name) // the file may have changed or gone: open it again next time
 	return nil, fmt.Errorf("read %s@%d+%d: %w", name, offset, length, err)
+}
+
+// acquire returns an open handle of name for ranged reads. Pack files are
+// kept open (they never change once written); other objects are opened
+// for this read only.
+func (s *SMB) acquire(name string) (*smbHandle, error) {
+	if !strings.HasPrefix(name, "data/") {
+		f, err := s.openFile(name)
+		if err != nil {
+			return nil, err
+		}
+		return &smbHandle{f: f, refs: 1, evicted: true}, nil
+	}
+	s.hmu.Lock()
+	if h := s.handles[name]; h != nil {
+		h.refs++
+		s.hseq++
+		h.used = s.hseq
+		s.hmu.Unlock()
+		return h, nil
+	}
+	s.hmu.Unlock()
+	f, err := s.openFile(name)
+	if err != nil {
+		return nil, err
+	}
+	s.hmu.Lock()
+	if h := s.handles[name]; h != nil { // opened meanwhile by another read
+		h.refs++
+		s.hmu.Unlock()
+		_ = f.Close()
+		return h, nil
+	}
+	if s.handles == nil {
+		s.handles = map[string]*smbHandle{}
+	}
+	s.hseq++
+	h := &smbHandle{f: f, refs: 1, used: s.hseq}
+	s.handles[name] = h
+	var drop []smbFile
+	for len(s.handles) > smbHandleCache {
+		var oldName string
+		var old *smbHandle
+		for n, c := range s.handles {
+			if c != h && (old == nil || c.used < old.used) {
+				oldName, old = n, c
+			}
+		}
+		if old == nil {
+			break
+		}
+		delete(s.handles, oldName)
+		old.evicted = true
+		if old.refs == 0 {
+			drop = append(drop, old.f)
+		}
+	}
+	s.hmu.Unlock()
+	for _, f := range drop {
+		_ = f.Close()
+	}
+	return h, nil
+}
+
+func (s *SMB) release(h *smbHandle) {
+	s.hmu.Lock()
+	h.refs--
+	closeIt := h.evicted && h.refs == 0
+	s.hmu.Unlock()
+	if closeIt {
+		_ = h.f.Close()
+	}
+}
+
+// forget takes name out of the handle cache; its handle is closed once no
+// read uses it.
+func (s *SMB) forget(name string) {
+	s.hmu.Lock()
+	h := s.handles[name]
+	var closeIt bool
+	if h != nil {
+		delete(s.handles, name)
+		h.evicted = true
+		closeIt = h.refs == 0
+	}
+	s.hmu.Unlock()
+	if closeIt {
+		_ = h.f.Close()
+	}
+}
+
+// closeHandles closes every cached handle (reads still running close
+// theirs when they end).
+func (s *SMB) closeHandles() {
+	s.hmu.Lock()
+	names := make([]string, 0, len(s.handles))
+	for n := range s.handles {
+		names = append(names, n)
+	}
+	s.hmu.Unlock()
+	for _, n := range names {
+		s.forget(n)
+	}
 }
 
 func (s *SMB) Size(_ context.Context, name string) (int64, error) {
@@ -199,6 +356,8 @@ func (s *SMB) List(_ context.Context, dir string) (out []string, err error) {
 }
 
 func (s *SMB) Remove(_ context.Context, name string) error {
+	// An open handle would keep the file (go-smb2 does not share delete).
+	s.forget(name)
 	return smbNotFound(name, s.share.Remove(s.p(name)))
 }
 
@@ -228,6 +387,7 @@ func (s *SMB) RemoveDirs(_ context.Context) (err error) {
 }
 
 func (s *SMB) Close() error {
+	s.closeHandles()
 	_ = s.share.Umount()
 	_ = s.session.Logoff()
 	return s.conn.Close()
