@@ -104,6 +104,15 @@ func TestMainWindowKeyboardAndHover(t *testing.T) {
 				onUI(a.mw, func() { f = win.GetFocus() })
 				press(a.mw, f, win.VK_TAB)
 				onUI(a.mw, func() { f = win.GetFocus() })
+				if f == 0 {
+					// Another window took the foreground, e.g. a second
+					// test run at the same time (see useManifest).
+					fg := win.GetForegroundWindow()
+					buf := make([]uint16, 64)
+					win.GetClassName(fg, &buf[0], len(buf))
+					return fmt.Errorf("focus left the window after %q; foreground: class %q, title %q",
+						order, syscall.UTF16ToString(buf), windowText(fg))
+				}
 				order = append(order, windowText(f))
 				if f == stops[0] {
 					break
