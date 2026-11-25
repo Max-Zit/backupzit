@@ -62,7 +62,7 @@
   <li><b>登录时打开</b>：只要 <b>BackupZit</b> 在<i>登录项与扩展 → 允许在后台</i>下处于打开状态，菜单栏 App 就会在每次登录时打开。</li>
 </ul>
 <h3 id="assistant">菜单栏 App 及其助手</h3>
-<p>菜单栏中的 BackupZit 图标显示代理的状态；其菜单包含针对 Mac 每个作业的 <b>Back up now</b>、<b>Open console in browser</b> 和 <b>Hide this icon</b>（直到下次登录；备份继续进行）。其 <b>Permissions</b> 部分列出后台运行的代理、完全磁盘访问权限、通知和登录时打开，每项都带有 ✅ 或 ❌。点按某一项会打开“系统设置”中相应的页面；缺少的权限还会在每次登录后通过对话框说明一次，并给出操作步骤。只要还缺少某项权限，它就会每隔几秒自动重新检查，因此一旦授予权限就会显示 ✅。代理也会在运行报告中向控制台报告缺少完全磁盘访问权限。</p>
+<p>菜单栏中的 BackupZit 图标显示代理的状态；其菜单包含针对 Mac 每个作业的 <b>Back up now</b>、<b>Open console in browser</b> 和 <b>Hide this icon</b>（直到下次登录；备份继续进行）。其 <b>Permissions</b> 部分列出后台运行的代理、完全磁盘访问权限、通知和登录时打开，每项都带有 ✅ 或 ❌。点按某一项会打开“系统设置”中相应的页面；缺少的权限还会在每次登录后通过对话框说明一次，并给出操作步骤。只要还缺少某项权限，它就会每隔几秒自动重新检查，因此一旦授予权限就会显示 ✅。代理也会在运行报告中向控制台报告缺少完全磁盘访问权限。即使端口 8443 只为代理提供服务，<i>Open console in browser</i> 也会打开控制台的网页地址（代理和控制台均为 0.61 及更高版本）。</p>
 <h3 id="status">在“终端”中检查</h3>
 <pre>/Library/BackupZit/bin/backupzit-agent status</pre>
 <p>普通用户也可以运行，它会显示控制台、作业以及 <code>full disk access: granted</code> 或 <code>denied</code>（并指出需要打开的程序）。</p>

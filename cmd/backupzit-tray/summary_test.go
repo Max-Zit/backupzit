@@ -18,3 +18,22 @@ func TestSummaryNotEnrolled(t *testing.T) {
 		t.Fatalf("no service: %q", s.Headline)
 	}
 }
+
+// The console's web address wins over the agent address; consoles before
+// 0.61 send none, and only web addresses are opened (#62).
+func TestConsoleAddress(t *testing.T) {
+	for _, c := range []struct {
+		st   *localipc.Status
+		want string
+	}{
+		{nil, ""},
+		{&localipc.Status{ServerURL: "https://bz:8443"}, "https://bz:8443"},
+		{&localipc.Status{ServerURL: "https://bz:8443", ConsoleURL: "https://backup.example.com"}, "https://backup.example.com"},
+		{&localipc.Status{ServerURL: "https://bz:8443", ConsoleURL: "file:///etc/passwd"}, "https://bz:8443"},
+		{&localipc.Status{ServerURL: "javascript:alert(1)"}, ""},
+	} {
+		if got := consoleAddress(c.st); got != c.want {
+			t.Errorf("%+v: %q, want %q", c.st, got, c.want)
+		}
+	}
+}

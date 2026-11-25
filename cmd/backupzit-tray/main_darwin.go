@@ -190,7 +190,7 @@ func (t *tray) refresh() Summary {
 	}
 	t.detail.Show()
 	t.updateJobs(sum)
-	if sum.Status == nil || sum.Status.ServerURL == "" {
+	if consoleAddress(sum.Status) == "" {
 		t.console.Disable()
 	} else {
 		t.console.Enable()
@@ -335,8 +335,7 @@ func (t *tray) runJob(id int64) {
 
 func (t *tray) openConsole() {
 	s := t.summary()
-	if s.Status == nil || s.Status.ServerURL == "" {
-		return
+	if u := consoleAddress(s.Status); u != "" {
+		openURL(u)
 	}
-	openURL(s.Status.ServerURL)
 }

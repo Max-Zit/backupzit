@@ -69,6 +69,9 @@ func (a *Agent) recordPoll(err error, st *api.AgentStatus) {
 				NextRun: j.NextRun, LastStatus: j.LastStatus, LastFinished: j.LastFinished, LastMessage: j.LastMessage, Running: j.Running})
 		}
 		ls.st.Jobs, ls.st.JobsAt = jobs, &now
+		if st.ConsoleURL != "" {
+			ls.st.ConsoleURL = st.ConsoleURL
+		}
 	}
 }
 

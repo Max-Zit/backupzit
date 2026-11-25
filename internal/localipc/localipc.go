@@ -32,9 +32,12 @@ type Response struct {
 
 // Status is what the tray app shows.
 type Status struct {
-	Version     string     `json:"version"`
-	Hostname    string     `json:"hostname"`
-	ServerURL   string     `json:"server_url"`
+	Version   string `json:"version"`
+	Hostname  string `json:"hostname"`
+	ServerURL string `json:"server_url"`
+	// ConsoleURL is the web console's address as the console reports it
+	// (consoles 0.61 and newer); "" when unknown.
+	ConsoleURL  string     `json:"console_url,omitempty"`
 	Enrolled    bool       `json:"enrolled"`
 	Connected   bool       `json:"connected"`
 	LastContact *time.Time `json:"last_contact,omitempty"`

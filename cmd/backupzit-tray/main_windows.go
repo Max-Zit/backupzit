@@ -200,7 +200,7 @@ func (t *tray) refresh() Summary {
 	} else {
 		t.backup.Enable()
 	}
-	if sum.Status == nil || sum.Status.ServerURL == "" {
+	if consoleAddress(sum.Status) == "" {
 		t.console.Disable()
 	} else {
 		t.console.Enable()
@@ -244,10 +244,9 @@ func (t *tray) runJob(id int64) string {
 
 func (t *tray) openConsole() {
 	s := t.summary()
-	if s.Status == nil || s.Status.ServerURL == "" {
-		return
+	if u := consoleAddress(s.Status); u != "" {
+		openURL(u)
 	}
-	openURL(s.Status.ServerURL)
 }
 
 func openURL(u string) {

@@ -498,6 +498,10 @@ const PathJobRunPrefix = "/api/agent/jobs/"
 // AgentStatus summarises the agent's jobs for the tray app.
 type AgentStatus struct {
 	Jobs []JobStatus `json:"jobs"`
+	// ConsoleURL is the web console's address, which the tray app opens. It
+	// differs from the agent address when that port serves agents only
+	// (#62). Consoles before 0.61 leave it out.
+	ConsoleURL string `json:"console_url,omitempty"`
 }
 
 // JobStatus is one job in AgentStatus.

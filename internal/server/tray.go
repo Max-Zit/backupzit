@@ -16,7 +16,7 @@ func (s *Server) agentStatus(ctx context.Context, agentID int64) (*api.AgentStat
 	if err != nil {
 		return nil, err
 	}
-	st := &api.AgentStatus{Jobs: []api.JobStatus{}}
+	st := &api.AgentStatus{Jobs: []api.JobStatus{}, ConsoleURL: s.ConsoleURL()}
 	for _, j := range jobs {
 		if j.AgentID != agentID {
 			continue

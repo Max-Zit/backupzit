@@ -65,7 +65,7 @@ systemctl enable --now backupzit-agent</pre>
   <tr><td>红色</td><td>备份作业失败。</td></tr>
   <tr><td>灰色</td><td>无法连接控制台，或代理服务未运行。</td></tr>
 </table>
-<p>点击图标（或从“开始”菜单打开 <b>BackupZit Agent</b>）可打开状态窗口：保护状态、正在运行的备份进度、上次和下次备份，以及该计算机的所有备份作业和<b>立即备份</b>按钮。右键单击打开菜单：每个作业的 <i>Back up now</i>、<i>Open console in browser</i>、<i>Hide this icon</i>（直到下次登录；备份继续进行）。该窗口需要 Microsoft Edge WebView2，它是 Windows 10 和 11 的一部分；在旧系统上，图标和菜单可用，<i>Open</i> 会在浏览器中显示控制台。</p>
+<p>点击图标（或从“开始”菜单打开 <b>BackupZit Agent</b>）可打开状态窗口：保护状态、正在运行的备份进度、上次和下次备份，以及该计算机的所有备份作业和<b>立即备份</b>按钮。右键单击打开菜单：每个作业的 <i>Back up now</i>、<i>Open console in browser</i>、<i>Hide this icon</i>（直到下次登录；备份继续进行）。该窗口需要 Microsoft Edge WebView2，它是 Windows 10 和 11 的一部分；在旧系统上，图标和菜单可用，<i>Open</i> 会在浏览器中显示控制台。即使端口 8443 只为代理提供服务，<i>Open console in browser</i> 也会打开控制台的网页地址（代理和控制台均为 0.61 及更高版本）。</p>
 <p>在 Mac 上，菜单栏 App 提供同样的功能，并且还会检查 macOS 要求用户授予的权限（参见 <a href="/docs/macos#assistant">macOS 代理</a>）。</p>
 <p>用户可以通过这种方式启动其计算机的备份；作业、计划和保留只能在控制台中设置。在任何系统上，<code>backupzit-agent status</code>（以管理员或 root 身份）都会打印相同的信息。</p>
 

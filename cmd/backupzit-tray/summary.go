@@ -214,3 +214,20 @@ func (s Summary) tooltip() string {
 	}
 	return t
 }
+
+// consoleAddress is the web address "Open console in browser" opens: the
+// console's own web address when the console reports it (0.61 and newer),
+// else the address the agent talks to, as before. On a console whose port
+// 8443 serves agents only, that one shows no console (#62). Only http and
+// https addresses are opened.
+func consoleAddress(st *localipc.Status) string {
+	if st == nil {
+		return ""
+	}
+	for _, u := range []string{st.ConsoleURL, st.ServerURL} {
+		if strings.HasPrefix(u, "https://") || strings.HasPrefix(u, "http://") {
+			return u
+		}
+	}
+	return ""
+}
