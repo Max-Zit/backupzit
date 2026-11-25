@@ -188,8 +188,10 @@ type relayBackend struct {
 }
 
 func (r *relayBackends) get(ctx context.Context, rs api.Repository) (backend.Backend, error) {
-	rs.Password = "" // never needed: the console decrypts
-	key, _ := json.Marshal(rs) // #nosec G117 -- only hashed into an in-memory cache key below, never stored or sent
+	// The repository password is never needed: the console decrypts.
+	rs.Password = ""
+	// #nosec G117 -- only hashed into an in-memory cache key below, never stored or sent
+	key, _ := json.Marshal(rs)
 	sum := sha256.Sum256(key)
 	k := hex.EncodeToString(sum[:])
 	r.mu.Lock()
