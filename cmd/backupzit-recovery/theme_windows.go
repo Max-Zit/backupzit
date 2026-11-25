@@ -198,7 +198,7 @@ func bgOf(w walk.Window) walk.Color {
 // textWidth is the width of a single line of text in Segoe UI at 96 dpi.
 // (walk's MeasureText returns the whole given width for a single line.)
 func textWidth(text string, size int, bold bool) int {
-	lf := win.LOGFONT{LfHeight: -int32(size * 96 / 72), LfWeight: win.FW_NORMAL}
+	lf := win.LOGFONT{LfHeight: -int32(size * 96 / 72), LfWeight: win.FW_NORMAL} // #nosec G115 -- a font size in points
 	if bold {
 		lf.LfWeight = win.FW_BOLD
 	}
@@ -214,7 +214,7 @@ func textWidth(text string, size int, bold bool) int {
 	defer win.SelectObject(dc, old)
 	u := syscall.StringToUTF16(text)
 	var sz win.SIZE
-	if len(u) <= 1 || !win.GetTextExtentPoint32(dc, &u[0], int32(len(u)-1), &sz) {
+	if len(u) <= 1 || !win.GetTextExtentPoint32(dc, &u[0], int32(len(u)-1), &sz) { // #nosec G115 -- a label, far below 2^31 characters
 		return 0
 	}
 	return int(sz.CX)
@@ -282,7 +282,7 @@ func hoverWndProc(hwnd win.HWND, msg uint32, wp, lp uintptr) uintptr {
 			// lp points to the message; copied rather than converted,
 			// which go vet rejects for a uintptr from Windows.
 			var m win.MSG
-			_, _, _ = procRtlMoveMemory.Call(uintptr(unsafe.Pointer(&m)), lp, unsafe.Sizeof(m))
+			_, _, _ = procRtlMoveMemory.Call(uintptr(unsafe.Pointer(&m)), lp, unsafe.Sizeof(m)) // #nosec G103 -- pointer passed to a Windows API call
 			if m.Message == win.WM_KEYDOWN && m.WParam == win.VK_RETURN {
 				return win.DLGC_WANTMESSAGE
 			}
@@ -516,7 +516,7 @@ func (g *gdi) fill(col walk.Color, r walk.Rectangle, radius int) {
 	oldBrush := win.SelectObject(g.hdc, win.HGDIOBJ(br))
 	oldPen := win.SelectObject(g.hdc, win.GetStockObject(win.NULL_PEN))
 	// With no pen the shape is one pixel smaller on the right and bottom.
-	win.RoundRect(g.hdc, int32(r.X), int32(r.Y), int32(r.X+r.Width+1), int32(r.Y+r.Height+1), int32(radius), int32(radius))
+	win.RoundRect(g.hdc, int32(r.X), int32(r.Y), int32(r.X+r.Width+1), int32(r.Y+r.Height+1), int32(radius), int32(radius)) // #nosec G115 -- pixels of a window
 	win.SelectObject(g.hdc, oldPen)
 	win.SelectObject(g.hdc, oldBrush)
 }
@@ -528,9 +528,9 @@ func (g *gdi) text(s string, size int, bold bool, col walk.Color, r walk.Rectang
 	defer win.SelectObject(g.hdc, old)
 	win.SetBkMode(g.hdc, win.TRANSPARENT)
 	win.SetTextColor(g.hdc, win.COLORREF(col))
-	rc := win.RECT{Left: int32(r.X), Top: int32(r.Y), Right: int32(r.X + r.Width), Bottom: int32(r.Y + r.Height)}
+	rc := win.RECT{Left: int32(r.X), Top: int32(r.Y), Right: int32(r.X + r.Width), Bottom: int32(r.Y + r.Height)} // #nosec G115 -- pixels of a window
 	u := syscall.StringToUTF16(s)
-	win.DrawTextEx(g.hdc, &u[0], int32(len(u)-1), &rc, format, nil)
+	win.DrawTextEx(g.hdc, &u[0], int32(len(u)-1), &rc, format, nil) // #nosec G115 -- a label, far below 2^31 characters
 }
 
 var hfontCache = map[[3]int]win.HFONT{}
@@ -538,7 +538,7 @@ var hfontCache = map[[3]int]win.HFONT{}
 // hfont is Segoe UI for plain GDI; the fonts live as long as the program.
 func hfont(size int, bold bool, dpi int) win.HFONT {
 	k := [3]int{size, 0, dpi}
-	lf := win.LOGFONT{LfHeight: -int32(size * dpi / 72), LfWeight: win.FW_NORMAL, LfQuality: win.CLEARTYPE_QUALITY}
+	lf := win.LOGFONT{LfHeight: -int32(size * dpi / 72), LfWeight: win.FW_NORMAL, LfQuality: win.CLEARTYPE_QUALITY} // #nosec G115 -- a font size in points
 	if bold {
 		k[1], lf.LfWeight = 1, win.FW_BOLD
 	}
