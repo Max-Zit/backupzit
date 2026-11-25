@@ -236,7 +236,7 @@ func TestTargetReachableByAgentsOnly(t *testing.T) {
 	if b := page(fmt.Sprintf("/runs/%d/files", backupID)); !strings.Contains(b, refused) {
 		t.Fatal("file browser does not say why")
 	}
-	if _, loc, _ := admin.do("POST", fmt.Sprintf("/runs/%d/files-download", backupID), url.Values{"sel": {"C/x.txt"}}); unflash(loc) != refused {
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/runs/%d/files-download", backupID), url.Values{"sel": {"C/x.txt"}}); !strings.HasPrefix(unflash(loc), refused) { // the 0.59 agent of the earlier test is named too
 		t.Fatalf("download: %s", loc)
 	}
 
