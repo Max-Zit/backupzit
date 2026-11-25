@@ -1185,8 +1185,14 @@ used by BackupZit through a replace directive in its go.mod.
 The upstream tests are kept (go test ./... in this folder); its .github
 folder (CI with a Samba server) is left out.
 
-Changes by BackupZit that upstream does not have:
-(none yet)
+Changes by BackupZit that upstream does not have (2026-11-25):
+- client.go: File.readAt keeps up to four READ requests (pipelineDepth)
+  in flight and copies each response to its place, instead of waiting
+  for each 1 MiB chunk's response before sending the next request.
+  Credits are borrowed per request as before; an error or the end of the
+  file stops sending, and the requests still in flight are drained.
+- pipeline_test.go: tests and benchmarks of the above against an
+  in-process server that answers after a fixed latency.
 
 Drop this copy once upstream has these changes.
 
