@@ -81,7 +81,7 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
 - AES-256 encryption with a recovery key.
 - Immutable backups: S3 Object Lock or the hardened repository.
 - Detection of backups that look like ransomware or mass deletion; retention pauses automatically.
-- Automatic restore tests, and a check (monthly by default) that reads and verifies all stored data.
+- Automatic restore tests, and a check (monthly by default) that reads and verifies all stored data. Proxmox VMs can also be booted from the backup, isolated from the network, with checks inside them (a service, a file, a port or a command of your own), also for the oldest backup kept; backups that pass are marked *verified*.
 - Deleting backups, creating users, setting another user's password and turning on two-factor sign-in ask for your password (or two-factor code), so a stolen browser session is not enough.
 - Optional four-eyes approval for destructive changes.
 - Tamper-evident audit log.
