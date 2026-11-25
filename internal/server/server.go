@@ -1395,6 +1395,12 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 		"Instant": runInstant(run), "InstantStorage": s.instantStorage(r.Context(), run), "BootTests": bootTests(run)} {
 		data[k] = v
 	}
+	// A VM backup that a boot test showed booting (0.61): marked "verified".
+	if run.Kind == api.KindVMBackup {
+		if at := s.store.bootVerified(r.Context(), run.SnapshotID); !at.IsZero() {
+			data["BootVerified"] = &at
+		}
+	}
 	// The log may hold paths, host names and errors of the agent: only
 	// those who may download it (the agents permission) see its tail.
 	if me := currentUser(r); run.Kind == api.KindAgentLog && me.Can(string(PermAgents)) {

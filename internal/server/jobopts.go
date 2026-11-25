@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/pve"
 	"github.com/max-zit/backupzit/internal/repo"
 )
 
@@ -104,6 +105,11 @@ type JobOptions struct {
 	Window     bool `json:"window,omitempty"`
 	WindowFrom int  `json:"window_from,omitempty"`
 	WindowTo   int  `json:"window_to,omitempty"`
+	// BootChecks run inside the VMs of a Proxmox job's boot test (pve.Check,
+	// one per line); BootOldest also boot-tests the oldest backup the job keeps
+	// (0.61). Both only act when the boot test is on (Settings → Restore tests).
+	BootChecks []string `json:"boot_checks,omitempty"`
+	BootOldest bool     `json:"boot_oldest,omitempty"`
 }
 
 func (o JobOptions) Validate() error {
@@ -161,6 +167,9 @@ func (o JobOptions) Validate() error {
 	}
 	if o.CommandMinutes < 0 || o.CommandMinutes > 1440 {
 		return errors.New("the command time limit is between 1 and 1440 minutes")
+	}
+	if _, err := pve.ParseChecks(o.BootChecks); err != nil {
+		return err
 	}
 	return nil
 }
@@ -248,6 +257,8 @@ type jobForm struct {
 	HyperV bool
 	// VMware: an edited VM job of a VMware host (quiescing option).
 	VMware bool
+	// Proxmox: an edited VM job of a Proxmox node (boot test checks).
+	Proxmox bool
 }
 
 // newJobForm prepares the form for job j (a new job: defaults).
@@ -321,6 +332,14 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 	} else {
 		o.PreCommand, o.PostCommand, o.CommandMinutes = old.PreCommand, old.PostCommand, old.CommandMinutes
 	}
+	// Checks inside boot-tested VMs run as root/SYSTEM in the copy: like the
+	// commands, only users who may change commands set them.
+	if canCommands {
+		o.BootChecks = lines(r.FormValue("boot_checks"))
+	} else {
+		o.BootChecks = old.BootChecks
+	}
+	o.BootOldest = r.FormValue("boot_oldest") == "on"
 	o.SQLEngine = r.FormValue("sql_engine")
 	o.SQLInstance = strings.TrimSpace(r.FormValue("sql_instance"))
 	o.SQLSystem = r.FormValue("sql_system") == "on"
@@ -501,6 +520,9 @@ func (s *Server) jobForm(r *http.Request, j Job, edit bool, agents []Agent) jobF
 		for _, a := range agents {
 			if a.ID == j.AgentID && a.Platform() == "hyperv" {
 				f.HyperV = true
+			}
+			if a.ID == j.AgentID && a.Platform() == "proxmox" {
+				f.Proxmox = true
 			}
 		}
 	}

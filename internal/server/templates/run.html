@@ -15,6 +15,7 @@
     {{if .StartedAt}}<dt>{{T "Duration"}}</dt><dd>{{.Duration}}</dd>{{end}}
     {{if .RepoURL}}<dt>{{T "Repository"}}</dt><dd class="mono">{{.RepoURL}}</dd>{{end}}
     {{if .SnapshotID}}<dt>{{T "Snapshot"}}</dt><dd class="mono">{{.SnapshotID}}</dd>{{end}}
+    {{with $.Data.BootVerified}}<dt>{{T "Boot test"}}</dt><dd><span class="badge success"><i></i>{{T "verified"}}</span> {{T "its VMs booted and passed their checks in a restore test on"}} {{ts .}}</dd>{{end}}
     {{if eq .Kind "backup"}}
       <dt>{{T "Paths"}}</dt><dd class="mono">{{join .Paths "\n"}}</dd>
     {{else if eq .Kind "verify"}}
@@ -203,7 +204,7 @@
   <p class="muted small">{{T "Each VM was started from the backup with its network cards disconnected and deleted afterwards."}}</p>
   <table>
     <tr><th>{{T "VM"}}</th><th>{{T "Result"}}</th><th>{{T "Time"}}</th></tr>
-    {{range .}}<tr><td>{{.VMID}} — {{.Name}}</td><td>{{if .Booted}}<span class="badge success"><i></i>{{T "booted"}}</span> {{T "QEMU guest agent answered"}}{{else if .Running}}<span class="badge warning"><i></i>{{T "running"}}</span> {{T "kept running; no QEMU guest agent to confirm the boot"}}{{else}}<span class="badge failed"><i></i>{{T "failed"}}</span> {{.Error}}{{end}}</td><td>{{if .Seconds}}{{.Seconds}} s{{end}}</td></tr>{{end}}
+    {{range .}}<tr><td>{{.VMID}} — {{.Name}}{{if and .Snapshot (ne .Snapshot $.Data.Run.SnapshotID)}}<br><span class="muted small">{{T "oldest kept backup"}} <span class="mono">{{short .Snapshot}}</span></span>{{end}}</td><td>{{if .Booted}}<span class="badge success"><i></i>{{T "booted"}}</span> {{T "QEMU guest agent answered"}}{{else if .Running}}<span class="badge warning"><i></i>{{T "running"}}</span> {{T "kept running; no QEMU guest agent to confirm the boot"}}{{with .Error}} — {{.}}{{end}}{{else}}<span class="badge failed"><i></i>{{T "failed"}}</span> {{.Error}}{{end}}{{with .Checks}}<ul class="small">{{range .}}<li>{{if .OK}}<span class="badge success"><i></i>{{T "passed"}}</span>{{else}}<span class="badge failed"><i></i>{{T "failed"}}</span>{{end}} <span class="mono">{{.Check}}</span>{{with .Detail}} <span class="muted">{{.}}</span>{{end}}</li>{{end}}</ul>{{end}}</td><td>{{if .Seconds}}{{.Seconds}} s{{end}}</td></tr>{{end}}
   </table>
 </div>
 {{end}}

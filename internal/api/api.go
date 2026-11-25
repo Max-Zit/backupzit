@@ -317,6 +317,11 @@ type Run struct {
 	// VerifyBootSeconds > 0: also start each Proxmox VM of the backup,
 	// isolated, and wait up to this long for its guest agent (boot test).
 	VerifyBootSeconds int `json:"verify_boot_seconds,omitempty"`
+	// VerifyBootChecks run inside each booted VM through its QEMU guest
+	// agent (service, file, port, command; 0.61). VerifyBootAlso is a second
+	// backup whose VMs are boot-tested too: the oldest one the job keeps.
+	VerifyBootChecks []BootCheck `json:"verify_boot_checks,omitempty"`
+	VerifyBootAlso   string      `json:"verify_boot_also,omitempty"`
 	// SQL: SQL Server backup and restore runs.
 	SQL *SQLRun `json:"sql,omitempty"`
 	// Replica: replication and failover runs.
@@ -657,4 +662,11 @@ type VMwareProbe struct {
 	SSHError   string          `json:"ssh_error,omitempty"`
 	Thumbprint string          `json:"thumbprint"`
 	SSHHostKey string          `json:"ssh_host_key,omitempty"`
+}
+
+// BootCheck is a check inside a boot-tested VM (pve.Check).
+type BootCheck struct {
+	VMID  int    `json:"vmid,omitempty"` // only this VM; 0: every VM of the backup
+	Kind  string `json:"kind"`           // service | file | port | command
+	Value string `json:"value"`
 }

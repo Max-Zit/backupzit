@@ -158,6 +158,13 @@ function syncJobKind() {
     box.hidden = true;
     box.querySelectorAll("input,textarea,select").forEach(function (i) { i.disabled = true; });
   });
+  // Boot test checks are for Proxmox nodes only.
+  var isPVE = !!agentOpt && agentOpt.hasAttribute("data-pvehost");
+  document.querySelectorAll("[data-pveonly]").forEach(function (box) {
+    if (isPVE) return;
+    box.hidden = true;
+    box.querySelectorAll("input,textarea,select").forEach(function (i) { i.disabled = true; });
+  });
   document.querySelectorAll("[data-notkind]").forEach(function (el) {
     var off = el.getAttribute("data-notkind") === sel.value;
     el.hidden = off;

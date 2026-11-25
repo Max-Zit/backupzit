@@ -19,14 +19,21 @@ type BootResult struct {
 	Running bool   `json:"running"` // the VM kept running (no guest agent to ask)
 	Seconds int    `json:"seconds"`
 	Error   string `json:"error,omitempty"`
+	// Snapshot is the tested backup (0.61: a test can also boot the oldest
+	// kept one); Checks are the job's checks inside the VM; Passed means
+	// the guest agent answered and every check passed.
+	Snapshot string        `json:"snapshot,omitempty"`
+	Checks   []CheckResult `json:"checks,omitempty"`
+	Passed   bool          `json:"passed,omitempty"`
 }
 
 // BootTest starts a VM of a backup as an isolated instant VM (network cards
 // disconnected), waits until its QEMU guest agent answers, and deletes it
 // again. VMs without the guest agent count as running when they did not
-// stop within a minute.
-func BootTest(ctx context.Context, sn *repo.Snapshot, vmid int, timeout time.Duration, opts InstantOptions) BootResult {
-	res := BootResult{VMID: vmid}
+// stop within a minute. checks run in the booted VM through the guest agent;
+// each may take until timeout after the agent answered.
+func BootTest(ctx context.Context, sn *repo.Snapshot, vmid int, timeout time.Duration, checks []Check, opts InstantOptions) BootResult {
+	res := BootResult{VMID: vmid, Snapshot: sn.ID.String()}
 	g, err := FindGuest(sn, vmid)
 	if err != nil {
 		res.Error = err.Error()
@@ -66,10 +73,24 @@ func BootTest(ctx context.Context, sn *repo.Snapshot, vmid int, timeout time.Dur
 		if agent {
 			if _, err := command(ctx, "qm", "agent", id, "ping"); err == nil {
 				res.Booted, res.Seconds = true, int(time.Since(start).Seconds())
+				if len(checks) > 0 {
+					res.Checks = runChecks(ctx, id, checks, time.Now().Add(timeout))
+				}
+				res.Passed = true
+				for _, c := range res.Checks {
+					if !c.OK {
+						res.Passed = false
+						res.Error = "check failed: " + c.Check + " (" + c.Detail + ")"
+						break
+					}
+				}
 				return res
 			}
 		} else if time.Since(start) >= time.Minute {
 			res.Running, res.Seconds = true, int(time.Since(start).Seconds())
+			if len(checks) > 0 {
+				res.Error = "the checks need the QEMU guest agent in the VM (agent: 1 in its configuration and qemu-guest-agent installed)"
+			}
 			return res
 		}
 	}

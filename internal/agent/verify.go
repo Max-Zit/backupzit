@@ -65,45 +65,86 @@ func (a *Agent) verifyRun(ctx context.Context, run api.Run) api.RunResult {
 }
 
 // bootTests starts each Proxmox VM of a VM backup isolated from the network
-// and checks that it boots (restore test with boot test).
+// and checks that it boots (restore test with boot test), runs the job's
+// checks inside it, and does the same for the oldest backup the job keeps
+// when the console asks for that (0.61).
 func (a *Agent) bootTests(ctx context.Context, run api.Run, sn *repo.Snapshot, res *api.RunResult) {
-	var vms []int
-	for _, g := range sn.Guests {
-		if g.Type == "qemu" && (g.Platform == "" || g.Platform == "proxmox") {
-			vms = append(vms, g.VMID)
-		}
-	}
-	if len(vms) == 0 || !pve.Available() {
+	if !pve.Available() {
 		return
 	}
-	var results []pve.BootResult
-	booted, running := 0, 0
-	var failures []string
-	for _, vmid := range vms {
-		a.log.Info("boot test", "run", run.ID, "vmid", vmid)
-		br := pve.BootTest(ctx, sn, vmid, time.Duration(run.VerifyBootSeconds)*time.Second, pve.InstantOptions{
-			ServeCommand: func(ctx context.Context, target int, socket string) error {
-				return StartInstantServer(ctx, run.Repository, sn.ID.String(), vmid, target, socket)
-			},
-			Log: func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) },
-		})
-		results = append(results, br)
-		switch {
-		case br.Booted:
-			booted++
-		case br.Running:
-			running++
-		default:
-			failures = append(failures, fmt.Sprintf("VM %d (%s): %s", br.VMID, br.Name, br.Error))
+	var checks []pve.Check
+	for _, c := range run.VerifyBootChecks {
+		checks = append(checks, pve.Check{VMID: c.VMID, Kind: c.Kind, Value: c.Value})
+	}
+	type point struct {
+		sn    *repo.Snapshot
+		label string
+	}
+	points := []point{{sn, ""}}
+	if run.VerifyBootAlso != "" && run.VerifyBootAlso != sn.ID.String() {
+		r, closeRepo, err := a.openRepo(ctx, run.Repository, false)
+		if err == nil {
+			if old, err := r.LoadSnapshot(ctx, run.VerifyBootAlso); err == nil {
+				points = append(points, point{old, "oldest kept backup (" + old.Time.Local().Format("2006-01-02 15:04") + ")"})
+			} else {
+				res.Message += "; the oldest kept backup could not be loaded for its boot test: " + err.Error()
+			}
+			defer closeRepo()
 		}
+	}
+	var results []pve.BootResult
+	var failures []string
+	for _, p := range points {
+		var vms []int
+		for _, g := range p.sn.Guests {
+			if g.Type == "qemu" && (g.Platform == "" || g.Platform == "proxmox") {
+				vms = append(vms, g.VMID)
+			}
+		}
+		if len(vms) == 0 {
+			continue
+		}
+		booted, running := 0, 0
+		for _, vmid := range vms {
+			a.log.Info("boot test", "run", run.ID, "vmid", vmid, "backup", p.sn.ID.String())
+			psn := p.sn
+			br := pve.BootTest(ctx, psn, vmid, time.Duration(run.VerifyBootSeconds)*time.Second, pve.For(checks, vmid), pve.InstantOptions{
+				ServeCommand: func(ctx context.Context, target int, socket string) error {
+					return StartInstantServer(ctx, run.Repository, psn.ID.String(), vmid, target, socket)
+				},
+				Log: func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) },
+			})
+			results = append(results, br)
+			where := ""
+			if p.label != "" {
+				where = ", " + p.label
+			}
+			switch {
+			case br.Booted && br.Passed:
+				booted++
+			case br.Running && br.Error == "":
+				running++
+			default:
+				failures = append(failures, fmt.Sprintf("VM %d (%s%s): %s", br.VMID, br.Name, where, br.Error))
+			}
+		}
+		if p.label == "" {
+			res.Message += fmt.Sprintf("; boot test: %d of %d VMs booted", booted, len(vms))
+		} else {
+			res.Message += fmt.Sprintf("; %s: %d of %d VMs booted", p.label, booted, len(vms))
+		}
+		if len(checks) > 0 {
+			res.Message += " with their checks"
+		}
+		if running > 0 {
+			res.Message += fmt.Sprintf(" (%d without QEMU guest agent kept running)", running)
+		}
+	}
+	if len(results) == 0 {
+		return
 	}
 	details, _ := json.Marshal(map[string]any{"boot": results})
 	res.Details = details
-	msg := fmt.Sprintf("; boot test: %d of %d VMs booted", booted, len(vms))
-	if running > 0 {
-		msg += fmt.Sprintf(" (%d without QEMU guest agent kept running)", running)
-	}
-	res.Message += msg
 	if len(failures) > 0 {
 		res.Status = api.StatusFailed
 		res.Errors = append(res.Errors, failures...)

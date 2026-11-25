@@ -84,6 +84,15 @@
     {{if or (not .Edit) .VMware}}
     <label class="check" {{if not .Edit}}data-jobkind="vm" data-vmwonly hidden{{end}}><input type="checkbox" name="vmware_no_quiesce" {{if .J.Options.VMwareNoQuiesce}}checked{{end}}> {{T "Crash-consistent snapshots (no VMware Tools quiescing)"}} <small>{{T "VMware: take the snapshots of running VMs without asking VMware Tools to prepare the guest (VSS). Only for guests whose quiescing fails or misbehaves: their backups are then crash-consistent, like after a power cut, also for databases and domain controllers. Off (the default): running VMs with VMware Tools get application-consistent snapshots."}}</small></label>
     {{end}}
+    {{if or (not .Edit) .Proxmox}}
+    <fieldset {{if not .Edit}}data-jobkind="vm" data-pveonly hidden{{end}}>
+      <legend>{{T "Boot test checks"}}</legend>
+      <p class="muted small">{{T "Used when the boot test is on (Settings → Restore tests): each VM of the backup is started isolated from the network, and these checks run inside it through the QEMU guest agent. A check that does not pass within the boot test's wait fails the restore test. The agent on the node needs version 0.61 or newer."}}</p>
+      {{if .CanCommands}}<label>{{T "Checks"}} <small>{{T "one per line: service NAME, file PATH, port NUMBER or command COMMAND (exit code 0 passes); start a line with a VM ID and a colon for that VM only, e.g. 101: service nginx"}}</small><textarea name="boot_checks" class="mono" rows="4" placeholder="service sshd&#10;port 443&#10;101: file /var/www/index.html">{{join .J.Options.BootChecks "\n"}}</textarea></label>
+      {{else if .J.Options.BootChecks}}<p class="muted small">{{T "This job has checks for its boot test. Only administrators can see and change them."}}</p>{{end}}
+      <label class="check"><input type="checkbox" name="boot_oldest" {{if .J.Options.BootOldest}}checked{{end}}> {{T "Also boot-test the oldest backup the job keeps"}} <small>{{T "shows that the restore point you would fall back to after an unnoticed compromise still boots; takes as long again on the node"}}</small></label>
+    </fieldset>
+    {{end}}
     <details class="sched" {{if or .J.Options.LimitMBps .J.Options.HasCommands .J.Options.Compression .J.Options.VMBlockSizeKiB}}open{{end}}>
       <summary>{{T "Advanced: speed limit, compression"}}{{if and .CanCommands (ne .J.Kind "copy")}}{{T ", commands before and after the backup"}}{{end}}</summary>
       <div class="row">

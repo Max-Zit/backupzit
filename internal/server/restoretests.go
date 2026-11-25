@@ -171,12 +171,53 @@ func (s *Server) handleSettingsRestoreTests(w http.ResponseWriter, r *http.Reque
 }
 
 // addVerifyParams sets the sample size of a restore test run.
-func (s *Server) addVerifyParams(ctx context.Context, ar *api.Run) {
+func (s *Server) addVerifyParams(ctx context.Context, run Run, ar *api.Run) {
 	x := s.store.restoreTestSettings(ctx)
 	ar.VerifyFiles, ar.VerifyMaxBytes, ar.VerifyBlocks = x.Files, uint64(x.MaxMB)<<20, x.Blocks // #nosec G115 -- sizes and counts for display and statistics, not negative
-	if x.BootVMs {
-		ar.VerifyBootSeconds = x.BootMinutes * 60
+	if !x.BootVMs {
+		return
 	}
+	ar.VerifyBootSeconds = x.BootMinutes * 60
+	if run.JobID == nil {
+		return
+	}
+	j, err := s.store.GetJob(ctx, *run.JobID)
+	if err != nil || j.Kind != JobVM {
+		return
+	}
+	// The job's checks inside the booted VMs and the oldest kept backup
+	// (0.61; older agents ignore both).
+	checks, _ := pve.ParseChecks(j.Options.BootChecks)
+	for _, c := range checks {
+		ar.VerifyBootChecks = append(ar.VerifyBootChecks, api.BootCheck{VMID: c.VMID, Kind: c.Kind, Value: c.Value})
+	}
+	if j.Options.BootOldest {
+		ar.VerifyBootAlso = s.store.oldestKeptBackup(ctx, j.ID, run.RepoURL, run.SnapshotID)
+	}
+}
+
+// oldestKeptBackup is the oldest backup of a job in repository repoURL that
+// retention still keeps, other than except ("" when there is none).
+func (s *Store) oldestKeptBackup(ctx context.Context, jobID int64, repoURL, except string) string {
+	var id string
+	_ = s.db.QueryRow(ctx, `SELECT snapshot_id FROM runs WHERE job_id=$1 AND kind='vm-backup' AND status IN ('success','warning')
+		AND snapshot_id<>'' AND snapshot_id<>$3 AND NOT expired AND repo_url=$2 ORDER BY finished_at ASC LIMIT 1`, jobID, repoURL, except).Scan(&id)
+	return id
+}
+
+// bootVerified tells when a boot test last showed that backup snapshot
+// booted and passed its checks (zero: never).
+func (s *Store) bootVerified(ctx context.Context, snapshot string) time.Time {
+	var at *time.Time
+	if snapshot == "" {
+		return time.Time{}
+	}
+	b, _ := json.Marshal([]map[string]any{{"snapshot": snapshot, "passed": true}})
+	_ = s.db.QueryRow(ctx, `SELECT max(finished_at) FROM runs WHERE kind='verify' AND details->'boot' @> $1::jsonb`, string(b)).Scan(&at)
+	if at == nil {
+		return time.Time{}
+	}
+	return *at
 }
 
 // bootTests are the VM boot results of a restore test run.

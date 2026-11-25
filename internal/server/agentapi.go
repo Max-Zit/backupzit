@@ -322,7 +322,7 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		}
 	case api.KindVerify:
 		ar.SnapshotID = run.SnapshotID
-		s.addVerifyParams(ctx, ar)
+		s.addVerifyParams(ctx, *run, ar)
 	case api.KindCopy:
 		s.addRetention(ctx, run, ar)
 		if err := s.addCopySource(ctx, run, ar); err != nil {
