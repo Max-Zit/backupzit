@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 
 	"github.com/max-zit/backupzit/internal/repo"
 )
@@ -257,13 +258,35 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 				return img, err
 			}
 		}
+		// Zero check and hash of the run's blocks on several goroutines (one
+		// core hashed about 400 MB/s on a CPU without SHA extensions); the
+		// blocks are saved in disk order afterwards.
+		blk := func(b uint64) []byte { return buf[(b-i)*blockSize : min((b-i+1)*blockSize, n)] }
+		hashed := make([]repo.ID, j-i)
+		var wg sync.WaitGroup
+		next := make(chan uint64, j-i)
 		for b := i; b < j; b++ {
-			blk := buf[(b-i)*blockSize : min((b-i+1)*blockSize, n)]
-			if bytes.Equal(blk, zeroBlock[:len(blk)]) {
+			next <- b
+		}
+		close(next)
+		for range min(uint64(bw.Workers()), j-i) {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for b := range next {
+					if d := blk(b); !bytes.Equal(d, zeroBlock[:len(d)]) {
+						hashed[b-i] = repo.Hash(d)
+					}
+				}
+			}()
+		}
+		wg.Wait()
+		for b := i; b < j; b++ {
+			if hashed[b-i].IsNull() {
 				ids[b] = repo.ID{}
 				continue
 			}
-			id, _, err := bw.Save(ctx, repo.DataBlob, blk)
+			id, _, err := bw.SaveHashed(ctx, repo.DataBlob, hashed[b-i], blk(b))
 			if err != nil {
 				return img, err
 			}

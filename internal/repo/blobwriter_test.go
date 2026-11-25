@@ -472,3 +472,43 @@ func BenchmarkBlobWriter(b *testing.B) {
 		}
 	}
 }
+
+// SaveHashed stores and deduplicates exactly like Save.
+func TestBlobWriterSaveHashed(t *testing.T) {
+	ctx := context.Background()
+	blobs := testBlobs("mixed", 40, 64<<10, 11)
+	want := newMemBackend()
+	saveAll(t, newTestRepo(t, want, 256<<10), 4, blobs)
+
+	got := newMemBackend()
+	r := newTestRepo(t, got, 256<<10)
+	w, err := NewBlobWriter(ctx, r, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, b := range blobs {
+		id, _, err := w.SaveHashed(ctx, DataBlob, Hash(b), b)
+		if err != nil || id != Hash(b) {
+			t.Fatal(id, err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	ws, gs := want.objects("data/"), got.objects("data/")
+	if len(ws) != len(gs) {
+		t.Fatalf("%d packs with Save, %d with SaveHashed", len(ws), len(gs))
+	}
+	for i, b := range blobs {
+		d, err := r.LoadBlob(ctx, DataBlob, Hash(b))
+		if err != nil || !bytes.Equal(d, b) {
+			t.Fatalf("blob %d: %v", i, err)
+		}
+	}
+	if st := r.Stats(); st.DupBlobs == 0 {
+		t.Error("duplicates of the mixed profile were not found")
+	}
+}

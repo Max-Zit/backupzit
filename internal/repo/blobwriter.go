@@ -129,13 +129,21 @@ func (w *BlobWriter) Save(ctx context.Context, t BlobType, data []byte) (ID, boo
 	if w.workers == 1 {
 		return w.r.SaveBlob(ctx, t, data)
 	}
+	return w.SaveHashed(ctx, t, Hash(data), data)
+}
+
+// SaveHashed is Save for data whose hash the caller already computed
+// (id must be Hash(data)), so that callers can hash several blocks at once.
+func (w *BlobWriter) SaveHashed(ctx context.Context, t BlobType, id ID, data []byte) (ID, bool, error) {
+	if w.workers == 1 {
+		return w.r.SaveBlob(ctx, t, data)
+	}
 	if err := w.failed(); err != nil {
 		return ID{}, false, err
 	}
 	if err := ctx.Err(); err != nil {
 		return ID{}, false, err
 	}
-	id := Hash(data)
 	h := BlobHandle{Type: t, ID: id}
 	r := w.r
 
