@@ -1191,6 +1191,10 @@ Changes by BackupZit that upstream does not have (2026-11-25):
   for each 1 MiB chunk's response before sending the next request.
   Credits are borrowed per request as before; an error or the end of the
   file stops sending, and the requests still in flight are drained.
+- client.go: File.writeAt likewise keeps up to four WRITE requests in
+  flight. A response that wrote less than requested drains the others and
+  sends the rest again from there; one that wrote nothing is
+  io.ErrShortWrite (upstream sent the same request again forever).
 - pipeline_test.go: tests and benchmarks of the above against an
   in-process server that answers after a fixed latency.
 
