@@ -14,6 +14,9 @@ Changes by BackupZit that upstream does not have (2026-11-25):
   flight. A response that wrote less than requested drains the others and
   sends the rest again from there; one that wrote nothing is
   io.ErrShortWrite (upstream sent the same request again forever).
+- internal/crypto/cmac/cmac.go: Write takes a block (16 bytes) at a time
+  instead of a byte at a time; tests against the RFC 4493 vectors and the
+  byte-wise upstream code in rfc4493_test.go, benchmark in bench_test.go.
 - pipeline_test.go: tests and benchmarks of the above against an
   in-process server that answers after a fixed latency.
 
