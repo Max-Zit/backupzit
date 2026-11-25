@@ -29,13 +29,15 @@ func busy(owner walk.Form, text string, fn func(ctx context.Context) error) erro
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	err := dcl.Dialog{
-		AssignTo: &dlg,
-		Title:    "BackupZit",
-		MinSize:  dcl.Size{Width: 420, Height: 120},
-		Layout:   dcl.VBox{},
+		AssignTo:   &dlg,
+		Title:      "BackupZit",
+		MinSize:    dcl.Size{Width: 460, Height: 140},
+		Background: solid(colCard),
+		Font:       baseFont,
+		Layout:     dcl.VBox{Margins: dcl.Margins{Left: 28, Top: 24, Right: 28, Bottom: 24}, Spacing: 14},
 		Children: []dcl.Widget{
-			dcl.Label{Text: text},
-			dcl.ProgressBar{MarqueeMode: true},
+			dcl.Label{Text: text, Font: dcl.Font{Family: uiFamily, PointSize: 11, Bold: true}, TextColor: colText},
+			dcl.ProgressBar{MarqueeMode: true, MinSize: dcl.Size{Height: 8}, MaxSize: dcl.Size{Height: 8}},
 		},
 	}.Create(owner)
 	if err != nil {
@@ -72,22 +74,26 @@ func askText(owner walk.Form, title, prompt string, password bool) (string, bool
 		text = edit.Text()
 		dlg.Accept()
 	}
+	abort := func() { dlg.Cancel() }
 	if _, err := (dcl.Dialog{
 		AssignTo:      &dlg,
 		Title:         title,
 		DefaultButton: &ok,
 		CancelButton:  &cancel,
-		MinSize:       dcl.Size{Width: 420, Height: 140},
-		Layout:        dcl.VBox{},
-		Children: []dcl.Widget{
-			dcl.Label{Text: prompt},
-			dcl.LineEdit{AssignTo: &edit, PasswordMode: password},
-			dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
+		MinSize:       dcl.Size{Width: 520, Height: 260},
+		Background:    solid(colBg),
+		Font:          baseFont,
+		Layout:        dcl.VBox{MarginsZero: true, SpacingZero: true},
+		Children: dialogFrame(title, "",
+			[]dcl.Widget{
+				dcl.Label{Text: prompt, TextColor: colText},
+				dcl.LineEdit{AssignTo: &edit, PasswordMode: password, MinSize: dcl.Size{Height: 26}},
+			},
+			[]dcl.Widget{
 				dcl.HSpacer{},
-				dcl.PushButton{AssignTo: &ok, Text: "OK", OnClicked: accept},
-				dcl.PushButton{AssignTo: &cancel, Text: t("Abbrechen", "Cancel"), OnClicked: func() { dlg.Cancel() }},
-			}},
-		},
+				FlatButton{Button: &ok, Text: "OK", Kind: btnPrimary, OnClicked: accept},
+				FlatButton{Button: &cancel, Text: t("Abbrechen", "Cancel"), OnClicked: abort},
+			}),
 	}).Run(owner); err != nil {
 		return "", false
 	}
@@ -110,22 +116,26 @@ func askChoice(owner walk.Form, title, prompt string, items []string) (int, bool
 		choice = lb.CurrentIndex()
 		dlg.Accept()
 	}
+	abort := func() { dlg.Cancel() }
 	if _, err := (dcl.Dialog{
 		AssignTo:      &dlg,
 		Title:         title,
 		DefaultButton: &ok,
 		CancelButton:  &cancel,
-		MinSize:       dcl.Size{Width: 520, Height: 300},
-		Layout:        dcl.VBox{},
-		Children: []dcl.Widget{
-			dcl.Label{Text: prompt},
-			dcl.ListBox{AssignTo: &lb, Model: items, CurrentIndex: 0, OnItemActivated: accept},
-			dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
+		MinSize:       dcl.Size{Width: 600, Height: 420},
+		Background:    solid(colBg),
+		Font:          baseFont,
+		Layout:        dcl.VBox{MarginsZero: true, SpacingZero: true},
+		Children: dialogFrame(title, "",
+			[]dcl.Widget{
+				dcl.Label{Text: prompt, TextColor: colText},
+				dcl.ListBox{AssignTo: &lb, Model: items, CurrentIndex: 0, OnItemActivated: accept},
+			},
+			[]dcl.Widget{
 				dcl.HSpacer{},
-				dcl.PushButton{AssignTo: &ok, Text: "OK", OnClicked: accept},
-				dcl.PushButton{AssignTo: &cancel, Text: t("Abbrechen", "Cancel"), OnClicked: func() { dlg.Cancel() }},
-			}},
-		},
+				FlatButton{Button: &ok, Text: "OK", Kind: btnPrimary, OnClicked: accept},
+				FlatButton{Button: &cancel, Text: t("Abbrechen", "Cancel"), OnClicked: abort},
+			}),
 	}).Run(owner); err != nil {
 		return 0, false
 	}
@@ -145,26 +155,37 @@ func browseFolder(owner walk.Form, title string) string {
 	return dlg.FilePath
 }
 
+var (
+	// White labels read on these at 5:1 or more; empty and faded parts get
+	// dark labels.
+	colPartEFI      = walk.RGB(0x1D, 0x4E, 0xD8)
+	colPartMSR      = walk.RGB(0x4B, 0x55, 0x63)
+	colPartRecovery = walk.RGB(0xB4, 0x53, 0x09)
+	colPartData     = walk.RGB(0x15, 0x80, 0x3D)
+	colPartEmpty    = walk.RGB(0xCB, 0xD5, 0xE1)
+	colPartFaded    = walk.RGB(0xE2, 0xE8, 0xF0)
+)
+
 // partColor picks a color by the kind of partition.
 func partColor(p *repo.PartitionImage) walk.Color {
 	switch strings.ToUpper(p.GPTType) {
 	case imaging.GPTTypeEFI:
-		return walk.RGB(0x5B, 0x84, 0xC4)
+		return colPartEFI
 	case imaging.GPTTypeMSR:
-		return walk.RGB(0x9A, 0x9A, 0x9A)
+		return colPartMSR
 	case imaging.GPTTypeRecovery:
-		return walk.RGB(0xC0, 0x8A, 0x2E)
+		return colPartRecovery
 	}
 	switch p.MBRType {
 	case 0x27:
-		return walk.RGB(0xC0, 0x8A, 0x2E)
+		return colPartRecovery
 	case 0xEF:
-		return walk.RGB(0x5B, 0x84, 0xC4)
+		return colPartEFI
 	}
 	if !p.Included {
-		return walk.RGB(0xB8, 0xB8, 0xB8)
+		return colPartEmpty
 	}
-	return walk.RGB(0x3A, 0x7D, 0x44)
+	return colPartData
 }
 
 // bar is one partition in the layout picture: the partition of the
@@ -185,8 +206,9 @@ func (w *wizard) paintLayout(c *walk.Canvas, _ walk.Rectangle) error {
 		return nil
 	}
 	b := w.view.ClientBoundsPixels()
-	font := w.dlg.Font()
-	rowH := (b.Height - 8) / 2
+	font := uiFont(9, false)
+	gap := px(w.view, 12)
+	rowH := (b.Height - gap) / 2
 	var srcBars []bar
 	for i := range img.Partitions {
 		p := &img.Partitions[i]
@@ -235,7 +257,7 @@ func (w *wizard) paintLayout(c *walk.Canvas, _ walk.Rectangle) error {
 			dstBars = append(dstBars, bar{src: src, offset: lp.Offset, length: lp.Length, label: partLabel(src, lp.Length), faded: !lp.Restore && lp.Source > 0})
 		}
 	}
-	drawBars(c, font, walk.Rectangle{X: 0, Y: rowH + 8, Width: b.Width, Height: rowH}, d.Size, t("Ziel", "Target"), dstBars)
+	drawBars(c, font, walk.Rectangle{X: 0, Y: rowH + gap, Width: b.Width, Height: rowH}, d.Size, t("Ziel", "Target"), dstBars)
 	return nil
 }
 
@@ -273,13 +295,11 @@ func partLabel(p *repo.PartitionImage, length uint64) string {
 // drawBars draws one disk into r: its title on the left, then the
 // partitions as coloured bars placed by barSpans.
 func drawBars(c *walk.Canvas, font *walk.Font, r walk.Rectangle, diskSize uint64, title string, bars []bar) {
-	labelW := 70
-	_ = c.DrawTextPixels(title, font, walk.RGB(0x30, 0x30, 0x30), walk.Rectangle{X: r.X, Y: r.Y, Width: labelW, Height: r.Height}, walk.TextLeft|walk.TextVCenter|walk.TextSingleLine)
-	area := walk.Rectangle{X: r.X + labelW, Y: r.Y, Width: r.Width - labelW - 4, Height: r.Height}
-	if frame, err := walk.NewSolidColorBrush(walk.RGB(0xEE, 0xEE, 0xEE)); err == nil {
-		_ = c.FillRectanglePixels(frame, area)
-		frame.Dispose()
-	}
+	scale := func(v int) int { return v * c.DPI() / 96 }
+	labelW := scale(76)
+	_ = c.DrawTextPixels(title, uiFont(10, true), colMuted, walk.Rectangle{X: r.X, Y: r.Y, Width: labelW, Height: r.Height}, walk.TextLeft|walk.TextVCenter|walk.TextSingleLine)
+	area := walk.Rectangle{X: r.X + labelW, Y: r.Y, Width: r.Width - labelW - scale(4), Height: r.Height}
+	fill(c, colBg, area, scale(12))
 	if diskSize == 0 {
 		return
 	}
@@ -289,22 +309,20 @@ func drawBars(c *walk.Canvas, font *walk.Font, r walk.Rectangle, diskSize uint64
 	for i, br := range bars {
 		parts[i] = span{br.offset, br.length}
 	}
-	px := barSpans(parts, diskSize, area.Width, 64)
+	sp := barSpans(parts, diskSize, area.Width, 64)
 	for i, br := range bars {
-		x, wd := area.X+px[i].x, px[i].w
-		col := partColor(br.src)
+		x, wd := area.X+sp[i].x, sp[i].w
+		col, textCol := partColor(br.src), colWhite
+		if col == colPartEmpty {
+			textCol = colText
+		}
 		if br.faded {
-			col = walk.RGB(0xC8, 0xC8, 0xC8)
+			col, textCol = colPartFaded, colMuted
 		}
-		brush, err := walk.NewSolidColorBrush(col)
-		if err != nil {
-			continue
-		}
-		rect := walk.Rectangle{X: x, Y: area.Y + 2, Width: wd - 1, Height: area.Height - 4}
-		_ = c.FillRectanglePixels(brush, rect)
-		brush.Dispose()
-		if wd > 40 {
-			_ = c.DrawTextPixels(br.label, font, walk.RGB(255, 255, 255), walk.Rectangle{X: rect.X + 4, Y: rect.Y + 4, Width: rect.Width - 8, Height: rect.Height - 8}, walk.TextLeft|walk.TextTop|walk.TextWordbreak|walk.TextEndEllipsis)
+		rect := walk.Rectangle{X: x + scale(1), Y: area.Y + scale(3), Width: wd - scale(2), Height: area.Height - scale(6)}
+		fill(c, col, rect, scale(10))
+		if wd > scale(40) {
+			_ = c.DrawTextPixels(br.label, font, textCol, walk.Rectangle{X: rect.X + scale(8), Y: rect.Y + scale(6), Width: rect.Width - scale(12), Height: rect.Height - scale(10)}, walk.TextLeft|walk.TextTop|walk.TextWordbreak|walk.TextEndEllipsis)
 		}
 	}
 }
