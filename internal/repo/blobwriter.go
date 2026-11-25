@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"runtime"
 	"sync"
@@ -169,6 +170,16 @@ func (w *BlobWriter) Save(ctx context.Context, t BlobType, data []byte) (ID, boo
 		}
 		return id, false, w.ctx.Err()
 	}
+}
+
+// SaveTree stores a directory tree like Repository.SaveTree.
+func (w *BlobWriter) SaveTree(ctx context.Context, t *Tree) (ID, error) {
+	b, err := json.Marshal(t)
+	if err != nil {
+		return ID{}, err
+	}
+	id, _, err := w.Save(ctx, TreeBlob, b)
+	return id, err
 }
 
 // unreserve undoes Save's bookkeeping for a blob that never reached a pack,

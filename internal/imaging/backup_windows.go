@@ -284,6 +284,13 @@ func imagePartition(ctx context.Context, r *repo.Repository, disk *os.File, p Pa
 
 	ids := make([]repo.ID, pi.Blocks)
 	buf := make([]byte, BlockSize)
+	// Blocks are compressed and encrypted on several goroutines; they reach
+	// the packs in disk order, as with SaveBlob.
+	bw, err := repo.NewBlobWriter(ctx, r, 0)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = bw.Close() }()
 	for i := uint64(0); i < pi.Blocks; i++ {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -296,13 +303,16 @@ func imagePartition(ctx context.Context, r *repo.Repository, disk *os.File, p Pa
 		if _, err := src.ReadAt(buf[:n], int64(i*BlockSize)); err != nil {
 			return fmt.Errorf("read block %d at %d: %w", i, i*BlockSize, err)
 		}
-		id, _, err := r.SaveBlob(ctx, repo.DataBlob, buf[:n])
+		id, _, err := bw.Save(ctx, repo.DataBlob, buf[:n])
 		if err != nil {
 			return err
 		}
 		ids[i] = id
 		pi.StoredBytes += n
 		progress(n)
+	}
+	if err := bw.Close(); err != nil {
+		return err
 	}
 	pi.Maps, err = r.SaveBlockMap(ctx, ids)
 	return err

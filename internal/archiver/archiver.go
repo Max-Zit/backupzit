@@ -60,6 +60,7 @@ type Options struct {
 // Archiver performs one backup run.
 type Archiver struct {
 	r     *repo.Repository
+	bw    *repo.BlobWriter // all chunks and trees of the run
 	opts  Options
 	stats repo.SnapshotStats
 	buf   []byte
@@ -173,6 +174,14 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 		skips:  systemSkips(abs),
 		roots:  abs,
 	}
+	// Chunks and trees are compressed and encrypted on several goroutines
+	// and reach the packs in the order they were saved.
+	bw, err := repo.NewBlobWriter(ctx, r, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = bw.Close() }()
+	a.bw = bw
 	start := time.Now()
 	before := r.Stats()
 
@@ -225,6 +234,9 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 			return nil, err
 		}
 		treeID = id
+	}
+	if err := bw.Close(); err != nil {
+		return nil, err
 	}
 	if err := r.Flush(ctx); err != nil {
 		return nil, err
@@ -404,7 +416,7 @@ func (a *Archiver) saveVDir(ctx context.Context, d *vdir, parent *repo.Tree) (re
 		t.Nodes = append(t.Nodes, n)
 	}
 	t.Sort()
-	return a.r.SaveTree(ctx, t)
+	return a.bw.SaveTree(ctx, t)
 }
 
 func (a *Archiver) addError(path string, err error) {
@@ -484,7 +496,7 @@ func (a *Archiver) archivePath(ctx context.Context, p, name string, parent *repo
 		if a.storeEmpty(p, dev) {
 			// A mount point of another file system: keep the directory, not
 			// its contents (system backups list each file system as a path).
-			id, err := a.r.SaveTree(ctx, &repo.Tree{})
+			id, err := a.bw.SaveTree(ctx, &repo.Tree{})
 			if err != nil {
 				return n, false, err
 			}
@@ -521,7 +533,7 @@ func (a *Archiver) archivePath(ctx context.Context, p, name string, parent *repo
 			}
 		}
 		t.Sort()
-		id, err := a.r.SaveTree(ctx, t)
+		id, err := a.bw.SaveTree(ctx, t)
 		if err != nil {
 			return n, false, err
 		}
@@ -621,7 +633,7 @@ func (a *Archiver) archiveFile(ctx context.Context, p string, fi fs.FileInfo, n 
 			return err
 		}
 		read += uint64(c.Length)
-		id, _, err := a.r.SaveBlob(ctx, repo.DataBlob, c.Data)
+		id, _, err := a.bw.Save(ctx, repo.DataBlob, c.Data)
 		if err != nil {
 			return &repoError{err}
 		}
