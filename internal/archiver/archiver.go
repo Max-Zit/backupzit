@@ -621,23 +621,60 @@ func (a *Archiver) archiveFile(ctx context.Context, p string, fi fs.FileInfo, n 
 	defer f.Close()
 	a.chk.Reset(f, a.r.ChunkerPolynomial())
 	var read uint64
+	// The chunks are hashed on goroutines of their own while the next
+	// chunk is read and cut; they are saved in file order. One core did
+	// all of it before (about 100 MB/s on the test host).
+	type hashed struct {
+		data []byte
+		id   repo.ID
+		done chan struct{}
+	}
+	var queue []*hashed
+	saveFirst := func() error {
+		h := queue[0]
+		queue = queue[1:]
+		<-h.done
+		id, _, err := a.bw.SaveHashed(ctx, repo.DataBlob, h.id, h.data)
+		if err != nil {
+			return &repoError{err}
+		}
+		n.Content = append(n.Content, id)
+		return nil
+	}
+	drain := func() {
+		for _, h := range queue {
+			<-h.done
+		}
+		queue = nil
+	}
 	for {
 		c, err := a.chk.Next(a.buf)
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
+			drain()
 			if inCloudLive(p) {
 				return a.skipCloudOnly(p, size, true, parent != nil)
 			}
 			return err
 		}
 		read += uint64(c.Length)
-		id, _, err := a.bw.Save(ctx, repo.DataBlob, c.Data)
-		if err != nil {
-			return &repoError{err}
+		h := &hashed{data: append([]byte(nil), c.Data...), done: make(chan struct{})}
+		go func() { h.id = repo.Hash(h.data); close(h.done) }()
+		queue = append(queue, h)
+		if len(queue) > a.bw.Workers() {
+			if err := saveFirst(); err != nil {
+				drain()
+				return err
+			}
 		}
-		n.Content = append(n.Content, id)
+	}
+	for len(queue) > 0 {
+		if err := saveFirst(); err != nil {
+			drain()
+			return err
+		}
 	}
 	a.stats.BytesRead += read
 	if read != size {
