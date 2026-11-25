@@ -48,36 +48,40 @@ func runBootRepair(owner walk.Form) {
 		_ = list.SetCurrentIndex(0)
 	}
 	err := dcl.Dialog{
-		AssignTo: &dlg,
-		Title:    t("Boot reparieren", "Repair boot"),
-		MinSize:  dcl.Size{Width: 760, Height: 460},
-		Layout:   dcl.VBox{},
-		Children: []dcl.Widget{
-			dcl.Label{AssignTo: &info},
-			dcl.ListBox{AssignTo: &list, MinSize: dcl.Size{Height: 140}},
-			dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
-				dcl.PushButton{Text: t("Neu suchen", "Search again"), OnClicked: refresh},
-				dcl.PushButton{Text: t("BitLocker-Laufwerk entsperren…", "Unlock a BitLocker drive…"), OnClicked: func() {
-					if unlockBitLocker(dlg) {
-						refresh()
-					}
-				}},
-				dcl.HSpacer{},
-			}},
-			dcl.GroupBox{Title: t("Reparatur", "What to repair"), Layout: dcl.VBox{}, Children: []dcl.Widget{
-				dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
+		AssignTo:   &dlg,
+		Title:      t("Boot reparieren", "Repair boot"),
+		MinSize:    dcl.Size{Width: 820, Height: 640},
+		Background: solid(colBg),
+		Font:       baseFont,
+		Layout:     dcl.VBox{MarginsZero: true, SpacingZero: true},
+		Children: dialogFrame(t("Boot reparieren", "Repair boot"), bootText(),
+			[]dcl.Widget{
+				dcl.Label{AssignTo: &info, TextColor: colMuted},
+				section(t("Windows-Installation", "Windows installation")),
+				dcl.ListBox{AssignTo: &list, MinSize: dcl.Size{Height: 120}},
+				row(
+					FlatButton{Text: t("Neu suchen", "Search again"), OnClicked: refresh},
+					FlatButton{Text: t("BitLocker-Laufwerk entsperren…", "Unlock a BitLocker drive…"), OnClicked: func() {
+						if unlockBitLocker(dlg) {
+							refresh()
+						}
+					}},
+				),
+				dcl.VSpacer{Size: 4},
+				section(t("Reparatur", "What to repair")),
+				row(
 					dcl.Label{Text: t("Bootdateien für:", "Boot files for:")},
 					dcl.ComboBox{AssignTo: &files, Model: []string{t("diesen Rechner (automatisch)", "this computer (automatic)"), "UEFI", "BIOS", t("beides", "both")}, CurrentIndex: 0},
-					dcl.HSpacer{},
-				}},
-				dcl.CheckBox{AssignTo: &drivers, Text: t("Disk-Controller-Treiber beim Start laden (nach Wechsel des Controllers)", "Load disk controller drivers at start (after changing the controller)"), Checked: true},
-				dcl.CheckBox{AssignTo: &active, Text: t("Systempartition aktiv setzen (nur MBR)", "Mark the system partition active (MBR only)"), Checked: true},
-				dcl.CheckBox{AssignTo: &mbr, Text: t("Windows-Bootcode in den MBR schreiben (nur MBR)", "Write the Windows boot code to the MBR (MBR only)")},
-			}},
-			dcl.Label{Text: t("Vorher werden der Anfang der Disk und der BCD gesichert (Ordner \\backupzit auf dem Stick oder der Backup-Disk, nie auf der reparierten Disk).", "The start of the disk and the BCD are backed up first (folder \\backupzit on the stick or the backup disk, never on the disk being repaired).")},
-			dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
+				),
+				dcl.CheckBox{Alignment: dcl.AlignHNearVCenter, AssignTo: &drivers, Text: t("Disk-Controller-Treiber beim Start laden (nach Wechsel des Controllers)", "Load disk controller drivers at start (after changing the controller)"), Checked: true},
+				dcl.CheckBox{Alignment: dcl.AlignHNearVCenter, AssignTo: &active, Text: t("Systempartition aktiv setzen (nur MBR)", "Mark the system partition active (MBR only)"), Checked: true},
+				dcl.CheckBox{Alignment: dcl.AlignHNearVCenter, AssignTo: &mbr, Text: t("Windows-Bootcode in den MBR schreiben (nur MBR)", "Write the Windows boot code to the MBR (MBR only)")},
+				muted(t("Vorher werden der Anfang der Disk und der BCD gesichert (Ordner \\backupzit auf dem Stick oder der Backup-Disk, nie auf der reparierten Disk).", "The start of the disk and the BCD are backed up first (folder \\backupzit on the stick or the backup disk, never on the disk being repaired).")),
+			},
+			[]dcl.Widget{
 				dcl.HSpacer{},
-				dcl.PushButton{Text: t("Reparieren", "Repair"), OnClicked: func() {
+				FlatButton{Text: t("Schließen", "Close"), OnClicked: func() { dlg.Cancel() }},
+				FlatButton{Text: t("Reparieren", "Repair"), Kind: btnPrimary, OnClicked: func() {
 					i := list.CurrentIndex()
 					if i < 0 || i >= len(installs) {
 						errorBox(dlg, errors.New(t("Bitte eine Windows-Installation wählen.", "Choose a Windows installation.")))
@@ -108,9 +112,7 @@ func runBootRepair(owner walk.Form) {
 					}
 					walk.MsgBox(dlg, "BackupZit", msg, walk.MsgBoxIconInformation)
 				}},
-				dcl.PushButton{Text: t("Schließen", "Close"), OnClicked: func() { dlg.Cancel() }},
-			}},
-		},
+			}),
 	}.Create(owner)
 	if err != nil {
 		errorBox(owner, err)
@@ -223,17 +225,21 @@ func runDrivers(owner walk.Form) {
 		_ = list.SetModel(labels)
 	}
 	err := dcl.Dialog{
-		AssignTo: &dlg,
-		Title:    t("Treiber", "Drivers"),
-		MinSize:  dcl.Size{Width: 760, Height: 420},
-		Layout:   dcl.VBox{},
-		Children: []dcl.Widget{
-			dcl.Label{Text: t("Geräte ohne Treiber:", "Devices without a driver:")},
-			dcl.ListBox{AssignTo: &list},
-			dcl.Label{Text: t("Fehlt die Systemdisk (z. B. NVMe hinter Intel RST/VMD), den Speichertreiber des Herstellers von einem USB-Stick laden.",
-				"If the system disk is missing (e.g. NVMe behind Intel RST/VMD), load the vendor's storage driver from a USB stick.")},
-			dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
-				dcl.PushButton{Text: t("Treiber jetzt laden (Ordner)…", "Load drivers now (folder)…"), OnClicked: func() {
+		AssignTo:   &dlg,
+		Title:      t("Treiber", "Drivers"),
+		MinSize:    dcl.Size{Width: 820, Height: 520},
+		Background: solid(colBg),
+		Font:       baseFont,
+		Layout:     dcl.VBox{MarginsZero: true, SpacingZero: true},
+		Children: dialogFrame(t("Treiber", "Drivers"), driversText(),
+			[]dcl.Widget{
+				section(t("Geräte ohne Treiber", "Devices without a driver")),
+				dcl.ListBox{AssignTo: &list},
+				muted(t("Fehlt die Systemdisk (z. B. NVMe hinter Intel RST/VMD), den Speichertreiber des Herstellers von einem USB-Stick laden.",
+					"If the system disk is missing (e.g. NVMe behind Intel RST/VMD), load the vendor's storage driver from a USB stick.")),
+			},
+			[]dcl.Widget{
+				FlatButton{Text: t("Treiber jetzt laden (Ordner)…", "Load drivers now (folder)…"), Kind: btnPrimary, OnClicked: func() {
 					dir := browseFolder(dlg, t("Ordner mit Treibern (.inf)", "Folder with drivers (.inf)"))
 					if dir == "" {
 						return
@@ -255,12 +261,11 @@ func runDrivers(owner walk.Form) {
 					walk.MsgBox(dlg, "BackupZit", msg, walk.MsgBoxIconInformation)
 					refresh()
 				}},
-				dcl.PushButton{Text: t("Treiber in ein Windows einspielen…", "Add drivers to a Windows…"), OnClicked: func() { addDriversToWindows(dlg) }},
-				dcl.PushButton{Text: t("Neu prüfen", "Check again"), OnClicked: refresh},
+				FlatButton{Text: t("Treiber in ein Windows einspielen…", "Add drivers to a Windows…"), OnClicked: func() { addDriversToWindows(dlg) }},
+				FlatButton{Text: t("Neu prüfen", "Check again"), OnClicked: refresh},
 				dcl.HSpacer{},
-				dcl.PushButton{Text: t("Schließen", "Close"), OnClicked: func() { dlg.Cancel() }},
-			}},
-		},
+				FlatButton{Text: t("Schließen", "Close"), OnClicked: func() { dlg.Cancel() }},
+			}),
 	}.Create(owner)
 	if err != nil {
 		errorBox(owner, err)
@@ -346,69 +351,75 @@ func networkDialog(owner walk.Form, names []string) error {
 		_ = state.SetText(strings.ReplaceAll(text, "\n", "\r\n"))
 	}
 	err := dcl.Dialog{
-		AssignTo: &dlg,
-		Title:    t("Netzwerk", "Network"),
-		MinSize:  dcl.Size{Width: 700, Height: 520},
-		Layout:   dcl.VBox{},
-		Children: []dcl.Widget{
-			dcl.Label{Text: hint, Visible: hint != "", TextColor: walk.RGB(0xB0, 0x30, 0x20)},
-			dcl.Composite{Layout: dcl.Grid{Columns: 2}, Children: []dcl.Widget{
-				dcl.Label{Text: t("Netzwerkkarte:", "Network adapter:")},
-				dcl.ComboBox{AssignTo: &adapter, Model: names, CurrentIndex: first},
-				dcl.Label{Text: t("Adresse:", "Address:")},
-				dcl.ComboBox{AssignTo: &mode, Model: []string{t("automatisch (DHCP)", "automatic (DHCP)"), t("fest", "static")}, CurrentIndex: 0},
-				dcl.Label{Text: "IP:"},
-				dcl.LineEdit{AssignTo: &ip, CueBanner: "192.168.1.50"},
-				dcl.Label{Text: t("Subnetzmaske:", "Subnet mask:")},
-				dcl.LineEdit{AssignTo: &mask, Text: "255.255.255.0"},
-				dcl.Label{Text: "Gateway:"},
-				dcl.LineEdit{AssignTo: &gw, CueBanner: "192.168.1.1"},
-				dcl.Label{Text: "DNS:"},
-				dcl.LineEdit{AssignTo: &dns, CueBanner: "192.168.1.1"},
-			}},
-			dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
-				dcl.PushButton{Text: t("Übernehmen", "Apply"), OnClicked: func() {
-					name := adapter.Text()
-					if name == "" {
-						errorBox(dlg, noAdapter)
-						return
-					}
-					var cmds [][]string
-					if mode.CurrentIndex() == 0 {
-						cmds = [][]string{
-							{"interface", "ipv4", "set", "address", "name=" + name, "source=dhcp"},
-							{"interface", "ipv4", "set", "dnsservers", "name=" + name, "source=dhcp"},
-						}
-					} else {
-						a := []string{"interface", "ipv4", "set", "address", "name=" + name, "static", ip.Text(), mask.Text()}
-						if g := strings.TrimSpace(gw.Text()); g != "" {
-							a = append(a, g)
-						}
-						cmds = [][]string{a}
-						if d := strings.TrimSpace(dns.Text()); d != "" {
-							cmds = append(cmds, []string{"interface", "ipv4", "set", "dnsservers", "name=" + name, "static", d, "primary"})
-						}
-					}
-					for _, c := range cmds {
-						if out, err := exec.Command("netsh.exe", c...).CombinedOutput(); err != nil { // #nosec G204 -- arguments are separate values, no shell
-							errorBox(dlg, fmt.Errorf("netsh: %v: %s", err, strings.TrimSpace(string(out))))
+		AssignTo:   &dlg,
+		Title:      t("Netzwerk", "Network"),
+		MinSize:    dcl.Size{Width: 760, Height: 780},
+		Background: solid(colBg),
+		Font:       baseFont,
+		Layout:     dcl.VBox{MarginsZero: true, SpacingZero: true},
+		Children: dialogFrame(t("Netzwerk", "Network"), t("Adresse der Netzwerkkarte einstellen", "Set the address of the network adapter"),
+			[]dcl.Widget{
+				dcl.Label{Text: hint, Visible: hint != "", TextColor: colDanger},
+				dcl.Composite{Layout: dcl.Grid{Columns: 2, MarginsZero: true, Spacing: 8}, Children: []dcl.Widget{
+					dcl.Label{Text: t("Netzwerkkarte:", "Network adapter:")},
+					dcl.ComboBox{AssignTo: &adapter, Model: names, CurrentIndex: first},
+					dcl.Label{Text: t("Adresse:", "Address:")},
+					dcl.ComboBox{AssignTo: &mode, Model: []string{t("automatisch (DHCP)", "automatic (DHCP)"), t("fest", "static")}, CurrentIndex: 0},
+					dcl.Label{Text: "IP:"},
+					dcl.LineEdit{AssignTo: &ip, CueBanner: "192.168.1.50"},
+					dcl.Label{Text: t("Subnetzmaske:", "Subnet mask:")},
+					dcl.LineEdit{AssignTo: &mask, Text: "255.255.255.0"},
+					dcl.Label{Text: "Gateway:"},
+					dcl.LineEdit{AssignTo: &gw, CueBanner: "192.168.1.1"},
+					dcl.Label{Text: "DNS:"},
+					dcl.LineEdit{AssignTo: &dns, CueBanner: "192.168.1.1"},
+				}},
+				row(
+					FlatButton{Text: t("Übernehmen", "Apply"), Kind: btnPrimary, OnClicked: func() {
+						name := adapter.Text()
+						if name == "" {
+							errorBox(dlg, noAdapter)
 							return
 						}
-					}
-					showState()
-				}},
-				dcl.PushButton{Text: t("Netzwerk neu starten", "Restart the network"), OnClicked: func() {
-					_ = busy(dlg, t("Netzwerk wird gestartet…", "Starting the network…"), func(context.Context) error {
-						_ = exec.Command("wpeutil.exe", "InitializeNetwork").Run() // #nosec G204 -- fixed command
-						return nil
-					})
-					showState()
-				}},
+						var cmds [][]string
+						if mode.CurrentIndex() == 0 {
+							cmds = [][]string{
+								{"interface", "ipv4", "set", "address", "name=" + name, "source=dhcp"},
+								{"interface", "ipv4", "set", "dnsservers", "name=" + name, "source=dhcp"},
+							}
+						} else {
+							a := []string{"interface", "ipv4", "set", "address", "name=" + name, "static", ip.Text(), mask.Text()}
+							if g := strings.TrimSpace(gw.Text()); g != "" {
+								a = append(a, g)
+							}
+							cmds = [][]string{a}
+							if d := strings.TrimSpace(dns.Text()); d != "" {
+								cmds = append(cmds, []string{"interface", "ipv4", "set", "dnsservers", "name=" + name, "static", d, "primary"})
+							}
+						}
+						for _, c := range cmds {
+							if out, err := exec.Command("netsh.exe", c...).CombinedOutput(); err != nil { // #nosec G204 -- arguments are separate values, no shell
+								errorBox(dlg, fmt.Errorf("netsh: %v: %s", err, strings.TrimSpace(string(out))))
+								return
+							}
+						}
+						showState()
+					}},
+					FlatButton{Text: t("Netzwerk neu starten", "Restart the network"), OnClicked: func() {
+						_ = busy(dlg, t("Netzwerk wird gestartet…", "Starting the network…"), func(context.Context) error {
+							_ = exec.Command("wpeutil.exe", "InitializeNetwork").Run() // #nosec G204 -- fixed command
+							return nil
+						})
+						showState()
+					}},
+				),
+				section(t("Aktueller Stand (ipconfig)", "Current state (ipconfig)")),
+				dcl.TextEdit{AssignTo: &state, ReadOnly: true, VScroll: true, Font: dcl.Font{Family: "Consolas", PointSize: 9}},
+			},
+			[]dcl.Widget{
 				dcl.HSpacer{},
-				dcl.PushButton{Text: t("Schließen", "Close"), OnClicked: func() { dlg.Cancel() }},
-			}},
-			dcl.TextEdit{AssignTo: &state, ReadOnly: true, VScroll: true, Font: dcl.Font{Family: "Consolas", PointSize: 9}},
-		},
+				FlatButton{Text: t("Schließen", "Close"), OnClicked: func() { dlg.Cancel() }},
+			}),
 	}.Create(owner)
 	if err != nil {
 		return err

@@ -32,9 +32,11 @@ type wizard struct {
 	dlg   *walk.Dialog
 	pages []*walk.Composite
 	page  int
-	back  *walk.PushButton
-	next  *walk.PushButton
+	back  *flatButton
+	next  *flatButton
 	title *walk.Label
+	sub   *walk.Label
+	rail  *stepRail
 
 	// Source.
 	sourceList *walk.ListBox
@@ -85,6 +87,7 @@ type wizard struct {
 	confirm  *walk.LineEdit
 	progress *walk.ProgressBar
 	phase    *walk.Label
+	percent  *walk.Label
 	log      *walk.TextEdit
 	running  bool
 	cancel   context.CancelFunc
@@ -98,125 +101,147 @@ type sourceItem struct {
 	pkgPath string
 }
 
+// wizardOpened lets tests reach the wizard once its window exists.
+var wizardOpened func(*wizard)
+
 func runRestoreWizard(owner walk.Form) {
 	w := &wizard{}
 	page := func(assign **walk.Composite, children ...dcl.Widget) dcl.Widget {
-		return dcl.Composite{AssignTo: assign, Layout: dcl.VBox{MarginsZero: true}, Visible: false, Children: children}
+		return dcl.Composite{AssignTo: assign, Background: solid(colCard), Layout: dcl.VBox{Margins: dcl.Margins{Left: 24, Top: 20, Right: 24, Bottom: 20}, Spacing: 10}, Visible: false, Children: children}
+	}
+	var steps []string
+	for _, p := range pageTitles {
+		_, name, _ := strings.Cut(t(p[0], p[1]), ". ")
+		steps = append(steps, name)
 	}
 	var pSource, pSnap, pTarget, pLayout, pOptions, pSummary, pProgress *walk.Composite
 	err := dcl.Dialog{
-		AssignTo: &w.dlg,
-		Title:    t("Image wiederherstellen", "Restore an image"),
-		MinSize:  dcl.Size{Width: 900, Height: 640},
-		Size:     dcl.Size{Width: 1000, Height: 720},
-		Layout:   dcl.VBox{},
+		AssignTo:   &w.dlg,
+		Title:      t("Image wiederherstellen", "Restore an image"),
+		MinSize:    dcl.Size{Width: 960, Height: 680},
+		Size:       dcl.Size{Width: 1080, Height: 760},
+		Background: solid(colBg),
+		Font:       baseFont,
+		Layout:     dcl.VBox{MarginsZero: true, SpacingZero: true},
 		Children: []dcl.Widget{
-			dcl.Label{AssignTo: &w.title, Font: dcl.Font{PointSize: 13, Bold: true}},
-			page(&pSource,
-				dcl.Label{Text: t("Gefundene Backups und Zugangspakete auf den Laufwerken:", "Backups and access packages found on the drives:")},
-				dcl.ListBox{AssignTo: &w.sourceList, MinSize: dcl.Size{Height: 120}, MaxSize: dcl.Size{Height: 160}, OnCurrentIndexChanged: w.sourceSelected},
-				dcl.PushButton{Text: t("Laufwerke erneut durchsuchen", "Search the drives again"), OnClicked: w.findSources},
-				dcl.GroupBox{
-					Title:  t("Speicherort", "Location"),
-					Layout: dcl.Grid{Columns: 2},
-					Children: []dcl.Widget{
-						dcl.Label{Text: t("Ort:", "Location:")},
-						dcl.LineEdit{AssignTo: &w.location, CueBanner: `E:\backups\pc1  ·  smb://user@nas/backups/pc1  ·  sftp://...  ·  s3://...`},
-						dcl.Label{Text: t("Repo-Passwort oder Wiederherstellungsschlüssel:", "Repository password or recovery key:")},
-						dcl.LineEdit{AssignTo: &w.password, PasswordMode: true},
-						dcl.Label{Text: t("Speicher-Benutzer / S3-Zugriffsschlüssel:", "Storage user / S3 access key:")},
-						dcl.LineEdit{AssignTo: &w.storUser},
-						dcl.Label{Text: t("Speicher-Passwort / S3-Geheimschlüssel:", "Storage password / S3 secret key:")},
-						dcl.LineEdit{AssignTo: &w.storPass, PasswordMode: true},
-					},
-				},
-				dcl.Label{Text: t("Für SMB den Benutzer in den Ort schreiben (smb://benutzer@server/freigabe) oder oben eintragen. Netzwerk einrichten: im Hauptfenster.",
-					"For SMB put the user into the location (smb://user@server/share) or enter it above. Network settings: main window.")},
-			),
-			page(&pSnap,
-				dcl.Label{Text: t("Backups mit Disk-Images, das neueste zuerst:", "Backups with disk images, newest first:")},
-				dcl.ListBox{AssignTo: &w.snapList, MinSize: dcl.Size{Height: 160}, MaxSize: dcl.Size{Height: 220}, OnCurrentIndexChanged: w.snapSelected},
-				dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
-					dcl.Label{Text: t("Gesicherte Disk:", "Backed up disk:")},
-					dcl.ComboBox{AssignTo: &w.imageList, OnCurrentIndexChanged: w.imageSelected},
-					dcl.HSpacer{},
-				}},
-				dcl.TextEdit{AssignTo: &w.snapInfo, ReadOnly: true, VScroll: true, Font: dcl.Font{Family: "Consolas", PointSize: 9}},
-			),
-			page(&pTarget,
-				dcl.Label{Text: t("Zieldatenträger (alles auf der gewählten Disk bzw. Partition wird überschrieben):", "Target disk (everything on the chosen disk or partition is overwritten):")},
-				dcl.ListBox{AssignTo: &w.diskList, MinSize: dcl.Size{Height: 160}, MaxSize: dcl.Size{Height: 260}, OnCurrentIndexChanged: w.targetSelected},
-				dcl.PushButton{Text: t("Datenträger neu einlesen", "Read the disks again"), OnClicked: w.loadDisks},
-				dcl.Composite{Layout: dcl.Grid{Columns: 2, MarginsZero: true}, Children: []dcl.Widget{
-					dcl.Label{Text: t("Wiederherstellen:", "Restore:")},
-					dcl.ComboBox{AssignTo: &w.modeBox, Model: []string{
-						t("Ganze Disk (Zieldisk wird neu angelegt)", "Whole disk (the target disk is recreated)"),
-						t("Eine Partition über eine vorhandene Partition", "One partition over an existing partition"),
-						t("Eine Partition in freien Platz", "One partition into free space"),
-					}, CurrentIndex: 0, OnCurrentIndexChanged: w.modeChanged},
-					dcl.Label{Text: t("Partition des Ziels:", "Partition of the target:")},
-					dcl.ComboBox{AssignTo: &w.partBox, Enabled: false},
-				}},
-			),
-			page(&pLayout,
-				dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
-					dcl.Label{Text: t("Partitionstabelle:", "Partition table:")},
-					dcl.ComboBox{AssignTo: &w.styleBox, Model: []string{t("wie im Backup", "as in the backup"), "GPT (UEFI)", "MBR (BIOS)"}, CurrentIndex: 0, OnCurrentIndexChanged: func() { w.makeLayout(imaging.LayoutFit) }},
-					dcl.PushButton{Text: t("Wie im Backup", "As in the backup"), OnClicked: func() { w.makeLayout(imaging.LayoutAsSource) }},
-					dcl.PushButton{Text: t("An Zieldisk anpassen", "Fit to the target disk"), OnClicked: func() { w.makeLayout(imaging.LayoutFit) }},
-					dcl.HSpacer{},
-				}},
-				dcl.CustomWidget{AssignTo: &w.view, MinSize: dcl.Size{Height: 120}, Paint: w.paintLayout, ClearsBackground: true},
-				dcl.ScrollView{
-					Layout:          dcl.VBox{MarginsZero: true},
-					HorizontalFixed: true,
-					MinSize:         dcl.Size{Height: 200},
-					Children: []dcl.Widget{
-						dcl.Composite{AssignTo: &w.rows, Layout: dcl.VBox{MarginsZero: true, Spacing: 2}},
+			header("", "", &w.title, &w.sub),
+			dcl.Composite{StretchFactor: stretchFill, Layout: dcl.HBox{MarginsZero: true, SpacingZero: true}, Children: []dcl.Widget{
+				StepRail{AssignTo: &w.rail, Steps: steps},
+				vline(),
+				dcl.Composite{StretchFactor: stretchFill, Layout: dcl.VBox{Margins: dcl.Margins{Left: 20, Top: 20, Right: 20, Bottom: 20}}, Children: []dcl.Widget{
+					page(&pSource,
+						dcl.Label{Text: t("Gefundene Backups und Zugangspakete auf den Laufwerken:", "Backups and access packages found on the drives:")},
+						dcl.ListBox{AssignTo: &w.sourceList, MinSize: dcl.Size{Height: 120}, MaxSize: dcl.Size{Height: 160}, OnCurrentIndexChanged: w.sourceSelected},
+						row(FlatButton{Text: t("Laufwerke erneut durchsuchen", "Search the drives again"), OnClicked: w.findSources}),
+						dcl.GroupBox{
+							Title:  t("Speicherort", "Location"),
+							Layout: dcl.Grid{Columns: 2},
+							Children: []dcl.Widget{
+								dcl.Label{Text: t("Ort:", "Location:")},
+								dcl.LineEdit{AssignTo: &w.location, CueBanner: `E:\backups\pc1  ·  smb://user@nas/backups/pc1  ·  sftp://...  ·  s3://...`},
+								dcl.Label{Text: t("Repo-Passwort oder Wiederherstellungsschlüssel:", "Repository password or recovery key:")},
+								dcl.LineEdit{AssignTo: &w.password, PasswordMode: true},
+								dcl.Label{Text: t("Speicher-Benutzer / S3-Zugriffsschlüssel:", "Storage user / S3 access key:")},
+								dcl.LineEdit{AssignTo: &w.storUser},
+								dcl.Label{Text: t("Speicher-Passwort / S3-Geheimschlüssel:", "Storage password / S3 secret key:")},
+								dcl.LineEdit{AssignTo: &w.storPass, PasswordMode: true},
+							},
+						},
+						muted(t("Für SMB den Benutzer in den Ort schreiben (smb://benutzer@server/freigabe) oder oben eintragen. Netzwerk einrichten: im Hauptfenster.",
+							"For SMB put the user into the location (smb://user@server/share) or enter it above. Network settings: main window.")),
+					),
+					page(&pSnap,
+						dcl.Label{Text: t("Backups mit Disk-Images, das neueste zuerst:", "Backups with disk images, newest first:")},
+						dcl.ListBox{AssignTo: &w.snapList, MinSize: dcl.Size{Height: 160}, MaxSize: dcl.Size{Height: 220}, OnCurrentIndexChanged: w.snapSelected},
+						dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
+							dcl.Label{Text: t("Gesicherte Disk:", "Backed up disk:")},
+							dcl.ComboBox{AssignTo: &w.imageList, OnCurrentIndexChanged: w.imageSelected},
+							dcl.HSpacer{},
+						}},
+						dcl.TextEdit{AssignTo: &w.snapInfo, ReadOnly: true, VScroll: true, Font: dcl.Font{Family: "Consolas", PointSize: 9}},
+					),
+					page(&pTarget,
+						dcl.Label{Text: t("Zieldatenträger (alles auf der gewählten Disk bzw. Partition wird überschrieben):", "Target disk (everything on the chosen disk or partition is overwritten):")},
+						dcl.ListBox{AssignTo: &w.diskList, MinSize: dcl.Size{Height: 160}, MaxSize: dcl.Size{Height: 260}, OnCurrentIndexChanged: w.targetSelected},
+						row(FlatButton{Text: t("Datenträger neu einlesen", "Read the disks again"), OnClicked: w.loadDisks}),
+						dcl.Composite{Layout: dcl.Grid{Columns: 2, MarginsZero: true}, Children: []dcl.Widget{
+							dcl.Label{Text: t("Wiederherstellen:", "Restore:")},
+							dcl.ComboBox{AssignTo: &w.modeBox, Model: []string{
+								t("Ganze Disk (Zieldisk wird neu angelegt)", "Whole disk (the target disk is recreated)"),
+								t("Eine Partition über eine vorhandene Partition", "One partition over an existing partition"),
+								t("Eine Partition in freien Platz", "One partition into free space"),
+							}, CurrentIndex: 0, OnCurrentIndexChanged: w.modeChanged},
+							dcl.Label{Text: t("Partition des Ziels:", "Partition of the target:")},
+							dcl.ComboBox{AssignTo: &w.partBox, Enabled: false},
+						}},
+					),
+					page(&pLayout,
+						dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
+							dcl.Label{Text: t("Partitionstabelle:", "Partition table:")},
+							dcl.ComboBox{AssignTo: &w.styleBox, Model: []string{t("wie im Backup", "as in the backup"), "GPT (UEFI)", "MBR (BIOS)"}, CurrentIndex: 0, OnCurrentIndexChanged: func() { w.makeLayout(imaging.LayoutFit) }},
+							FlatButton{Text: t("Wie im Backup", "As in the backup"), OnClicked: func() { w.makeLayout(imaging.LayoutAsSource) }},
+							FlatButton{Text: t("An Zieldisk anpassen", "Fit to the target disk"), OnClicked: func() { w.makeLayout(imaging.LayoutFit) }},
+							dcl.HSpacer{},
+						}},
+						dcl.CustomWidget{AssignTo: &w.view, MinSize: dcl.Size{Height: 130}, Paint: w.paintLayout, ClearsBackground: true, InvalidatesOnResize: true},
+						dcl.ScrollView{
+							Background:      solid(colCard),
+							Layout:          dcl.VBox{MarginsZero: true},
+							HorizontalFixed: true,
+							MinSize:         dcl.Size{Height: 200},
+							Children: []dcl.Widget{
+								dcl.Composite{AssignTo: &w.rows, Layout: dcl.VBox{MarginsZero: true, Spacing: 2}},
+								dcl.VSpacer{},
+							},
+						},
+						dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
+							dcl.Label{AssignTo: &w.singleInfo, Visible: false},
+							dcl.NumberEdit{AssignTo: &w.sizeEdit, Visible: false, Decimals: 2, Suffix: " GiB", MinValue: 0.01, MaxValue: 1 << 20, OnValueChanged: w.singleSizeChanged},
+							dcl.HSpacer{},
+						}},
+						dcl.Label{AssignTo: &w.layoutErr, TextColor: colDanger},
+					),
+					page(&pOptions,
+						dcl.CheckBox{Alignment: dcl.AlignHNearVCenter, AssignTo: &w.newHW, Text: t("Für neue Hardware vorbereiten (anderer Rechner oder Controller: Boot-Treiber, Treiber, Bootdateien)", "Prepare for new hardware (another computer or controller: boot drivers, drivers, boot files)")},
+						dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
+							dcl.Label{Text: t("Zusätzliche Treiber (Ordner):", "Additional drivers (folder):")},
+							dcl.LineEdit{AssignTo: &w.driverDir},
+							FlatButton{Text: "…", OnClicked: func() {
+								if d := browseFolder(w.dlg, t("Treiberordner", "Driver folder")); d != "" {
+									_ = w.driverDir.SetText(d)
+								}
+							}},
+						}},
+						dcl.CheckBox{Alignment: dcl.AlignHNearVCenter, AssignTo: &w.verify, Text: t("Backup vorher vollständig lesen und prüfen (dauert etwa so lang wie die Wiederherstellung)", "Read and check the whole backup first (takes about as long as the restore)")},
+						dcl.Label{AssignTo: &w.sameDiskHt, TextColor: colWarn, Visible: false,
+							Text: t("Die Zieldisk sieht aus wie die gesicherte Disk. Prüfen Sie das Backup vorher: ist es beschädigt, wäre sonst beides verloren.",
+								"The target disk looks like the backed up disk. Check the backup first: if it is damaged, both would be lost.")},
+						dcl.CheckBox{Alignment: dcl.AlignHNearVCenter, AssignTo: &w.keepOff, Text: t("Zieldisk danach offline lassen (wenn die alte Disk noch im Rechner steckt)", "Leave the target disk offline (when the old disk is still in the computer)")},
 						dcl.VSpacer{},
-					},
-				},
-				dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
-					dcl.Label{AssignTo: &w.singleInfo, Visible: false},
-					dcl.NumberEdit{AssignTo: &w.sizeEdit, Visible: false, Decimals: 2, Suffix: " GiB", MinValue: 0.01, MaxValue: 1 << 20, OnValueChanged: w.singleSizeChanged},
-					dcl.HSpacer{},
+					),
+					page(&pSummary,
+						dcl.TextEdit{AssignTo: &w.summary, ReadOnly: true, VScroll: true, MinSize: dcl.Size{Height: 300}, Font: dcl.Font{Family: "Consolas", PointSize: 9}},
+						dcl.Label{Text: t("Zum Bestätigen die Nummer der Zieldisk eintippen:", "Type the number of the target disk to confirm:"), Font: dcl.Font{Family: uiFamily, PointSize: 10, Bold: true}, TextColor: colDanger},
+						dcl.LineEdit{AssignTo: &w.confirm, MaxSize: dcl.Size{Width: 80}},
+					),
+					page(&pProgress,
+						dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
+							dcl.Label{AssignTo: &w.phase, Font: dcl.Font{Family: uiFamily, PointSize: 13, Bold: true}, TextColor: colText},
+							dcl.HSpacer{},
+							dcl.Label{AssignTo: &w.percent, Font: dcl.Font{Family: uiFamily, PointSize: 20, Bold: true}, TextColor: colAccent},
+						}},
+						dcl.ProgressBar{AssignTo: &w.progress, MinValue: 0, MaxValue: 1000, MinSize: dcl.Size{Height: 22}},
+						section(t("Protokoll", "Log")),
+						dcl.TextEdit{AssignTo: &w.log, ReadOnly: true, VScroll: true, Font: dcl.Font{Family: "Consolas", PointSize: 9}},
+					),
 				}},
-				dcl.Label{AssignTo: &w.layoutErr, TextColor: walk.RGB(0xB0, 0, 0)},
-			),
-			page(&pOptions,
-				dcl.CheckBox{AssignTo: &w.newHW, Text: t("Für neue Hardware vorbereiten (anderer Rechner oder Controller: Boot-Treiber, Treiber, Bootdateien)", "Prepare for new hardware (another computer or controller: boot drivers, drivers, boot files)")},
-				dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
-					dcl.Label{Text: t("Zusätzliche Treiber (Ordner):", "Additional drivers (folder):")},
-					dcl.LineEdit{AssignTo: &w.driverDir},
-					dcl.PushButton{Text: "…", MaxSize: dcl.Size{Width: 30}, OnClicked: func() {
-						if d := browseFolder(w.dlg, t("Treiberordner", "Driver folder")); d != "" {
-							_ = w.driverDir.SetText(d)
-						}
-					}},
-				}},
-				dcl.CheckBox{AssignTo: &w.verify, Text: t("Backup vorher vollständig lesen und prüfen (dauert etwa so lang wie die Wiederherstellung)", "Read and check the whole backup first (takes about as long as the restore)")},
-				dcl.Label{AssignTo: &w.sameDiskHt, TextColor: walk.RGB(0xB0, 0x60, 0), Visible: false,
-					Text: t("Die Zieldisk sieht aus wie die gesicherte Disk. Prüfen Sie das Backup vorher: ist es beschädigt, wäre sonst beides verloren.",
-						"The target disk looks like the backed up disk. Check the backup first: if it is damaged, both would be lost.")},
-				dcl.CheckBox{AssignTo: &w.keepOff, Text: t("Zieldisk danach offline lassen (wenn die alte Disk noch im Rechner steckt)", "Leave the target disk offline (when the old disk is still in the computer)")},
-				dcl.VSpacer{},
-			),
-			page(&pSummary,
-				dcl.TextEdit{AssignTo: &w.summary, ReadOnly: true, VScroll: true, MinSize: dcl.Size{Height: 300}, Font: dcl.Font{Family: "Consolas", PointSize: 9}},
-				dcl.Label{Text: t("Zum Bestätigen die Nummer der Zieldisk eintippen:", "Type the number of the target disk to confirm:")},
-				dcl.LineEdit{AssignTo: &w.confirm, MaxSize: dcl.Size{Width: 80}},
-			),
-			page(&pProgress,
-				dcl.Label{AssignTo: &w.phase},
-				dcl.ProgressBar{AssignTo: &w.progress, MinValue: 0, MaxValue: 1000},
-				dcl.TextEdit{AssignTo: &w.log, ReadOnly: true, VScroll: true},
-			),
-			dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
-				dcl.HSpacer{},
-				dcl.PushButton{AssignTo: &w.back, Text: t("< Zurück", "< Back"), OnClicked: func() { w.show(w.page - 1) }},
-				dcl.PushButton{AssignTo: &w.next, Text: t("Weiter >", "Next >"), OnClicked: w.forward},
-				dcl.PushButton{Text: t("Schließen", "Close"), OnClicked: w.close},
 			}},
+			footer(
+				dcl.HSpacer{},
+				FlatButton{AssignTo: &w.back, Text: t("Zurück", "Back"), OnClicked: func() { w.show(w.page - 1) }},
+				FlatButton{AssignTo: &w.next, Kind: btnPrimary, Text: t("Weiter", "Next"), OnClicked: w.forward},
+				FlatButton{Text: t("Schließen", "Close"), OnClicked: w.close},
+			),
 		},
 	}.Create(owner)
 	if err != nil {
@@ -231,6 +256,9 @@ func runRestoreWizard(owner walk.Form) {
 	})
 	w.show(0)
 	w.dlg.Starting().Attach(w.findSources)
+	if wizardOpened != nil {
+		wizardOpened(w)
+	}
 	w.dlg.Run()
 	if w.session != nil {
 		_ = w.session.Close()
@@ -255,12 +283,17 @@ func (w *wizard) show(i int) {
 		p.SetVisible(k == i)
 	}
 	w.page = i
-	_ = w.title.SetText(t(pageTitles[i][0], pageTitles[i][1]))
+	_, name, _ := strings.Cut(t(pageTitles[i][0], pageTitles[i][1]), ". ")
+	_ = w.title.SetText(name)
+	_ = w.sub.SetText(fmt.Sprintf("%s  ·  %d / %d", t("Image wiederherstellen", "Restore an image"), i+1, len(w.pages)))
+	w.rail.SetCurrent(i)
 	w.back.SetEnabled(i > 0 && i < len(w.pages)-1)
 	w.next.SetVisible(i < len(w.pages)-1)
-	_ = w.next.SetText(t("Weiter >", "Next >"))
+	w.next.SetText(t("Weiter", "Next"))
+	w.next.SetKind(btnPrimary)
 	if i == len(w.pages)-2 {
-		_ = w.next.SetText(t("Wiederherstellen", "Restore"))
+		w.next.SetText(t("Wiederherstellen", "Restore"))
+		w.next.SetKind(btnDanger)
 	}
 }
 
@@ -1013,6 +1046,7 @@ func (w *wizard) start() error {
 			}
 			if total > 0 {
 				w.progress.SetValue(int(done * 1000 / total)) // #nosec G115 -- done <= total, so at most 1000
+				_ = w.percent.SetText(fmt.Sprintf("%d %%", done*100/total))
 				rate := float64(done) / max(time.Since(started).Seconds(), 1)
 				rest := time.Duration(float64(total-done)/max(rate, 1)) * time.Second
 				name += tf(" – %s von %s, %s/s, noch etwa %s", " – %s of %s, %s/s, about %s left", humanBytes(done), humanBytes(total), humanBytes(uint64(rate)), rest.Round(time.Minute))
@@ -1029,6 +1063,8 @@ func (w *wizard) start() error {
 			w.running = false
 			w.progress.SetValue(1000)
 			if err != nil {
+				_ = w.percent.SetText("")
+				w.phase.SetTextColor(colDanger)
 				_ = w.phase.SetText(t("Fehlgeschlagen: ", "Failed: ") + err.Error())
 				errorBox(w.dlg, err)
 				return
@@ -1037,6 +1073,8 @@ func (w *wizard) start() error {
 			if len(res.Warnings) > 0 {
 				msg += "\r\n\r\n" + t("Hinweise:", "Notes:") + "\r\n- " + strings.Join(res.Warnings, "\r\n- ")
 			}
+			_ = w.percent.SetText("100 %")
+			w.phase.SetTextColor(colOK)
 			_ = w.phase.SetText(t("Fertig", "Done"))
 			walk.MsgBox(w.dlg, "BackupZit", msg, walk.MsgBoxIconInformation)
 		})

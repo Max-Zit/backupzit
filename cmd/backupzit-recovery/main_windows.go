@@ -42,63 +42,79 @@ func systemLang() string {
 // app is the main window.
 type app struct {
 	mw     *walk.MainWindow
-	status *walk.Label
+	status *statusChips
+}
+
+// restoreText describes the restore. These texts are under the tiles of
+// the main window and in the header of their dialogs.
+func restoreText() string {
+	return t("Ganze Disk oder einzelne Partitionen aus einem Backup zurückschreiben", "Write a whole disk or single partitions back from a backup")
+}
+
+// bootText describes the boot repair.
+func bootText() string {
+	return t("Ein vorhandenes Windows wieder startfähig machen", "Make an existing Windows start again")
+}
+
+// driversText describes the driver dialog.
+func driversText() string {
+	return t("Treiber laden, wenn Disks oder Netzwerk fehlen", "Load drivers when disks or network are missing")
+}
+
+// newApp creates the main window.
+func newApp() (*app, error) {
+	a := &app{}
+	err := dcl.MainWindow{
+		AssignTo:   &a.mw,
+		Title:      "BackupZit Recovery " + version,
+		MinSize:    dcl.Size{Width: 820, Height: 560},
+		Size:       dcl.Size{Width: 1024, Height: 700},
+		Background: solid(colBg),
+		Font:       baseFont,
+		Layout:     dcl.VBox{MarginsZero: true, SpacingZero: true},
+		Children: []dcl.Widget{
+			header("BackupZit Recovery", t("Wählen Sie, was Sie tun möchten.", "Choose what you want to do."), nil, nil),
+			dcl.Composite{
+				StretchFactor: stretchFill,
+				Layout:        dcl.VBox{Margins: dcl.Margins{Left: 24, Top: 24, Right: 24, Bottom: 16}, Spacing: 16},
+				Children: []dcl.Widget{
+					dcl.Composite{
+						Layout: dcl.Grid{Columns: 2, Spacing: 16, MarginsZero: true},
+						Children: []dcl.Widget{
+							Tile{Title: t("Image wiederherstellen", "Restore an image"), Text: restoreText(), Icon: iconDisk,
+								OnClicked: func() { runRestoreWizard(a.mw) }},
+							Tile{Title: t("Boot reparieren", "Repair boot"), Text: bootText(), Icon: iconPower,
+								OnClicked: func() { runBootRepair(a.mw) }},
+							Tile{Title: t("Treiber", "Drivers"), Text: driversText(), Icon: iconChip,
+								OnClicked: func() { runDrivers(a.mw) }},
+							Tile{Title: t("Mit Konsole verbinden", "Connect to the console"), Text: t("Wiederherstellung aus der BackupZit-Konsole steuern", "Run the restore from the BackupZit console"), Icon: iconScreen,
+								OnClicked: func() { startConsoleMode(a.mw) }},
+						},
+					},
+					dcl.VSpacer{},
+					StatusChips{AssignTo: &a.status},
+				},
+			},
+			footer(
+				FlatButton{Text: t("Netzwerk…", "Network…"), OnClicked: func() { runNetwork(a.mw); a.refreshStatus() }},
+				FlatButton{Text: t("Eingabeaufforderung", "Command prompt"), OnClicked: func() { startDetached("cmd.exe", "/k", "cd /d %SystemDrive%\\") }},
+				FlatButton{Text: "Notepad", OnClicked: func() { startDetached("notepad.exe") }},
+				dcl.HSpacer{},
+				FlatButton{Text: t("Neu starten", "Restart"), OnClicked: func() { powerOff(a.mw, true) }},
+				FlatButton{Text: t("Herunterfahren", "Shut down"), OnClicked: func() { powerOff(a.mw, false) }},
+			),
+		},
+	}.Create()
+	if err != nil {
+		return nil, err
+	}
+	a.refreshStatus()
+	return a, nil
 }
 
 // main shows the main window with the four tasks and the tools below.
 func main() {
-	a := &app{}
-	tile := func(title, text string, onClick func()) dcl.Widget {
-		return dcl.Composite{
-			Layout: dcl.VBox{MarginsZero: true, Spacing: 4},
-			Children: []dcl.Widget{
-				dcl.PushButton{Text: title, Font: dcl.Font{PointSize: 12, Bold: true}, MinSize: dcl.Size{Width: 260, Height: 56}, OnClicked: onClick},
-				dcl.Label{Text: text},
-			},
-		}
-	}
-	err := dcl.MainWindow{
-		AssignTo: &a.mw,
-		Title:    "BackupZit Recovery " + version,
-		MinSize:  dcl.Size{Width: 820, Height: 560},
-		Size:     dcl.Size{Width: 1024, Height: 700},
-		Layout:   dcl.VBox{Margins: dcl.Margins{Left: 16, Top: 16, Right: 16, Bottom: 8}},
-		Children: []dcl.Widget{
-			dcl.Label{Text: "BackupZit Recovery", Font: dcl.Font{PointSize: 18, Bold: true}},
-			dcl.Label{Text: t("Wählen Sie, was Sie tun möchten.", "Choose what you want to do.")},
-			dcl.VSpacer{Size: 8},
-			dcl.Composite{
-				Layout: dcl.Grid{Columns: 2, Spacing: 12},
-				Children: []dcl.Widget{
-					tile(t("Image wiederherstellen", "Restore an image"),
-						t("Ganze Disk oder einzelne Partitionen aus einem Backup zurückschreiben", "Write a whole disk or single partitions back from a backup"),
-						func() { runRestoreWizard(a.mw) }),
-					tile(t("Boot reparieren", "Repair boot"),
-						t("Ein vorhandenes Windows wieder startfähig machen", "Make an existing Windows start again"),
-						func() { runBootRepair(a.mw) }),
-					tile(t("Treiber", "Drivers"),
-						t("Treiber laden, wenn Disks oder Netzwerk fehlen", "Load drivers when disks or network are missing"),
-						func() { runDrivers(a.mw) }),
-					tile(t("Mit Konsole verbinden", "Connect to the console"),
-						t("Wiederherstellung aus der BackupZit-Konsole steuern", "Run the restore from the BackupZit console"),
-						func() { startConsoleMode(a.mw) }),
-				},
-			},
-			dcl.VSpacer{},
-			dcl.Composite{
-				Layout: dcl.HBox{MarginsZero: true},
-				Children: []dcl.Widget{
-					dcl.PushButton{Text: t("Netzwerk…", "Network…"), OnClicked: func() { runNetwork(a.mw); a.refreshStatus() }},
-					dcl.PushButton{Text: t("Eingabeaufforderung", "Command prompt"), OnClicked: func() { startDetached("cmd.exe", "/k", "cd /d %SystemDrive%\\") }},
-					dcl.PushButton{Text: "Notepad", OnClicked: func() { startDetached("notepad.exe") }},
-					dcl.HSpacer{},
-					dcl.PushButton{Text: t("Neu starten", "Restart"), OnClicked: func() { powerOff(a.mw, true) }},
-					dcl.PushButton{Text: t("Herunterfahren", "Shut down"), OnClicked: func() { powerOff(a.mw, false) }},
-				},
-			},
-			dcl.Label{AssignTo: &a.status},
-		},
-	}.Create()
+	a, err := newApp()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "create window:", err)
 		os.Exit(1)
@@ -106,7 +122,6 @@ func main() {
 	if inWinPE() {
 		win.ShowWindow(a.mw.Handle(), win.SW_MAXIMIZE)
 	}
-	a.refreshStatus()
 	// --open=restore|boot|drivers|network opens a window right away (also
 	// for startnet.cmd and for screenshots in tests).
 	for _, arg := range os.Args[1:] {
@@ -130,21 +145,26 @@ func main() {
 }
 
 // refreshStatus shows firmware, network, disks and language.
-func (a *app) refreshStatus() {
-	parts := []string{"Firmware: " + firmwareText(imaging.DetectFirmware().String())}
+func (a *app) refreshStatus() { a.status.Set(statusChipsNow()) }
+
+// statusChipsNow are the status chips: green when a thing is ready,
+// orange when it is missing, red on an error.
+func statusChipsNow() []chip {
+	chips := []chip{{"Firmware: " + firmwareText(imaging.DetectFirmware().String()), colAccent}}
 	if ip := firstIPv4(); ip != "" {
-		parts = append(parts, t("Netzwerk: ", "Network: ")+ip)
+		chips = append(chips, chip{t("Netzwerk: ", "Network: ") + ip, colOK})
 	} else {
-		parts = append(parts, t("Netzwerk: keine Adresse", "Network: no address"))
+		chips = append(chips, chip{t("Netzwerk: keine Adresse", "Network: no address"), colWarn})
 	}
-	if disks, err := imaging.ListDisks(); err == nil {
-		parts = append(parts, tf("Datenträger: %d", "Disks: %d", len(disks)))
-	} else {
-		parts = append(parts, t("Datenträger: ", "Disks: ")+err.Error())
+	switch disks, err := imaging.ListDisks(); {
+	case err != nil:
+		chips = append(chips, chip{t("Datenträger: ", "Disks: ") + err.Error(), colDanger})
+	case len(disks) == 0:
+		chips = append(chips, chip{tf("Datenträger: %d", "Disks: %d", 0), colWarn})
+	default:
+		chips = append(chips, chip{tf("Datenträger: %d", "Disks: %d", len(disks)), colOK})
 	}
-	parts = append(parts, t("Sprache: Deutsch", "Language: English"))
-	// A label only fails to take its text when the window is gone.
-	_ = a.status.SetText(strings.Join(parts, "   ·   "))
+	return append(chips, chip{t("Sprache: Deutsch", "Language: English"), colMuted})
 }
 
 // firstIPv4 is the first IPv4 address of a network adapter that is up,
