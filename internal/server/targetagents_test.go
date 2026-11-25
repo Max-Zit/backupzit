@@ -223,14 +223,16 @@ func TestTargetReachableByAgentsOnly(t *testing.T) {
 		t.Fatalf("last agent not chosen:\n%s", b)
 	}
 
-	// Browsing and downloading files say why at once, without connecting.
+	// Browsing and downloading files go through an agent of the storage (0.61);
+	// the site agent is 0.60, so they ask at once to update it, without
+	// connecting or waiting.
 	if run, err := e.store.ClaimRun(ctx, siteAgent.ID); err != nil || run == nil || run.ID != backupID {
 		t.Fatalf("claim: %+v %v", run, err)
 	}
 	if err := e.store.FinishRun(ctx, siteAgent.ID, backupID, api.RunResult{Status: api.StatusSuccess, SnapshotID: strings.Repeat("ab", 32)}); err != nil {
 		t.Fatal(err)
 	}
-	const refused = "this backup is on storage reachable by agents only; the console does not connect to it — restore with the paths instead"
+	refused := "this backup is on storage reachable by agents only; the console reads it through an agent of version 0.61.0 or newer: update " + siteAgent.Name()
 	if b := page(fmt.Sprintf("/runs/%d/files", backupID)); !strings.Contains(b, refused) {
 		t.Fatal("file browser does not say why")
 	}

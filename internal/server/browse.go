@@ -127,6 +127,9 @@ func (c *repoCache) repo(ctx context.Context, t Target, url string) (*repo.Repos
 		return cr.r, nil
 	}
 	be, err := open()
+	if err != nil && t.AgentsOnly {
+		return nil, err // says which agent is missing or too old
+	}
 	if err != nil {
 		return nil, fmt.Errorf("connect to storage: %w", err)
 	}
