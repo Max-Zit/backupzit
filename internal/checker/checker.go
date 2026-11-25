@@ -336,10 +336,10 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 	}
 	res.DataBlobs = len(seenData)
 
-	// 4. Optionally read everything: several packs at once on storage that
-	// serves parallel requests well (S3, Azure, hardened), one by one on
-	// local disks and SFTP/SMB. On a distant S3 one stream read about 3 MB/s
-	// (855 GB in about three days, #38).
+	// 4. Optionally read everything, several packs at once as a restore
+	// reads blocks (ReadConcurrency): on a distant S3 one stream read about
+	// 3 MB/s (855 GB in about three days, #38), and on a share one pack at a
+	// time leaves the link idle while a pack is decrypted and checked.
 	if opts.ReadData {
 		type verified struct {
 			blobs int
@@ -356,7 +356,7 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 		rctx, stop := context.WithCancel(ctx)
 		defer stop()
 		down := false
-		for w := 0; w < min(max(r.Concurrency(), 1), max(len(onDisk), 1)); w++ {
+		for w := 0; w < min(r.ReadConcurrency(), max(len(onDisk), 1)); w++ {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()

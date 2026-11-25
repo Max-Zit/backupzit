@@ -466,8 +466,17 @@ func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst 
 	// restored before).
 	marked := n.WinAttrs&fsutil.AttrSparse == 0 // true: nothing to mark
 	var holes []hole
-	for _, id := range n.Content {
-		data, err := rs.r.LoadBlob(ctx, repo.DataBlob, id)
+	// The chunks of a larger file are read a few at a time (on shares and
+	// object stores the reads wait mostly on the network); a file of one
+	// chunk is read as before.
+	load := func(i int) ([]byte, error) { return rs.r.LoadBlob(ctx, repo.DataBlob, n.Content[i]) }
+	if len(n.Content) > 1 {
+		ra := rs.r.ReadAhead(ctx, n.Content, func(int) bool { return true })
+		defer ra.Close()
+		load = ra.Get
+	}
+	for i, id := range n.Content {
+		data, err := load(i)
 		if err != nil {
 			// Missing/corrupt repository data: report but keep restoring others.
 			return fail(fmt.Errorf("blob %s: %w", id.Short(), err))
