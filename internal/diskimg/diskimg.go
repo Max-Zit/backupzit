@@ -181,26 +181,76 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 		return img, err
 	}
 	defer func() { _ = bw.Close() }()
+	// Runs of consecutive blocks are read by a goroutine of their own into
+	// one of two buffers, so the disk reads the next run while this one is
+	// checked for zeros and hashed.
 	runSize := uint64(32) * blockSize
-	buf := make([]byte, runSize)
+	type run struct{ i, j, n uint64 }
+	var runs []run
 	for i := uint64(0); i < p.Blocks; {
 		if !read[i] {
 			i++
 			continue
 		}
-		// Read a run of consecutive blocks at once.
 		j := i
 		for j < p.Blocks && read[j] && (j-i+1)*blockSize <= runSize {
 			j++
 		}
-		start := i * blockSize
-		n := min(j*blockSize, size) - start
+		runs = append(runs, run{i, j, min(j*blockSize, size) - i*blockSize})
+		i = j
+	}
+	type filled struct {
+		run
+		buf []byte
+		err error
+	}
+	rctx, stopRead := context.WithCancel(ctx)
+	free := make(chan []byte, 2)
+	free <- make([]byte, runSize)
+	if len(runs) > 1 {
+		free <- make([]byte, runSize)
+	}
+	full := make(chan filled, 1)
+	// On every return the reader has stopped: the caller may close f.
+	defer func() {
+		stopRead()
+		for range full {
+		}
+	}()
+	go func() {
+		defer close(full)
+		for _, rn := range runs {
+			var buf []byte
+			select {
+			case buf = <-free:
+			case <-rctx.Done():
+				return
+			}
+			start := rn.i * blockSize
+			_, err := f.ReadAt(buf[:rn.n], int64(start)) // #nosec G115 -- disk sizes are below 2^63
+			if err != nil && !(errors.Is(err, io.EOF) && rn.j == p.Blocks) {
+				err = fmt.Errorf("read at %d: %w", start, err)
+			} else {
+				err = nil
+			}
+			select {
+			case full <- filled{rn, buf, err}:
+			case <-rctx.Done():
+				return
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
+	for fr := range full {
+		if fr.err != nil {
+			return img, fr.err
+		}
 		if err := ctx.Err(); err != nil {
 			return img, err
 		}
-		if _, err := f.ReadAt(buf[:n], int64(start)); err != nil && !(errors.Is(err, io.EOF) && j == p.Blocks) { // #nosec G115 -- disk sizes are below 2^63
-			return img, fmt.Errorf("read at %d: %w", start, err)
-		}
+		i, j, n, buf := fr.i, fr.j, fr.n, fr.buf
 		if i == 0 && refreshHead {
 			var err error
 			if img.Head, _, err = bw.Save(ctx, repo.DataBlob, buf[:headSize]); err != nil {
@@ -220,7 +270,10 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 			ids[b] = id
 		}
 		progress(n)
-		i = j
+		free <- buf // bw.Save copied what it keeps
+	}
+	if err := ctx.Err(); err != nil {
+		return img, err
 	}
 	if err := bw.Close(); err != nil {
 		return img, err

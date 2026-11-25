@@ -3,7 +3,10 @@ package diskimg
 import (
 	"bytes"
 	"context"
+	"errors"
 	"math/rand"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/max-zit/backupzit/internal/backend"
@@ -317,5 +320,50 @@ func TestStoreAreasGrownSmallBlocks(t *testing.T) {
 	}
 	if !bytes.Equal(out.b, disk.b) {
 		t.Error("restored grown disk differs")
+	}
+}
+
+// failDisk fails the read at failOff.
+type failDisk struct {
+	memDisk
+	failOff int64
+	mu      sync.Mutex
+	active  int
+}
+
+func (d *failDisk) ReadAt(p []byte, off int64) (int, error) {
+	d.mu.Lock()
+	d.active++
+	d.mu.Unlock()
+	defer func() { d.mu.Lock(); d.active--; d.mu.Unlock() }()
+	if off == d.failOff {
+		return 0, errors.New("device not ready")
+	}
+	return d.memDisk.ReadAt(p, off)
+}
+
+// A read error in the middle of the disk stops the backup with that error,
+// and no read is still running when StoreAreas returns.
+func TestStoreAreasReadError(t *testing.T) {
+	ctx := context.Background()
+	be, err := backend.OpenLocal(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := repo.Init(ctx, be)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const size = 100 * BlockSize
+	disk := &failDisk{memDisk: memDisk{b: make([]byte, size)}, failOff: 64 * BlockSize}
+	rand.New(rand.NewSource(2)).Read(disk.b)
+	_, err = StoreAreas(ctx, r, disk, size, []Area{{0, size}}, nil, 0, "d", "test", nil)
+	if err == nil || !strings.Contains(err.Error(), "device not ready") {
+		t.Fatalf("error %v", err)
+	}
+	disk.mu.Lock()
+	defer disk.mu.Unlock()
+	if disk.active != 0 {
+		t.Errorf("%d reads still running", disk.active)
 	}
 }
