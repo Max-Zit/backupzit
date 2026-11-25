@@ -52,16 +52,17 @@ func (p *packBuilder) add(t BlobType, id ID, stored []byte, rawLen int) {
 
 func (p *packBuilder) size() int { return len(p.buf) }
 
-// finish appends the (sealed) header and returns the complete pack and its ID.
-func (p *packBuilder) finish(seal func([]byte) []byte) ([]byte, ID, []PackedBlob, error) {
+// finish appends the (sealed) header and returns the complete pack. Its ID
+// is Hash of it; the caller computes that outside the repository lock.
+func (p *packBuilder) finish(seal func([]byte) []byte) ([]byte, []PackedBlob, error) {
 	hdr, err := json.Marshal(p.blobs)
 	if err != nil {
-		return nil, ID{}, nil, err
+		return nil, nil, err
 	}
 	hdr = seal(hdr)
 	out := append(p.buf, hdr...)
 	out = binary.LittleEndian.AppendUint32(out, uint32(len(hdr))) // #nosec G115 -- a pack holds a few hundred MiB at most, far below 4 GiB
-	return out, Hash(out), p.blobs, nil
+	return out, p.blobs, nil
 }
 
 func parsePackHeader(hdr []byte) ([]PackedBlob, error) {

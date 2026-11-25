@@ -461,7 +461,7 @@ func (r *Repository) flushPackLocked(ctx context.Context) error {
 	if len(r.pack.blobs) == 0 {
 		return nil
 	}
-	data, packID, blobs, err := r.pack.finish(r.seal)
+	data, blobs, err := r.pack.finish(r.seal)
 	if err != nil {
 		return err
 	}
@@ -478,6 +478,9 @@ func (r *Repository) flushPackLocked(ctx context.Context) error {
 	}
 	r.inflight++
 	go func() {
+		// The pack's ID is the hash of all its bytes: computed here, the
+		// next pack fills meanwhile.
+		packID := Hash(data)
 		err := r.be.Save(ctx, packName(packID), data)
 		r.mu.Lock()
 		defer r.mu.Unlock()
