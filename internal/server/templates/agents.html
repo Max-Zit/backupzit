@@ -165,9 +165,13 @@ echo "{{.Code}}" | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support
         </div>
         <div class="row">
           <label>{{T "User"}} <input name="user" required autocomplete="off"></label>
-          <label>{{T "Password"}} <small>{{T "for sudo too; for an SSH key its passphrase, if any"}}</small><input name="password" type="password" autocomplete="new-password"></label>
+          <label>{{T "Password"}} <small>{{T "of the user; on Linux also for sudo, unless a sudo password is entered below"}}</small><input name="password" type="password" autocomplete="new-password"></label>
         </div>
         <label>{{T "SSH private key"}} <small>{{T "Linux, optional, instead of a password"}}</small><textarea name="key" class="mono" rows="3" placeholder="{{T "-----BEGIN OPENSSH PRIVATE KEY-----"}}"></textarea></label>
+        <div class="row">
+          <label>{{T "Key passphrase"}} <small>{{T "only if the SSH key has one; used only to open the key"}}</small><input name="key_passphrase" type="password" autocomplete="new-password"></label>
+          <label>{{T "Sudo password"}} <small>{{T "Linux, only if sudo asks for a password that differs from the one above (or a key is used)"}}</small><input name="sudo_password" type="password" autocomplete="new-password"></label>
+        </div>
         <label>{{T "SSH host key fingerprint"}} <small>{{T "Linux, optional: SHA256:… — verifies that the console talks to the right machine"}}</small><input name="host_key" class="mono"></label>
         <p class="muted small">{{T "The console connects once, the machine downloads the newest agent package from the console and checks its SHA-256, installs and enrolls it. The password or key is used only for this and is not stored."}}</p>
         <div><button>{{T "Install agent"}}</button></div>

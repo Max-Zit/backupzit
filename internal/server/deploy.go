@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -33,14 +34,40 @@ import (
 
 // deployRequest is what the "Install an agent" form asks for.
 type deployRequest struct {
-	Host     string
-	Port     int
-	OS       string // linux | windows
-	User     string
-	Password string
-	Key      string // SSH private key (PEM), Linux
-	HostKey  string // expected SSH host key fingerprint (SHA256:...), optional
-	By       string // console user
+	Host          string
+	Port          int
+	OS            string // linux | windows
+	User          string
+	Password      string // login password (SSH or WinRM); on Linux also sudo's, unless SudoPassword is given
+	Key           string // SSH private key (PEM), Linux
+	KeyPassphrase string // passphrase of Key, only used to open the key
+	SudoPassword  string // Linux: the password sudo asks for, when it differs from Password or a key is used
+	HostKey       string // expected SSH host key fingerprint (SHA256:...), optional
+	By            string // console user
+}
+
+// secrets are the request's values that must never appear in the
+// installation log or in an error message.
+func (q *deployRequest) secrets() []string {
+	var out []string
+	for _, s := range []string{q.Password, q.KeyPassphrase, q.SudoPassword} {
+		for _, v := range []string{s, strings.TrimSpace(s)} {
+			if v != "" {
+				out = append(out, v)
+			}
+		}
+	}
+	// Longest first, so a secret that contains another one is hidden whole.
+	sort.Slice(out, func(i, j int) bool { return len(out[i]) > len(out[j]) })
+	return out
+}
+
+// redact replaces every secret in s.
+func redact(s string, secrets []string) string {
+	for _, x := range secrets {
+		s = strings.ReplaceAll(s, x, "[hidden]")
+	}
+	return s
 }
 
 // deployment is one installation, shown on its own page while it runs.
@@ -56,12 +83,15 @@ type deployment struct {
 	err      string
 	hostname string
 	agentID  int64
+	secrets  []string // set before the installation starts, read-only afterwards
 }
 
+// logf adds a line to the installation log, with every password and
+// passphrase of the request hidden.
 func (d *deployment) logf(format string, a ...any) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.log = append(d.log, time.Now().Format("15:04:05")+"  "+fmt.Sprintf(format, a...))
+	d.log = append(d.log, time.Now().Format("15:04:05")+"  "+redact(fmt.Sprintf(format, a...), d.secrets))
 }
 
 // deployView is a snapshot for the page.
@@ -212,6 +242,16 @@ func (q *deployRequest) validate() error {
 	if q.Password == "" && (q.OS == "windows" || strings.TrimSpace(q.Key) == "") {
 		return errors.New("enter the password" + map[bool]string{true: " or an SSH key", false: ""}[q.OS == "linux"])
 	}
+	if q.OS == "windows" {
+		q.Key, q.KeyPassphrase, q.SudoPassword = "", "", ""
+	}
+	if strings.TrimSpace(q.Key) == "" {
+		q.KeyPassphrase = ""
+	}
+	// sudo reads its password up to the end of the line.
+	if strings.ContainsAny(q.Password+q.SudoPassword, "\r\n") {
+		return errors.New("the password must not contain a line break")
+	}
 	if q.Port == 0 {
 		q.Port = map[string]int{"linux": 22, "windows": 5985}[q.OS]
 	}
@@ -226,7 +266,7 @@ func (s *Server) startDeploy(q deployRequest, consoleURL string) (*deployment, e
 	if err := q.validate(); err != nil {
 		return nil, err
 	}
-	d := &deployment{ID: randomID(9), Host: q.Host, OS: q.OS, By: q.By, Started: time.Now()}
+	d := &deployment{ID: randomID(9), Host: q.Host, OS: q.OS, By: q.By, Started: time.Now(), secrets: q.secrets()}
 	dp := s.deployState()
 	dp.mu.Lock()
 	dp.runs[d.ID] = d
@@ -235,15 +275,17 @@ func (s *Server) startDeploy(q deployRequest, consoleURL string) (*deployment, e
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 		defer cancel()
 		err := s.deploy(ctx, d, q, consoleURL)
+		msg := ""
+		if err != nil {
+			msg = redact(err.Error(), d.secrets)
+		}
 		d.mu.Lock()
 		d.done = true
-		if err != nil {
-			d.err = err.Error()
-		}
+		d.err = msg
 		d.mu.Unlock()
 		if err != nil {
-			s.log.Warn("agent installation failed", "host", q.Host, "err", err)
-			d.logf("FAILED: %v", err)
+			s.log.Warn("agent installation failed", "host", q.Host, "err", msg)
+			d.logf("FAILED: %s", msg)
 		}
 	}()
 	return d, nil
@@ -328,18 +370,9 @@ func (s *Server) knownAgent(ctx context.Context, d *deployment, uuid string) boo
 func (s *Server) deployLinux(ctx context.Context, d *deployment, q deployRequest, consoleURL, code string) (string, error) {
 	var auth []ssh.AuthMethod
 	if k := strings.TrimSpace(q.Key); k != "" {
-		var signer ssh.Signer
-		var err error
-		if q.Password != "" {
-			signer, err = ssh.ParsePrivateKeyWithPassphrase([]byte(k), []byte(q.Password))
-			if err != nil {
-				signer, err = ssh.ParsePrivateKey([]byte(k))
-			}
-		} else {
-			signer, err = ssh.ParsePrivateKey([]byte(k))
-		}
+		signer, err := parseDeployKey(k, q.KeyPassphrase)
 		if err != nil {
-			return "", fmt.Errorf("SSH key: %w", err)
+			return "", err
 		}
 		auth = append(auth, ssh.PublicKeys(signer))
 	}
@@ -381,23 +414,17 @@ func (s *Server) deployLinux(ctx context.Context, d *deployment, q deployRequest
 		return "", err
 	}
 	defer c.Close()
-	run := func(script string, sudo bool) (string, error) {
+	run := func(cmd, stdin string) (string, error) {
 		sess, err := c.NewSession()
 		if err != nil {
 			return "", err
 		}
 		defer sess.Close()
-		var out bytes.Buffer
+		// The SSH library copies stdout and stderr in two goroutines; a
+		// plain shared bytes.Buffer lost output (its ReadFrom is not safe
+		// for two at once), so both go through one lock.
+		var out lockedOutput
 		sess.Stdout, sess.Stderr = &out, &out
-		stdin := script
-		cmd := "sh -s"
-		if sudo {
-			if q.Password == "" {
-				cmd = "sudo -n sh -s"
-			} else {
-				cmd, stdin = "sudo -S -p '' sh -s", q.Password+"\n"+script
-			}
-		}
 		sess.Stdin = strings.NewReader(stdin)
 		done := make(chan error, 1)
 		go func() { done <- sess.Run(cmd) }()
@@ -408,7 +435,7 @@ func (s *Server) deployLinux(ctx context.Context, d *deployment, q deployRequest
 		}
 		return strings.TrimSpace(out.String()), err
 	}
-	info, err := run("hostname; uname -m; if command -v dpkg >/dev/null 2>&1; then echo deb; elif command -v rpm >/dev/null 2>&1; then echo rpm; else echo none; fi; id -u", false)
+	info, err := run("sh -s", "hostname; uname -m; if command -v dpkg >/dev/null 2>&1; then echo deb; elif command -v rpm >/dev/null 2>&1; then echo rpm; else echo none; fi; id -u")
 	if err != nil {
 		return "", fmt.Errorf("detect the system: %v: %s", err, info)
 	}
@@ -424,7 +451,14 @@ func (s *Server) deployLinux(ctx context.Context, d *deployment, q deployRequest
 	if format == "none" {
 		return "", errors.New("neither dpkg nor rpm found: install the agent by hand")
 	}
-	uuid, _ := run(`sed -n 's/.*"agent_uuid": *"\([^"]*\)".*/\1/p' /etc/backupzit/agent.json 2>/dev/null || true`, uid != "0")
+	asRoot, err := linuxSudo(d, q, uid, run)
+	if err != nil {
+		return "", err
+	}
+	uuid, err := asRoot(`sed -n 's/.*"agent_uuid": *"\([^"]*\)".*/\1/p' /etc/backupzit/agent.json 2>/dev/null || true`)
+	if err != nil {
+		uuid = "" // the answer is an error message (a wrong sudo password, for one), not an enrollment
+	}
 	known := s.knownAgent(ctx, d, uuid)
 	enroll := "backupzit-agent enroll --force --code '" + code + "'"
 	if known {
@@ -455,7 +489,7 @@ systemctl restart backupzit-agent
 echo "agent started"
 `
 	d.logf("installing %s (SHA-256 %s…)%s", name, sum[:16], map[bool]string{true: " with sudo", false: ""}[uid != "0"])
-	out, err := run(script, uid != "0")
+	out, err := asRoot(script)
 	for _, l := range strings.Split(out, "\n") {
 		if l = strings.TrimSpace(l); l != "" && !strings.Contains(l, code) {
 			d.logf("  %s", l)
@@ -468,6 +502,99 @@ echo "agent started"
 		return "", fmt.Errorf("installation failed: %v", err)
 	}
 	return hostname, nil
+}
+
+// lockedOutput collects a command's stdout and stderr in one buffer. It has
+// only Write, so io.Copy cannot use the buffer's ReadFrom from two goroutines.
+type lockedOutput struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (o *lockedOutput) Write(p []byte) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.b.Write(p)
+}
+
+func (o *lockedOutput) String() string {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.b.String()
+}
+
+// parseDeployKey opens the SSH private key with its own passphrase. The
+// login or sudo password is never tried on the key.
+func parseDeployKey(key, passphrase string) (ssh.Signer, error) {
+	if passphrase != "" {
+		signer, err := ssh.ParsePrivateKeyWithPassphrase([]byte(key), []byte(passphrase))
+		if err == nil {
+			return signer, nil
+		}
+		// A key without a passphrase, with one entered anyway.
+		if signer, err2 := ssh.ParsePrivateKey([]byte(key)); err2 == nil {
+			return signer, nil
+		}
+		return nil, fmt.Errorf("SSH key: %v (check the key passphrase)", err)
+	}
+	signer, err := ssh.ParsePrivateKey([]byte(key))
+	var missing *ssh.PassphraseMissingError
+	if errors.As(err, &missing) {
+		return nil, errors.New("the SSH key is protected by a passphrase: enter it in Key passphrase")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("SSH key: %w", err)
+	}
+	return signer, nil
+}
+
+// tempScript is the only shape of answer from the machine's mktemp that is
+// put into a command line.
+var tempScript = regexp.MustCompile(`^/[A-Za-z0-9._/-]+$`)
+
+// linuxSudo decides how scripts run as root on the machine and returns that
+// runner (#67). Root needs nothing. Otherwise sudo is first asked without a
+// password (sudo -n true): when that works, no password is ever sent. Only
+// when sudo asks for one does the console answer it, and then sudo alone reads
+// the input: the script waits in a file only the user can read, and its own
+// input is /dev/null, so a password can never be run as a command.
+func linuxSudo(d *deployment, q deployRequest, uid string, run func(cmd, stdin string) (string, error)) (func(script string) (string, error), error) {
+	if uid == "0" {
+		return func(script string) (string, error) { return run("sh -s", script) }, nil
+	}
+	out, err := run("sudo -n true", "")
+	if err == nil {
+		d.logf("sudo works without a password; no password is sent")
+		return func(script string) (string, error) { return run("sudo -n sh -s", script) }, nil
+	}
+	low := strings.ToLower(out)
+	if !strings.Contains(low, "password") && !strings.Contains(low, "authentication") && !strings.Contains(low, "terminal") {
+		if out == "" {
+			out = err.Error()
+		}
+		return nil, fmt.Errorf("the user %s cannot use sudo on the machine: %s", q.User, out)
+	}
+	pw := q.SudoPassword
+	if pw == "" {
+		pw = q.Password
+	}
+	if pw == "" {
+		return nil, errors.New("sudo on the machine asks for a password: enter it in Sudo password, or allow the user sudo without a password")
+	}
+	d.logf("sudo asks for a password; the console gives it to sudo only")
+	return func(script string) (string, error) {
+		f, err := run(`sh -c 'umask 077; f=$(mktemp) && cat >"$f" && echo "$f"'`, "exec </dev/null\n"+script)
+		if err != nil {
+			return f, fmt.Errorf("prepare the script: %v", err)
+		}
+		if i := strings.LastIndexByte(f, '\n'); i >= 0 {
+			f = strings.TrimSpace(f[i+1:])
+		}
+		if !tempScript.MatchString(f) || strings.Contains(f, "..") {
+			return "", fmt.Errorf("unexpected temporary file name %q", f)
+		}
+		return run(`sh -c 'rc=0; sudo -S -p "" sh `+f+` || rc=$?; rm -f `+f+`; exit $rc'`, pw+"\n")
+	}, nil
 }
 
 // ---- Windows over WinRM
@@ -593,7 +720,8 @@ func cleanCLIXML(s string) string {
 
 func (s *Server) handleDeployStart(w http.ResponseWriter, r *http.Request, user string) {
 	q := deployRequest{Host: r.FormValue("host"), OS: r.FormValue("os"), User: r.FormValue("user"), Password: r.FormValue("password"),
-		Key: r.FormValue("key"), HostKey: r.FormValue("host_key"), Port: atoiDefault(r.FormValue("port")), By: user}
+		Key: r.FormValue("key"), KeyPassphrase: r.FormValue("key_passphrase"), SudoPassword: r.FormValue("sudo_password"),
+		HostKey: r.FormValue("host_key"), Port: atoiDefault(r.FormValue("port")), By: user}
 	pub := s.publicURL(r)
 	d, err := s.startDeploy(q, pub)
 	if err != nil {

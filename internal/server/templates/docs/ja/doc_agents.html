@@ -34,7 +34,7 @@ systemctl enable --now backupzit-agent</pre>
 <h2>コンソールからのエージェントのインストール</h2>
 <p>インストーラーを各マシンにコピーする代わりに、コンソールにエージェントをインストールさせることができます。<a href="/agents">エージェント</a>で<b>ここからマシンにインストール</b>を開き、Linux または Windows を選んで、マシンのアドレスと管理者アカウントを入力します。</p>
 <ul>
-  <li><b>Linux</b>（Debian、Ubuntu、AlmaLinux、Rocky Linux、64 ビット）: コンソールは <b>SSH</b> で root として、または <code>sudo</code> 権限を持つユーザーとして接続します（パスワードは sudo にも使われます。キーを使う場合はパスワードなしの sudo が必要です）。パスワードでも秘密キーでも構いません。コンソールが正しいマシンと通信していることを確かめるため、マシンの <b>SSH ホスト キーのフィンガープリント</b>（マシン上で <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code>）を入力してください。入力しない場合、フィンガープリントはインストール ログに表示されます。</li>
+  <li><b>Linux</b>（Debian、Ubuntu、AlmaLinux、Rocky Linux、64 ビット）: コンソールは <b>SSH</b> で root として、または <code>sudo</code> 権限を持つユーザーとして接続します。パスワードまたは秘密キーを使えます（キーのパスフレーズは <b>鍵のパスフレーズ</b> に入力し、キーを開くためだけに使われます）。コンソールはまずパスワードなしで sudo を試し（<code>sudo -n</code>）、sudo がパスワードを求めたときだけ、ユーザーのパスワード、または異なる場合やキーを使う場合は <b>sudo パスワード</b> を sudo に渡します。パスワードがインストールスクリプトに含まれることはありません。インストールログではパスワードとパスフレーズが伏せられます。コンソールが正しいマシンと通信していることを確かめるため、マシンの <b>SSH ホスト キーのフィンガープリント</b>（マシン上で <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code>）を入力してください。入力しない場合、フィンガープリントはインストール ログに表示されます。</li>
   <li><b>Windows</b>（64 ビット）: コンソールは <b>WinRM</b>（ポート 5985、メッセージは NTLM で暗号化。HTTPS リスナーは 5986）でローカル管理者またはドメイン管理者として接続します。WinRM は Windows Server では既定で有効です。Windows 10/11 では管理者として一度 <code>winrm quickconfig</code> を実行してください。組み込みの Administrator 以外のローカル アカウントにはリモート管理権限（<code>LocalAccountTokenFilterPolicy</code>）が必要です。またはドメイン アカウントを使ってください。旧システム（Windows 7、Server 2008 R2/2012 R2）には legacy MSI が使われます。</li>
 </ul>
 <p>Mac はここからはインストールしません: <code>.pkg</code> を手動または MDM で配布してください（<a href="/docs/macos#enroll">macOS エージェント</a>）。</p>
