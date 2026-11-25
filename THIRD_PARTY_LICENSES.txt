@@ -1149,7 +1149,7 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ==============================================================================
-github.com/cloudsoda/go-smb2 v0.0.0-20261105190815-95be04a983b8 — BSD License
+github.com/cloudsoda/go-smb2 v0.0.0-20261105190815-95be04a983b8 — BSD License (patched copy in third_party/go-smb2, changes listed in its NOTICE.BackupZit)
 ==============================================================================
 
 Copyright (c) 2016 Hiroshi Ioka. All rights reserved.
@@ -1176,6 +1176,19 @@ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+NOTICE of github.com/cloudsoda/go-smb2:
+
+This is a copy of github.com/cloudsoda/go-smb2 at
+v0.0.0-20261105190815-95be04a983b8 (BSD License, see LICENSE),
+used by BackupZit through a replace directive in its go.mod.
+The upstream tests are kept (go test ./... in this folder); its .github
+folder (CI with a Samba server) is left out.
+
+Changes by BackupZit that upstream does not have:
+(none yet)
+
+Drop this copy once upstream has these changes.
 
 ==============================================================================
 github.com/cloudsoda/sddl v0.0.0-20261105185302-1c8f96799263 — MIT License

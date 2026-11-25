@@ -175,6 +175,9 @@ jobs:
         run: go test -race -count=1 -run '^TestJobEnableAudited$' ./internal/server
       - name: Tests with -race (all packages except internal/server, which has its own job)
         run: go test -race -count=1 -timeout 60m $(go list ./... | grep -v '/internal/server$')
+      - name: Tests with -race of the patched go-smb2 copy (a module of its own, not in ./...)
+        working-directory: third_party/go-smb2
+        run: go test -race -count=1 -timeout 10m ./...
 
   race-server:
     # The console's tests under -race in one process outgrew a runner: it

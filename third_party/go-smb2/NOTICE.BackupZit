@@ -1,0 +1,10 @@
+This is a copy of github.com/cloudsoda/go-smb2 at
+v0.0.0-20261105190815-95be04a983b8 (BSD License, see LICENSE),
+used by BackupZit through a replace directive in its go.mod.
+The upstream tests are kept (go test ./... in this folder); its .github
+folder (CI with a Samba server) is left out.
+
+Changes by BackupZit that upstream does not have:
+(none yet)
+
+Drop this copy once upstream has these changes.

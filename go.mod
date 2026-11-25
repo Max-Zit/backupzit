@@ -119,3 +119,6 @@ require (
 // Patched copy: plausibility checks of the superblock and the extent tree
 // for crafted images; see third_party/go-ext4-filesystem/NOTICE.BackupZit.
 replace github.com/masahiro331/go-ext4-filesystem => ./third_party/go-ext4-filesystem
+
+// Patched copy for SMB throughput; see third_party/go-smb2/NOTICE.BackupZit.
+replace github.com/cloudsoda/go-smb2 => ./third_party/go-smb2
