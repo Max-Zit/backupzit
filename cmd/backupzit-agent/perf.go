@@ -35,20 +35,16 @@ func perfStart() {
 	}
 }
 
-// perfWrap counts the calls of be when BACKUPZIT_PERF is set. Storage that
-// makes objects immutable keeps its own type (it is not measured).
+// perfWrap counts the calls of be when BACKUPZIT_PERF is set.
 func perfWrap(be backend.Backend) backend.Backend {
 	if !perf.on {
-		return be
-	}
-	if _, ok := be.(backend.Retainer); ok {
 		return be
 	}
 	t := backend.NewTimed(be)
 	perf.mu.Lock()
 	perf.timed = append(perf.timed, t)
 	perf.mu.Unlock()
-	return t
+	return t.Wrapped()
 }
 
 func perfStop() {

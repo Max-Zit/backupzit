@@ -31,6 +31,20 @@ func (o *opStats) add(start time.Time, n int) {
 // NewTimed wraps be. It keeps be's upload concurrency.
 func NewTimed(be Backend) *Timed { return &Timed{Backend: be} }
 
+// Wrapped returns t as the backend to use: storage that makes objects
+// immutable (S3 with Object Lock) keeps that ability.
+func (t *Timed) Wrapped() Backend {
+	if r, ok := t.Backend.(Retainer); ok {
+		return &timedRetainer{t, r}
+	}
+	return t
+}
+
+type timedRetainer struct {
+	*Timed
+	Retainer
+}
+
 func (t *Timed) Concurrency() int { return Concurrency(t.Backend) }
 
 func (t *Timed) Save(ctx context.Context, name string, data []byte) error {

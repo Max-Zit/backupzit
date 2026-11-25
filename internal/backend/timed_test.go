@@ -45,3 +45,24 @@ func TestTimed(t *testing.T) {
 		t.Errorf("read concurrency of a timed local disk %d", n)
 	}
 }
+
+type retainingLocal struct{ Backend }
+
+func (retainingLocal) LockDays() int { return 7 }
+func (retainingLocal) KeepLocked(context.Context, []string) (int, error) {
+	return 0, nil
+}
+
+// Storage that makes objects immutable keeps that ability when counted.
+func TestTimedKeepsRetainer(t *testing.T) {
+	local, err := OpenLocal(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := NewTimed(retainingLocal{local}).Wrapped().(Retainer); !ok {
+		t.Error("a counted S3 with Object Lock lost its lock")
+	}
+	if _, ok := NewTimed(local).Wrapped().(Retainer); ok {
+		t.Error("a counted local disk claims to lock objects")
+	}
+}
