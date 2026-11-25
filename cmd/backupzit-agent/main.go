@@ -162,7 +162,11 @@ func (rf *repoFlags) backend(ctx context.Context) (backend.Backend, error) {
 		}
 		rf.opts.AsOf = t
 	}
-	return backend.Open(ctx, rf.location, rf.opts)
+	be, err := backend.Open(ctx, rf.location, rf.opts)
+	if err != nil {
+		return nil, err
+	}
+	return perfWrap(be), nil
 }
 
 func (rf *repoFlags) open(ctx context.Context) (*repo.Repository, error) {
@@ -188,7 +192,10 @@ func (rf *repoFlags) open(ctx context.Context) (*repo.Repository, error) {
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	if err := run(ctx, os.Args[1:]); err != nil {
+	perfStart()
+	err := run(ctx, os.Args[1:])
+	perfStop()
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		var ec exitCodeError
 		if errors.As(err, &ec) {
