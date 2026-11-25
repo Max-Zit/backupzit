@@ -17,7 +17,7 @@
 <p>On the image backup run, use <b>Restore this image to a disk</b>:</p>
 <ul>
   <li><b>Restore on agent</b> — the Windows machine that has the target disk. This can be a running machine with a spare disk, or a machine booted from the recovery ISO; the disk Windows is running from cannot be chosen, so restoring the system disk of a machine needs the recovery ISO.</li>
-  <li><b>Target disk</b> — must reach at least the end of the original disk's last partition (partitions are recreated with their original sizes, not shrunk) and have the same sector size (512 or 4096 bytes). <b>All data on it is destroyed.</b></li>
+  <li><b>Target disk</b> — must reach at least the end of the original disk's last partition (this restore recreates the partitions with their original sizes; to restore onto a smaller disk, use the <a href="/docs/restore#recovery-iso">recovery program</a> on the recovery ISO, which can shrink NTFS partitions) and have the same sector size (512 or 4096 bytes). <b>All data on it is destroyed.</b></li>
   <li><b>Leave the disk offline afterwards</b> — tick this when the original disk is in the same machine, so Windows does not change the disk IDs of the copy.</li>
 </ul>
 <p>GPT and MBR disks, EFI and BIOS boot are supported. The partition layout and IDs are recreated, so the restored disk boots as before.</p>

@@ -17,7 +17,7 @@
 <p>Dans l'exécution de la sauvegarde image, utilisez <b>Restaurer cette image sur un disque</b> :</p>
 <ul>
   <li><b>Restaurer sur l’agent</b> — la machine Windows qui possède le disque cible. Cela peut être une machine en marche avec un disque libre, ou une machine démarrée depuis l'ISO de récupération ; le disque à partir duquel Windows fonctionne ne peut pas être choisi, donc la restauration du disque système d'une machine nécessite l'ISO de récupération.</li>
-  <li><b>Disque cible</b> — doit aller au moins jusqu'à la fin de la dernière partition du disque d'origine (les partitions sont recréées avec leur taille d'origine, sans être réduites) et avoir la même taille de secteur (512 ou 4096 octets). <b>Toutes ses données sont détruites.</b></li>
+  <li><b>Disque cible</b> — doit aller au moins jusqu'à la fin de la dernière partition du disque d'origine (cette restauration recrée les partitions avec leur taille d'origine ; pour restaurer sur un disque plus petit, utilisez le <a href="/docs/restore#recovery-iso">programme de récupération</a> de l'ISO de récupération, qui peut réduire les partitions NTFS) et avoir la même taille de secteur (512 ou 4096 octets). <b>Toutes ses données sont détruites.</b></li>
   <li><b>Laisser ensuite le disque hors ligne</b> — cochez cette option lorsque le disque d'origine se trouve dans la même machine, afin que Windows ne modifie pas les identifiants de disque de la copie.</li>
 </ul>
 <p>Les disques GPT et MBR, l'amorçage EFI et BIOS sont pris en charge. La disposition des partitions et les identifiants sont recréés, donc le disque restauré démarre comme avant.</p>

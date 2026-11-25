@@ -17,7 +17,7 @@
 <p>Nell'esecuzione del backup d'immagine usa <b>Ripristina questa immagine su un disco</b>:</p>
 <ul>
   <li><b>Ripristina sull’agente</b> — la macchina Windows che ha il disco di destinazione. Può essere una macchina in funzione con un disco libero, o una macchina avviata dalla ISO di ripristino; il disco da cui è in esecuzione Windows non si può scegliere, quindi per ripristinare il disco di sistema di una macchina serve la ISO di ripristino.</li>
-  <li><b>Disco di destinazione</b> — deve arrivare almeno fino alla fine dell'ultima partizione del disco originale (le partizioni vengono ricreate con le dimensioni originali, non ridotte) e avere la stessa dimensione di settore (512 o 4096 byte). <b>Tutti i dati su di esso vengono distrutti.</b></li>
+  <li><b>Disco di destinazione</b> — deve arrivare almeno fino alla fine dell'ultima partizione del disco originale (questo ripristino ricrea le partizioni con le dimensioni originali; per ripristinare su un disco più piccolo usate il <a href="/docs/restore#recovery-iso">programma di ripristino</a> dell'ISO di ripristino, che può ridurre le partizioni NTFS) e avere la stessa dimensione di settore (512 o 4096 byte). <b>Tutti i dati su di esso vengono distrutti.</b></li>
   <li><b>Lascia poi il disco offline</b> — selezionalo quando il disco originale è nella stessa macchina, così Windows non cambia gli ID disco della copia.</li>
 </ul>
 <p>Sono supportati dischi GPT e MBR, avvio EFI e BIOS. Il layout delle partizioni e gli ID vengono ricreati, quindi il disco ripristinato si avvia come prima.</p>

@@ -17,7 +17,7 @@
 <p>W uruchomieniu kopii obrazu użyj <b>Przywróć ten obraz na dysk</b>:</p>
 <ul>
   <li><b>Przywróć na agencie</b> — maszyna Windows z dyskiem docelowym. Może to być działająca maszyna z wolnym dyskiem albo maszyna uruchomiona z ISO odzyskiwania; nie można wybrać dysku, z którego działa Windows, więc przywrócenie dysku systemowego maszyny wymaga ISO odzyskiwania.</li>
-  <li><b>Dysk docelowy</b> — musi sięgać co najmniej do końca ostatniej partycji oryginalnego dysku (partycje są odtwarzane w oryginalnych rozmiarach, a nie zmniejszane) i mieć ten sam rozmiar sektora (512 lub 4096 bajtów). <b>Wszystkie dane na nim zostaną zniszczone.</b></li>
+  <li><b>Dysk docelowy</b> — musi sięgać co najmniej do końca ostatniej partycji oryginalnego dysku (to przywracanie odtwarza partycje w oryginalnych rozmiarach; aby przywrócić na mniejszy dysk, użyj <a href="/docs/restore#recovery-iso">programu odzyskiwania</a> z ISO odzyskiwania, który potrafi zmniejszać partycje NTFS) i mieć ten sam rozmiar sektora (512 lub 4096 bajtów). <b>Wszystkie dane na nim zostaną zniszczone.</b></li>
   <li><b>Pozostaw potem dysk offline</b> — zaznacz, gdy oryginalny dysk jest w tej samej maszynie, aby Windows nie zmienił identyfikatorów dysku kopii.</li>
 </ul>
 <p>Obsługiwane są dyski GPT i MBR oraz rozruch EFI i BIOS. Układ partycji i identyfikatory są odtwarzane, więc przywrócony dysk uruchamia się jak wcześniej.</p>

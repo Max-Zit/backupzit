@@ -17,7 +17,7 @@
 <p>V běhu zálohy obrazu použijte <b>Obnovit tento obraz na disk</b>:</p>
 <ul>
   <li><b>Obnovit na agentovi</b> — počítač s Windows, který má cílový disk. Může to být běžící počítač s volným diskem, nebo počítač spuštěný z obnovovacího ISO; disk, ze kterého běží Windows, nelze zvolit, takže obnova systémového disku počítače vyžaduje obnovovací ISO.</li>
-  <li><b>Cílový disk</b> — musí sahat alespoň po konec posledního oddílu původního disku (oddíly se znovu vytvoří v původních velikostech, nezmenšují se) a mít stejnou velikost sektoru (512 nebo 4096 bajtů). <b>Všechna data na něm budou zničena.</b></li>
+  <li><b>Cílový disk</b> — musí sahat alespoň po konec posledního oddílu původního disku (tato obnova vytvoří oddíly v původních velikostech; pro obnovu na menší disk použijte <a href="/docs/restore#recovery-iso">program pro obnovu</a> na ISO pro obnovu, který umí oddíly NTFS zmenšit) a mít stejnou velikost sektoru (512 nebo 4096 bajtů). <b>Všechna data na něm budou zničena.</b></li>
   <li><b>Ponechat disk poté offline</b> — zaškrtněte, pokud je původní disk ve stejném počítači, aby Windows nezměnily ID disku kopie.</li>
 </ul>
 <p>Podporovány jsou disky GPT i MBR a zavádění EFI i BIOS. Rozložení oddílů a ID se znovu vytvoří, takže obnovený disk se spustí jako dřív.</p>

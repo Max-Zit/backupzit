@@ -17,7 +17,7 @@
 <p>Görüntü yedeği çalıştırmasında <b>Bu görüntüyü bir diske geri yükle</b>'yi kullanın:</p>
 <ul>
   <li><b>Aracıda geri yükle</b> — hedef diske sahip Windows makinesi. Boş diski olan çalışan bir makine ya da kurtarma ISO'sundan başlatılmış bir makine olabilir; Windows'un çalıştığı disk seçilemez, bu yüzden bir makinenin sistem diskini geri yüklemek için kurtarma ISO'su gerekir.</li>
-  <li><b>Hedef disk</b> — en az orijinal diskin son bölümünün bittiği yere kadar uzanmalı (bölümler küçültülmeden, özgün boyutlarıyla yeniden oluşturulur) ve aynı sektör boyutuna (512 veya 4096 bayt) sahip olmalıdır. <b>Üzerindeki tüm veriler yok edilir.</b></li>
+  <li><b>Hedef disk</b> — en az orijinal diskin son bölümünün bittiği yere kadar uzanmalı (bu geri yükleme bölümleri özgün boyutlarıyla oluşturur; daha küçük bir diske geri yüklemek için NTFS bölümlerini küçültebilen kurtarma ISO'sundaki <a href="/docs/restore#recovery-iso">kurtarma programını</a> kullanın) ve aynı sektör boyutuna (512 veya 4096 bayt) sahip olmalıdır. <b>Üzerindeki tüm veriler yok edilir.</b></li>
   <li><b>Diski sonra çevrimdışı bırak</b> — orijinal disk aynı makinedeyse işaretleyin, böylece Windows kopyanın disk kimliklerini değiştirmez.</li>
 </ul>
 <p>GPT ve MBR diskler, EFI ve BIOS önyükleme desteklenir. Bölüm düzeni ve kimlikler yeniden oluşturulur, böylece geri yüklenen disk önceki gibi önyüklenir.</p>

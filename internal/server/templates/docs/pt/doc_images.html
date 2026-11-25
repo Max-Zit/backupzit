@@ -17,7 +17,7 @@
 <p>Na execução do backup de imagem, use <b>Restaurar esta imagem em um disco</b>:</p>
 <ul>
   <li><b>Restaurar no agente</b> — a máquina Windows que tem o disco de destino. Pode ser uma máquina em funcionamento com um disco livre ou uma máquina iniciada pela ISO de recuperação; o disco a partir do qual o Windows está rodando não pode ser escolhido, então restaurar o disco do sistema de uma máquina exige a ISO de recuperação.</li>
-  <li><b>Disco de destino</b> — deve alcançar pelo menos o fim da última partição do disco original (as partições são recriadas com os tamanhos originais, sem ser reduzidas) e ter o mesmo tamanho de setor (512 ou 4096 bytes). <b>Todos os dados nele são destruídos.</b></li>
+  <li><b>Disco de destino</b> — deve alcançar pelo menos o fim da última partição do disco original (esta restauração recria as partições com os tamanhos originais; para restaurar em um disco menor, use o <a href="/docs/restore#recovery-iso">programa de recuperação</a> da ISO de recuperação, que pode reduzir partições NTFS) e ter o mesmo tamanho de setor (512 ou 4096 bytes). <b>Todos os dados nele são destruídos.</b></li>
   <li><b>Deixar o disco offline depois</b> — marque quando o disco original estiver na mesma máquina, para que o Windows não altere os IDs de disco da cópia.</li>
 </ul>
 <p>Discos GPT e MBR, boot EFI e BIOS são suportados. O layout de partições e os IDs são recriados, então o disco restaurado inicia como antes.</p>

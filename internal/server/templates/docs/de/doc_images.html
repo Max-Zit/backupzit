@@ -17,7 +17,7 @@
 <p>Verwenden Sie im Lauf der Abbildsicherung <b>Dieses Abbild auf eine Festplatte wiederherstellen</b>:</p>
 <ul>
   <li><b>Auf Agent wiederherstellen</b> — die Windows-Maschine mit der Zielfestplatte. Das kann eine laufende Maschine mit einer freien Festplatte sein oder eine vom Wiederherstellungs-ISO gestartete Maschine; die Festplatte, von der Windows läuft, kann nicht gewählt werden, daher braucht die Wiederherstellung der Systemfestplatte einer Maschine das Wiederherstellungs-ISO.</li>
-  <li><b>Zieldatenträger</b> — muss mindestens bis zum Ende der letzten Partition der Originalfestplatte reichen (Partitionen werden in ihrer ursprünglichen Größe neu angelegt, nicht verkleinert) und dieselbe Sektorgröße haben (512 oder 4096 Bytes). <b>Alle Daten darauf werden gelöscht.</b></li>
+  <li><b>Zieldatenträger</b> — muss mindestens bis zum Ende der letzten Partition der Originalfestplatte reichen (diese Wiederherstellung legt die Partitionen in ihrer ursprünglichen Größe an; für eine kleinere Festplatte verwenden Sie das <a href="/docs/restore#recovery-iso">Wiederherstellungsprogramm</a> auf der Wiederherstellungs-ISO, das NTFS-Partitionen verkleinern kann) und dieselbe Sektorgröße haben (512 oder 4096 Bytes). <b>Alle Daten darauf werden gelöscht.</b></li>
   <li><b>Festplatte danach offline lassen</b> — aktivieren Sie dies, wenn sich die Originalfestplatte in derselben Maschine befindet, damit Windows die Datenträger-IDs der Kopie nicht ändert.</li>
 </ul>
 <p>GPT- und MBR-Festplatten, EFI- und BIOS-Boot werden unterstützt. Partitionslayout und IDs werden neu erstellt, sodass die wiederhergestellte Festplatte wie zuvor startet.</p>

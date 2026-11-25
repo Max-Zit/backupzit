@@ -17,7 +17,7 @@
 <p>Gebruik in de run van de image-back-up <b>Deze image op een schijf herstellen</b>:</p>
 <ul>
   <li><b>Herstellen op agent</b> — de Windows-machine met de doelschijf. Dat kan een draaiende machine met een vrije schijf zijn, of een machine die vanaf de herstel-ISO is opgestart; de schijf waarvan Windows draait, kan niet worden gekozen, dus voor het herstellen van de systeemschijf van een machine is de herstel-ISO nodig.</li>
-  <li><b>Doelschijf</b> — moet minstens reiken tot het einde van de laatste partitie van de oorspronkelijke schijf (partities worden met hun oorspronkelijke grootte opnieuw aangemaakt, niet verkleind) en dezelfde sectorgrootte hebben (512 of 4096 bytes). <b>Alle gegevens erop worden vernietigd.</b></li>
+  <li><b>Doelschijf</b> — moet minstens reiken tot het einde van de laatste partitie van de oorspronkelijke schijf (dit herstel maakt de partities met hun oorspronkelijke grootte aan; gebruik voor een kleinere schijf het <a href="/docs/restore#recovery-iso">herstelprogramma</a> op de herstel-ISO, dat NTFS-partities kan verkleinen) en dezelfde sectorgrootte hebben (512 of 4096 bytes). <b>Alle gegevens erop worden vernietigd.</b></li>
   <li><b>Schijf daarna offline laten</b> — vink dit aan als de originele schijf in dezelfde machine zit, zodat Windows de schijf-ID's van de kopie niet wijzigt.</li>
 </ul>
 <p>GPT- en MBR-schijven, EFI- en BIOS-opstart worden ondersteund. De partitie-indeling en ID's worden opnieuw gemaakt, zodat de herstelde schijf opstart zoals voorheen.</p>
