@@ -453,6 +453,7 @@
   "Dashboard": "Pulpit",
   "Data": "Dane",
   "Data check": "Sprawdzenie danych",
+  "Data packs checked: %d / %d": "Sprawdzone pakiety danych: %d / %d",
   "Data read: %s": "Odczytane dane: %s",
   "Data repair": "Naprawa danych",
   "Database": "Baza danych",

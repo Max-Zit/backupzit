@@ -453,6 +453,7 @@
   "Dashboard": "仪表板",
   "Data": "数据",
   "Data check": "数据检查",
+  "Data packs checked: %d / %d": "已检查的数据包：%d / %d",
   "Data read: %s": "读取的数据：%s",
   "Data repair": "数据修复",
   "Database": "数据库",

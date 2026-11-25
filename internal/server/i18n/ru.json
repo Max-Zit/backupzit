@@ -453,6 +453,7 @@
   "Dashboard": "Панель",
   "Data": "Данные",
   "Data check": "Проверка данных",
+  "Data packs checked: %d / %d": "Проверено пакетов данных: %d / %d",
   "Data read: %s": "Прочитано данных: %s",
   "Data repair": "Исправление данных",
   "Database": "База данных",

@@ -453,6 +453,7 @@
   "Dashboard": "Tableau de bord",
   "Data": "Données",
   "Data check": "Vérification des données",
+  "Data packs checked: %d / %d": "Paquets de données vérifiés : %d / %d",
   "Data read: %s": "Données lues : %s",
   "Data repair": "Réparation des données",
   "Database": "Base de données",

@@ -453,6 +453,7 @@
   "Dashboard": "Dashboard",
   "Data": "Gegevens",
   "Data check": "Gegevenscontrole",
+  "Data packs checked: %d / %d": "Gecontroleerde gegevenspakketten: %d / %d",
   "Data read: %s": "Gelezen gegevens: %s",
   "Data repair": "Gegevensherstel",
   "Database": "Database",
