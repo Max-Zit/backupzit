@@ -52,7 +52,7 @@
   <li><b>Vrati ih na agenta</b> — u folder ili na originalnu lokaciju, kao vraćanje sa <i>Samo ove putanje</i>.</li>
 </ul>
 <p><b>Simbolički link</b> ka fajlu (npr. <code>/etc/os-release</code>) preuzima se kao fajl na koji pokazuje, ako je taj fajl u bekapu; linkovi ka folderima se izostavljaju iz ZIP arhiva. Isto važi za fajlove preuzete iz bekapa virtuelnih mašina (ext4, XFS). Vraćanje na agenta ponovo pravi linkove kao linkove.</p>
-<p>Konzola sama čita bekap sa skladišta, pa pregled radi za bekape na mrežnom skladištu (SFTP, S3, SMB, Azure, ojačani repozitorijum); za lokalni ili USB disk agenta, i za skladište <a href="/docs/storage#agents-only">dostupno samo agentima</a>, vratite pomoću putanja. Korisnici sa ulogom za vraćanje mogu da pregledaju i preuzimaju.</p>
+<p>Konzola sama čita bekap sa skladišta, pa pregled radi za bekape na mrežnom skladištu (SFTP, S3, SMB, Azure, ojačani repozitorijum); skladište <a href="/docs/storage#agents-only">dostupno samo agentima</a> čita preko agenta koji ga koristi (agenti 0.61 i noviji). Za lokalni disk ili USB disk agenta vratite po putanjama. Korisnici sa ulogom za vraćanje mogu da pregledaju i preuzimaju.</p>
 
 <div class="callout tip"><p><b>Kako naći pravi bekap:</b> u <a href="/calendar">Kalendaru</a> vidite koji bekapi su radili kog dana, ili pogledajte istoriju na stranici posla.</p></div>
 
@@ -87,7 +87,7 @@
       <li>Po želji kopirajte ISO u <code>/var/lib/backupzit/dist</code> konzole; tada se nudi na stranici Medijum za oporavak.</li>
     </ol></li>
 </ul>
-<p>Pregled fajlova u konzoli radi za bekape na mrežnom skladištu (SFTP, S3, SMB, Azure, ojačani repozitorijum); konzola ih čita direktno. Za bekape na lokalnom disku agenta, na SFTP-u sa SSH ključem ili na skladištu dostupnom samo agentima (konzola to tada odmah kaže), vraćanje sa <i>Samo ove putanje</i> i dalje radi iz konzole; da biste pregledali njihov sadržaj, koristite komandnu liniju.</p>
+<p>Pregled fajlova u konzoli radi za bekape na mrežnom skladištu (SFTP, S3, SMB, Azure, ojačani repozitorijum): konzola ih čita direktno ili, za skladište dostupno samo agentima, preko agenta koji ga koristi (i sa SSH ključem; agenti 0.61 i noviji). Za bekape na lokalnom disku agenta ili na SFTP-u sa SSH ključem i dalje radi vraćanje sa <i>Samo ove putanje</i> iz konzole; da biste zavirili u njih, koristite komandnu liniju.</p>
 
 <h2>Vraćanje bez konzole</h2>
 <p>Ako se izgubi i sama konzola, bilo koja mašina sa instaliranim agentom može da vrati direktno sa skladišta, pomoću <b>lista za oporavak</b> tog skladišta:</p>

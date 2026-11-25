@@ -52,7 +52,7 @@
   <li><b>Bir aracıda geri yükle</b> — <i>Yalnızca bu yollar</i> ile yapılan bir geri yükleme gibi bir klasöre veya özgün konuma.</li>
 </ul>
 <p>Bir dosyaya işaret eden <b>sembolik bağlantı</b> (ör. <code>/etc/os-release</code>), işaret ettiği dosya yedekteyse o dosya olarak indirilir; klasörlere giden bağlantılar ZIP arşivlerine alınmaz. Aynısı sanal makine yedeklerinden (ext4, XFS) indirilen dosyalar için de geçerlidir. Bir aracıdaki geri yükleme bağlantıları bağlantı olarak yeniden oluşturur.</p>
-<p>Konsol yedeği depolamadan kendisi okur; bu yüzden göz atma ağ depolamasındaki yedekler için çalışır (SFTP, S3, SMB, Azure, güçlendirilmiş depo); bir aracının yerel diski veya USB diski için ve <a href="/docs/storage#agents-only">yalnızca aracıların erişebildiği</a> depolama için yollarla geri yükleyin. Geri yükleme rolüne sahip kullanıcılar göz atabilir ve indirebilir.</p>
+<p>Konsol yedeği depolamadan kendisi okur; bu yüzden göz atma, ağ depolamasındaki (SFTP, S3, SMB, Azure, sağlamlaştırılmış depo) yedeklerde çalışır; <a href="/docs/storage#agents-only">yalnızca aracıların erişebildiği</a> depolamayı onu kullanan bir aracı üzerinden okur (aracılar 0.61 ve daha yenisi). Bir aracının yerel diski veya USB diski için yollarla geri yükleyin. Geri yükleme rolüne sahip kullanıcılar göz atabilir ve indirebilir.</p>
 
 <div class="callout tip"><p><b>Doğru yedeği bulma:</b> hangi yedeklerin hangi gün çalıştığını görmek için <a href="/calendar">Takvim</a>'i veya iş sayfasındaki geçmişi kullanın.</p></div>
 
@@ -87,7 +87,7 @@
       <li>İsteğe bağlı olarak ISO'yu konsolun <code>/var/lib/backupzit/dist</code> dizinine kopyalayın; ardından Kurtarma ortamı sayfasında sunulur.</li>
     </ol></li>
 </ul>
-<p>Konsolda dosyalara göz atma, ağ depolamasındaki yedekler için çalışır (SFTP, S3, SMB, Azure, güçlendirilmiş depo); konsol onları doğrudan okur. Bir aracının yerel diskindeki, SSH anahtarıyla erişilen SFTP'deki veya yalnızca aracıların erişebildiği depolamadaki yedekler için (konsol bu durumda bunu hemen bildirir) <i>Yalnızca bu yollar</i> ile geri yükleme konsoldan yine çalışır; içlerine bakmak için komut satırını kullanın.</p>
+<p>Konsolda dosyalara göz atma, ağ depolamasındaki (SFTP, S3, SMB, Azure, sağlamlaştırılmış depo) yedeklerde çalışır: konsol bunları doğrudan okur ya da yalnızca aracıların erişebildiği depolamada onu kullanan bir aracı üzerinden okur (SSH anahtarıyla da; aracılar 0.61 ve daha yenisi). Bir aracının yerel diskindeki veya SSH anahtarlı SFTP'deki yedekler için konsoldan <i>Yalnızca bu yollar</i> ile geri yükleme hâlâ çalışır; içlerine bakmak için komut satırını kullanın.</p>
 
 <h2>Konsol olmadan geri yükleme</h2>
 <p>Konsolun kendisi kaybolursa, aracısı kurulu herhangi bir makine, depolama hedefinin <b>kurtarma sayfası</b>nı kullanarak doğrudan depolamadan geri yükleyebilir:</p>

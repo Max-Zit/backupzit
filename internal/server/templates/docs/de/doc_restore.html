@@ -52,7 +52,7 @@
   <li><b>Oder auf einem Agenten wiederherstellen</b> — in einen Ordner oder an den ursprünglichen Ort, wie eine Wiederherstellung mit <i>Nur diese Pfade</i>.</li>
 </ul>
 <p>Ein <b>symbolischer Link</b> auf eine Datei (z. B. <code>/etc/os-release</code>) wird als die Datei heruntergeladen, auf die er zeigt, wenn diese in der Sicherung ist; Links auf Ordner werden in ZIP-Archiven ausgelassen. Dasselbe gilt für Dateien, die aus VM-Sicherungen heruntergeladen werden (ext4, XFS). Eine Wiederherstellung auf einem Agenten legt Links wieder als Links an.</p>
-<p>Die Konsole liest die Sicherung selbst vom Speicher, daher funktioniert das Durchsuchen für Sicherungen auf Netzwerkspeicher (SFTP, S3, SMB, Azure, gehärtetes Repository); bei einer lokalen oder USB-Festplatte eines Agenten und bei Speicher, der <a href="/docs/storage#agents-only">nur für Agenten erreichbar</a> ist, stellen Sie mit den Pfaden wieder her. Benutzer mit einer Wiederherstellungsrolle dürfen durchsuchen und herunterladen.</p>
+<p>Die Konsole liest die Sicherung selbst vom Speicher, daher funktioniert das Durchsuchen für Sicherungen auf Netzwerkspeicher (SFTP, S3, SMB, Azure, gehärtetes Repository); Speicher, der <a href="/docs/storage#agents-only">nur für Agenten erreichbar</a> ist, liest sie über einen Agenten, der ihn verwendet (Agenten ab 0.61). Bei einem lokalen Datenträger oder einem USB-Datenträger eines Agenten stellen Sie mit den Pfaden wieder her. Benutzer mit einer Wiederherstellungsrolle dürfen durchsuchen und herunterladen.</p>
 
 <div class="callout tip"><p><b>Die richtige Sicherung finden:</b> Im <a href="/calendar">Kalender</a> sehen Sie, welche Sicherungen an welchem Tag liefen, oder nutzen Sie den Verlauf auf der Auftragsseite.</p></div>
 
@@ -87,7 +87,7 @@
       <li>Kopieren Sie das ISO optional in das Verzeichnis <code>/var/lib/backupzit/dist</code> der Konsole; es wird dann auf der Seite Wiederherstellungsmedien angeboten.</li>
     </ol></li>
 </ul>
-<p>Das Durchsuchen von Dateien in der Konsole funktioniert für Sicherungen auf Netzwerkspeicher (SFTP, S3, SMB, Azure, gehärtetes Repository); die Konsole liest sie direkt. Für Sicherungen auf einer lokalen Festplatte eines Agenten, auf SFTP mit SSH-Schlüssel oder auf Speicher, der nur für Agenten erreichbar ist (die Konsole sagt das dann sofort), funktioniert eine Wiederherstellung mit <i>Nur diese Pfade</i> weiterhin aus der Konsole; um ihren Inhalt anzusehen, verwenden Sie die Befehlszeile.</p>
+<p>Das Durchsuchen von Dateien in der Konsole funktioniert für Sicherungen auf Netzwerkspeicher (SFTP, S3, SMB, Azure, gehärtetes Repository): Die Konsole liest sie direkt oder, bei Speicher, der nur für Agenten erreichbar ist, über einen Agenten, der ihn verwendet (auch mit SSH-Schlüssel; Agenten ab 0.61). Für Sicherungen auf einem lokalen Datenträger eines Agenten oder auf SFTP mit SSH-Schlüssel funktioniert eine Wiederherstellung mit <i>Nur diese Pfade</i> aus der Konsole weiterhin; um hineinzusehen, verwenden Sie die Befehlszeile.</p>
 
 <h2>Ohne die Konsole wiederherstellen</h2>
 <p>Geht die Konsole selbst verloren, kann jeder Rechner mit installiertem Agenten mit dem <b>Wiederherstellungsblatt</b> des Speicherziels direkt vom Speicher wiederherstellen:</p>

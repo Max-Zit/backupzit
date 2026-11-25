@@ -26,7 +26,7 @@
   <li>konzola ga ne testira ni kada se doda ni kasnije; <b>Testiraj vezu</b> nudi samo agente;</li>
   <li><a href="#find">Pronađi backup-e</a> ga pretražuje preko agenta, kao lokalne i USB diskove;</li>
   <li>ne nudi se za <a href="/docs/install#console-backup">bekap konzole</a>, a skladište na koje ide bekap konzole ne može da dobije ovu opciju;</li>
-  <li>pregled fajlova njegovih bekapa i preuzimanje pojedinačnih fajlova odmah kažu da se konzola ne povezuje na skladište, umesto da čekaju da veza istekne; umesto toga vratite sa <i>Samo ove putanje</i> (vidi <a href="/docs/restore#browse-files">Vraćanje</a>);</li>
+  <li>pregled fajlova njegovih bekapa i preuzimanje pojedinačnih fajlova idu preko agenta koji koristi skladište: agenta koji je napravio bekap ili, kada je on offline, drugog online agenta koji je koristio ovo skladište (agenti 0.61 i noviji; prva stranica može da traje do pola minuta dok agent ne dobije zahtev). Sa starijim agentima umesto toga vratite sa <i>Samo ove putanje</i> (vidi <a href="/docs/restore#browse-files">Vraćanje</a>);</li>
   <li>kada se agent ukloni, konzola ne briše njegove bekape na tom skladištu; obrišite folder na samom skladištu.</li>
 </ul>
 

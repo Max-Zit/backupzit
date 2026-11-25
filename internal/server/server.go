@@ -97,6 +97,8 @@ type Server struct {
 	cleanups sync.WaitGroup
 	// live is the progress of running runs reported by the agents.
 	live liveProgress
+	// relay holds the storage reads waiting for agents (relay.go, #63).
+	relay relayHub
 	// clocks is how far the agents' clocks are off.
 	clocks    clockTracker
 	sessCache sessionCache
@@ -106,6 +108,7 @@ type Server struct {
 // New creates a server.
 func New(store *Store, log *slog.Logger) (*Server, error) {
 	s := &Server{store: store, log: log, PollInterval: 30, Version: "dev", cache: newRepoCache(), clock: time.Now, dups: newDupTracker()}
+	s.cache.relay = s.relayOpen
 	s.guard = newLoginGuard(store, func() time.Time { return s.clock() })
 	s.guard.onBlock = s.notifyBlock
 	if err := s.loadTemplates(); err != nil {
@@ -415,6 +418,8 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST "+api.PathPoll, s.agentAuth(s.handlePoll))
 	mux.HandleFunc("GET /api/deploy/{token}/{name}", s.handleDeployDownload)
 	mux.HandleFunc("GET "+api.PathDownloadPrefix+"{file}", s.agentAuth(s.handleAgentDownload))
+	mux.HandleFunc("POST "+api.PathRelayNext, s.agentAuth(s.handleRelayNext))
+	mux.HandleFunc("POST "+api.PathRelayReplyPrefix+"{id}", s.agentAuth(s.handleRelayReply))
 	mux.HandleFunc("POST "+api.PathJobRunPrefix+"{id}/run", s.agentAuth(s.handleAgentJobRun))
 	mux.HandleFunc("POST "+api.PathRunsPrefix+"{id}/finish", s.agentAuth(s.handleRunFinish))
 	mux.HandleFunc("POST "+api.PathRunsPrefix+"{id}/log", s.agentAuth(s.handleAgentLogUpload))

@@ -26,7 +26,7 @@
   <li>la console ne le teste ni lors de l'ajout ni plus tard ; <b>Tester la connexion</b> ne propose que des agents ;</li>
   <li><a href="#find">Rechercher des sauvegardes</a> le parcourt via un agent, comme pour les disques locaux et USB ;</li>
   <li>il n'est pas proposé pour la <a href="/docs/install#console-backup">sauvegarde de la console</a>, et la cible de la sauvegarde de la console ne peut pas recevoir l'option ;</li>
-  <li>parcourir les fichiers de ses sauvegardes et télécharger des fichiers individuels indiquent immédiatement que la console ne se connecte pas au stockage, au lieu d'attendre l'expiration du délai de connexion ; restaurez plutôt avec <i>Uniquement ces chemins</i> (voir <a href="/docs/restore#browse-files">Restauration</a>) ;</li>
+  <li>parcourir les fichiers de ses sauvegardes et télécharger des fichiers isolés passe par un agent qui utilise le stockage : l’agent qui a fait la sauvegarde ou, s’il est hors ligne, un autre agent en ligne qui a utilisé ce stockage (agents 0.61 et plus récents ; la première page peut prendre jusqu’à une demi-minute, le temps que l’agent reçoive la demande). Avec des agents plus anciens, restaurez plutôt avec <i>Uniquement ces chemins</i> (voir <a href="/docs/restore#browse-files">Restauration</a>) ;</li>
   <li>lorsqu'un agent est supprimé, la console n'y supprime pas ses sauvegardes ; supprimez le dossier directement sur le stockage.</li>
 </ul>
 

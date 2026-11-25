@@ -26,7 +26,7 @@
   <li>the console does not test it when it is added or later; <b>Test connection</b> offers only agents;</li>
   <li><a href="#find">Find backups</a> searches it through an agent, as for local and USB disks;</li>
   <li>it is not offered for the <a href="/docs/install#console-backup">console backup</a>, and the target of the console backup cannot get the option;</li>
-  <li>browsing the files of its backups and downloading single files say at once that the console does not connect to the storage, instead of waiting until the connection times out; restore with <i>Only these paths</i> instead (see <a href="/docs/restore#browse-files">Restore</a>);</li>
+  <li>browsing the files of its backups and downloading single files go through an agent that uses the storage: the agent that made the backup or, when it is offline, another online agent that has used this storage (agents 0.61 and newer; the first page can take up to half a minute until the agent gets the request). With older agents, restore with <i>Only these paths</i> instead (see <a href="/docs/restore#browse-files">Restore</a>);</li>
   <li>when an agent is removed, the console does not delete its backups there; delete the folder on the storage itself.</li>
 </ul>
 

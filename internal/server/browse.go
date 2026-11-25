@@ -24,6 +24,9 @@ type repoCache struct {
 	repos map[string]*cachedRepo
 	vols  map[string]*cachedVolume
 	vm    map[string]*cachedVMDisk
+	// relay opens storage reachable by agents only through an agent (#63);
+	// nil: such storage is not browsed.
+	relay func(ctx context.Context, t Target, url string) (backend.Backend, error)
 }
 
 type cachedRepo struct {
@@ -47,9 +50,11 @@ func newRepoCache() *repoCache {
 func (c *repoCache) drop(url string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if cr, ok := c.repos[url]; ok {
-		_ = cr.r.Close()
-		delete(c.repos, url)
+	for _, k := range []string{url, relayCacheKey + url} {
+		if cr, ok := c.repos[k]; ok {
+			_ = cr.r.Close()
+			delete(c.repos, k)
+		}
 	}
 }
 
@@ -82,7 +87,7 @@ func browseRefused(t Target) error {
 	case localTarget(t):
 		return ErrBrowseLocal
 	case t.AgentsOnly:
-		return ErrBrowseAgentsOnly
+		return nil // read through an agent (relay.go), which also handles SSH keys
 	case t.SFTPKey != "":
 		return errors.New("browsing storage that uses SSH key authentication is not supported yet")
 	}
@@ -93,26 +98,35 @@ func (c *repoCache) repo(ctx context.Context, t Target, url string) (*repo.Repos
 	if localTarget(t) {
 		return nil, ErrBrowseLocal
 	}
-	// Also when the repository is still cached from before the target was
-	// marked.
+	key := url
+	// The repository is used for many requests; do not tie it to one.
+	open := func() (backend.Backend, error) {
+		return backend.Open(context.WithoutCancel(ctx), url, backend.Options{
+			SFTPPassword: t.SFTPPassword, SFTPKeyFile: "", SFTPHostKey: t.SFTPHostKey,
+			S3AccessKey: t.S3AccessKey, S3SecretKey: t.S3SecretKey, S3Region: t.S3Region, S3LockDays: t.S3LockDays,
+			SMBPassword: t.SMBPassword, SMBDomain: t.SMBDomain,
+			HardenedKey: t.HardenedKey, HardenedFingerprint: t.HardenedFingerprint,
+			AzureKey: t.AzureKey, AzureSAS: t.AzureSAS,
+		})
+	}
+	// Storage reachable by agents only is read through an agent (#63), under
+	// a key of its own: a repository cached from before the target was
+	// marked is not used.
 	if t.AgentsOnly {
-		return nil, ErrBrowseAgentsOnly
+		if c.relay == nil {
+			return nil, ErrBrowseAgentsOnly
+		}
+		key = relayCacheKey + url
+		open = func() (backend.Backend, error) { return c.relay(ctx, t, url) }
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.expire()
-	if cr, ok := c.repos[url]; ok {
+	if cr, ok := c.repos[key]; ok {
 		cr.used = time.Now()
 		return cr.r, nil
 	}
-	// The repository is used for many requests; do not tie it to one.
-	be, err := backend.Open(context.WithoutCancel(ctx), url, backend.Options{
-		SFTPPassword: t.SFTPPassword, SFTPKeyFile: "", SFTPHostKey: t.SFTPHostKey,
-		S3AccessKey: t.S3AccessKey, S3SecretKey: t.S3SecretKey, S3Region: t.S3Region, S3LockDays: t.S3LockDays,
-		SMBPassword: t.SMBPassword, SMBDomain: t.SMBDomain,
-		HardenedKey: t.HardenedKey, HardenedFingerprint: t.HardenedFingerprint,
-		AzureKey: t.AzureKey, AzureSAS: t.AzureSAS,
-	})
+	be, err := open()
 	if err != nil {
 		return nil, fmt.Errorf("connect to storage: %w", err)
 	}
@@ -121,9 +135,12 @@ func (c *repoCache) repo(ctx context.Context, t Target, url string) (*repo.Repos
 		_ = be.Close()
 		return nil, fmt.Errorf("open repository: %w", err)
 	}
-	c.repos[url] = &cachedRepo{r: r, used: time.Now()}
+	c.repos[key] = &cachedRepo{r: r, used: time.Now()}
 	return r, nil
 }
+
+// relayCacheKey prefixes the cache key of a repository read through an agent.
+const relayCacheKey = "relay "
 
 // volume opens partition part of the image produced by backup run run.
 func (s *Server) imageVolume(ctx context.Context, run Run, part int) (*imaging.Volume, *repo.PartitionImage, error) {
@@ -291,6 +308,9 @@ func (s *Store) QueueImageFileRestore(ctx context.Context, backupRunID, agentID 
 // backup (new packs, or packs repacked by retention since): it is opened
 // again and use runs once more.
 func (s *Server) openRunSnapshot(ctx context.Context, t Target, run Run, use func(*repo.Repository, *repo.Snapshot) error) error {
+	// Storage reachable by agents only is read through the agent that made
+	// the backup, when it is online (#63).
+	ctx = withRelayAgent(ctx, run.AgentID)
 	try := func() error {
 		r, err := s.cache.repo(ctx, t, run.RepoURL)
 		if err != nil {

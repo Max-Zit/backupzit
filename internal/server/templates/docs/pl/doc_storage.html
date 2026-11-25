@@ -26,7 +26,7 @@
   <li>konsola nie testuje go ani przy dodawaniu, ani później; <b>Testuj połączenie</b> proponuje tylko agentów;</li>
   <li><a href="#find">Znajdź kopie</a> przeszukuje go przez agenta, tak jak dyski lokalne i USB;</li>
   <li>nie jest proponowany dla <a href="/docs/install#console-backup">kopii konsoli</a>, a miejsce docelowe kopii konsoli nie może otrzymać tej opcji;</li>
-  <li>przeglądanie plików jego kopii i pobieranie pojedynczych plików od razu informuje, że konsola nie łączy się z magazynem, zamiast czekać, aż upłynie limit czasu połączenia; zamiast tego przywracaj z opcją <i>Tylko te ścieżki</i> (zob. <a href="/docs/restore#browse-files">Przywracanie</a>);</li>
+  <li>przeglądanie plików jego kopii i pobieranie pojedynczych plików odbywa się przez agenta, który używa magazynu: agenta, który utworzył kopię, albo, gdy jest offline, innego agenta online, który używał tego magazynu (agenci 0.61 i nowsi; pierwsza strona może się ładować do pół minuty, zanim agent otrzyma żądanie). Przy starszych agentach przywróć zamiast tego z <i>Tylko te ścieżki</i> (zobacz <a href="/docs/restore#browse-files">Przywracanie</a>);</li>
   <li>po usunięciu agenta konsola nie usuwa jego kopii w tym magazynie; usuń folder bezpośrednio w magazynie.</li>
 </ul>
 

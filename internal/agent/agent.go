@@ -255,7 +255,9 @@ type Agent struct {
 	cancels map[int64]context.CancelFunc
 	// inventoryAt is when the disk inventory was last sent.
 	inventoryAt time.Time
-	wg          sync.WaitGroup
+	// relaying is true while the agent reads storage for the console (relay.go).
+	relaying bool
+	wg       sync.WaitGroup
 
 	localOnce sync.Once
 	// machineUUID is the BIOS UUID of this machine (VMware proxies), read once.
@@ -297,6 +299,7 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	req.WantStatus = a.wantStatus()
 	req.ConfigurableVMBlocks = true
 	req.Runs, req.ReportsRuns = active, true
+	req.Relay = true // reads storage for the console (relay.go, 0.61)
 	// macOS: the console marks a Mac without Full Disk Access (0.61, #62).
 	if fda := macperm.FullDiskAccess(); fda != macperm.NotApplicable {
 		req.FullDiskAccess = string(fda)
@@ -336,6 +339,9 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 		a.mu.Lock()
 		a.leftoversSent = req.Leftovers
 		a.mu.Unlock()
+	}
+	if resp.Relay {
+		a.startRelay(ctx)
 	}
 	if resp.SendInventory {
 		a.mu.Lock()

@@ -52,7 +52,7 @@
   <li><b>Przywróć je na agencie</b> — do folderu lub do pierwotnej lokalizacji, jak przywracanie z <i>Tylko te ścieżki</i>.</li>
 </ul>
 <p><b>Dowiązanie symboliczne</b> do pliku (np. <code>/etc/os-release</code>) jest pobierane jako plik, na który wskazuje, jeśli ten plik jest w kopii; dowiązania do folderów są pomijane w archiwach ZIP. To samo dotyczy plików pobieranych z kopii maszyn wirtualnych (ext4, XFS). Przywracanie na agencie odtwarza dowiązania jako dowiązania.</p>
-<p>Konsola sama czyta kopię z magazynu, więc przeglądanie działa dla kopii w magazynie sieciowym (SFTP, S3, SMB, Azure, utwardzone repozytorium); dla dysku lokalnego lub USB agenta oraz dla magazynu <a href="/docs/storage#agents-only">dostępnego tylko dla agentów</a> przywracaj z podaniem ścieżek. Użytkownicy z rolą przywracania mogą przeglądać i pobierać.</p>
+<p>Konsola sama odczytuje kopię z magazynu, więc przeglądanie działa dla kopii w magazynie sieciowym (SFTP, S3, SMB, Azure, wzmocnione repozytorium); magazyn <a href="/docs/storage#agents-only">dostępny tylko dla agentów</a> odczytuje przez agenta, który go używa (agenci 0.61 i nowsi). Dla dysku lokalnego lub dysku USB agenta przywróć z podaniem ścieżek. Użytkownicy z rolą przywracania mogą przeglądać i pobierać.</p>
 
 <div class="callout tip"><p><b>Jak znaleźć właściwą kopię:</b> użyj <a href="/calendar">Kalendarza</a>, aby zobaczyć, które kopie wykonano danego dnia, albo historii na stronie zadania.</p></div>
 
@@ -87,7 +87,7 @@
       <li>Opcjonalnie skopiuj ISO do katalogu <code>/var/lib/backupzit/dist</code> konsoli; wtedy jest ono oferowane na stronie Nośniki odzyskiwania.</li>
     </ol></li>
 </ul>
-<p>Przeglądanie plików w konsoli działa dla kopii w magazynie sieciowym (SFTP, S3, SMB, Azure, utwardzone repozytorium); konsola czyta je bezpośrednio. Dla kopii na dysku lokalnym agenta, na SFTP z kluczem SSH lub w magazynie dostępnym tylko dla agentów (konsola od razu o tym informuje) przywracanie z opcją <i>Tylko te ścieżki</i> nadal działa z konsoli; aby zajrzeć do ich zawartości, użyj wiersza poleceń.</p>
+<p>Przeglądanie plików w konsoli działa dla kopii w magazynie sieciowym (SFTP, S3, SMB, Azure, wzmocnione repozytorium): konsola odczytuje je bezpośrednio albo, w przypadku magazynu dostępnego tylko dla agentów, przez agenta, który go używa (także z kluczem SSH; agenci 0.61 i nowsi). Dla kopii na dysku lokalnym agenta lub na SFTP z kluczem SSH przywracanie z <i>Tylko te ścieżki</i> nadal działa z konsoli; aby zajrzeć do środka, użyj wiersza poleceń.</p>
 
 <h2>Przywracanie bez konsoli</h2>
 <p>Jeśli zostanie utracona sama konsola, każda maszyna z zainstalowanym agentem może przywracać bezpośrednio z magazynu, korzystając z <b>arkusza odzyskiwania</b> miejsca docelowego:</p>

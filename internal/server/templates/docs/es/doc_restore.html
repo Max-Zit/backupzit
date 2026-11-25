@@ -52,7 +52,7 @@
   <li><b>Restaurarlos en un agente</b>: en una carpeta o en la ubicación original, como una restauración con <i>Solo estas rutas</i>.</li>
 </ul>
 <p>Un <b>enlace simbólico</b> a un archivo (p. ej. <code>/etc/os-release</code>) se descarga como el archivo al que apunta, si ese archivo está en la copia; los enlaces a carpetas se omiten en los archivos ZIP. Lo mismo vale para los archivos descargados de copias de máquinas virtuales (ext4, XFS). Una restauración en un agente vuelve a crear los enlaces como enlaces.</p>
-<p>La consola lee la copia directamente del almacenamiento, así que la exploración funciona con copias en almacenamiento de red (SFTP, S3, SMB, Azure, repositorio reforzado); para un disco local o USB de un agente, y para almacenamiento <a href="/docs/storage#agents-only">accesible solo para agentes</a>, restaure con las rutas. Los usuarios con un rol de restauración pueden explorar y descargar.</p>
+<p>La consola lee la copia del almacenamiento por sí misma, por lo que examinar funciona para copias en almacenamiento de red (SFTP, S3, SMB, Azure, repositorio reforzado); el almacenamiento <a href="/docs/storage#agents-only">accesible solo para agentes</a> lo lee a través de un agente que lo usa (agentes 0.61 o posteriores). Para un disco local o un disco USB de un agente, restaure con las rutas. Los usuarios con un rol de restauración pueden examinar y descargar.</p>
 
 <div class="callout tip"><p><b>Encontrar la copia correcta:</b> use el <a href="/calendar">Calendario</a> para ver qué copias se ejecutaron cada día, o el historial de la página del trabajo.</p></div>
 
@@ -87,7 +87,7 @@
       <li>Opcionalmente copie la ISO en el directorio <code>/var/lib/backupzit/dist</code> de la consola; entonces se ofrece en la página Medios de recuperación.</li>
     </ol></li>
 </ul>
-<p>Explorar archivos en la consola funciona con copias en almacenamiento de red (SFTP, S3, SMB, Azure, repositorio reforzado); la consola las lee directamente. Para copias en un disco local de un agente, en SFTP con una clave SSH o en almacenamiento accesible solo para agentes (la consola lo indica entonces enseguida), una restauración con <i>Solo estas rutas</i> sigue funcionando desde la consola; para ver su contenido, use la línea de comandos.</p>
+<p>Examinar archivos en la consola funciona para copias en almacenamiento de red (SFTP, S3, SMB, Azure, repositorio reforzado): la consola las lee directamente o, para almacenamiento accesible solo para agentes, a través de un agente que lo usa (también con una clave SSH; agentes 0.61 o posteriores). Para copias en un disco local de un agente o en SFTP con una clave SSH, una restauración con <i>Solo estas rutas</i> sigue funcionando desde la consola; para ver su contenido, use la línea de comandos.</p>
 
 <h2>Restaurar sin la consola</h2>
 <p>Si se pierde la propia consola, cualquier equipo con el agente instalado puede restaurar directamente desde el almacenamiento con la <b>hoja de recuperación</b> del destino de almacenamiento:</p>

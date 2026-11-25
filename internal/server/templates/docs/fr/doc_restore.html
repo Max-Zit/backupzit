@@ -52,7 +52,7 @@
   <li><b>Les restaurer sur un agent</b> — dans un dossier ou à l'emplacement d'origine, comme une restauration avec <i>Uniquement ces chemins</i>.</li>
 </ul>
 <p>Un <b>lien symbolique</b> vers un fichier (p. ex. <code>/etc/os-release</code>) est téléchargé comme le fichier vers lequel il pointe, si ce fichier est dans la sauvegarde ; les liens vers des dossiers sont omis des archives ZIP. Il en va de même pour les fichiers téléchargés depuis des sauvegardes de machines virtuelles (ext4, XFS). Une restauration sur un agent recrée les liens en tant que liens.</p>
-<p>La console lit elle-même la sauvegarde depuis le stockage ; la navigation fonctionne donc pour les sauvegardes sur un stockage réseau (SFTP, S3, SMB, Azure, dépôt renforcé) ; pour un disque local ou USB d'un agent, et pour un stockage <a href="/docs/storage#agents-only">accessible uniquement par les agents</a>, restaurez avec les chemins. Les utilisateurs disposant d'un rôle de restauration peuvent parcourir et télécharger.</p>
+<p>La console lit elle-même la sauvegarde sur le stockage, le parcours fonctionne donc pour les sauvegardes sur un stockage réseau (SFTP, S3, SMB, Azure, dépôt renforcé) ; un stockage <a href="/docs/storage#agents-only">accessible aux agents uniquement</a> est lu par l’intermédiaire d’un agent qui l’utilise (agents 0.61 et plus récents). Pour un disque local ou un disque USB d’un agent, restaurez avec les chemins. Les utilisateurs ayant un rôle de restauration peuvent parcourir et télécharger.</p>
 
 <div class="callout tip"><p><b>Trouver la bonne sauvegarde :</b> utilisez le <a href="/calendar">Calendrier</a> pour voir quelles sauvegardes se sont exécutées quel jour, ou l'historique de la page de la tâche.</p></div>
 
@@ -87,7 +87,7 @@
       <li>Copiez éventuellement l'ISO dans le répertoire <code>/var/lib/backupzit/dist</code> de la console ; elle est alors proposée sur la page Supports de récupération.</li>
     </ol></li>
 </ul>
-<p>La navigation dans les fichiers depuis la console fonctionne pour les sauvegardes sur un stockage réseau (SFTP, S3, SMB, Azure, dépôt renforcé) ; la console les lit directement. Pour les sauvegardes sur un disque local d'un agent, sur SFTP avec une clé SSH, ou sur un stockage accessible uniquement par les agents (la console l'indique alors immédiatement), une restauration avec <i>Uniquement ces chemins</i> fonctionne toujours depuis la console ; pour en parcourir le contenu, utilisez la ligne de commande.</p>
+<p>Parcourir les fichiers dans la console fonctionne pour les sauvegardes sur un stockage réseau (SFTP, S3, SMB, Azure, dépôt renforcé) : la console les lit directement ou, pour un stockage accessible aux agents uniquement, par l’intermédiaire d’un agent qui l’utilise (également avec une clé SSH ; agents 0.61 et plus récents). Pour les sauvegardes sur un disque local d’un agent ou sur SFTP avec une clé SSH, une restauration avec <i>Uniquement ces chemins</i> fonctionne toujours depuis la console ; pour les examiner, utilisez la ligne de commande.</p>
 
 <h2>Restaurer sans la console</h2>
 <p>Si la console elle-même est perdue, n'importe quelle machine dotée de l'agent peut restaurer directement depuis le stockage à l'aide de la <b>fiche de récupération</b> de la cible de stockage :</p>

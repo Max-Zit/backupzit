@@ -26,7 +26,7 @@
   <li>die Konsole testet ihn weder beim Hinzufügen noch später; <b>Verbindung testen</b> bietet nur Agenten an;</li>
   <li><a href="#find">Sicherungen suchen</a> durchsucht ihn über einen Agenten, wie bei lokalen und USB-Festplatten;</li>
   <li>er wird für die <a href="/docs/install#console-backup">Konsolensicherung</a> nicht angeboten, und das Ziel der Konsolensicherung kann die Option nicht erhalten;</li>
-  <li>das Durchsuchen der Dateien seiner Sicherungen und das Herunterladen einzelner Dateien melden sofort, dass sich die Konsole nicht mit dem Speicher verbindet, statt zu warten, bis die Verbindung in eine Zeitüberschreitung läuft; stellen Sie stattdessen mit <i>Nur diese Pfade</i> wieder her (siehe <a href="/docs/restore#browse-files">Wiederherstellen</a>);</li>
+  <li>das Durchsuchen der Dateien seiner Sicherungen und das Herunterladen einzelner Dateien laufen über einen Agenten, der den Speicher verwendet: den Agenten, der die Sicherung erstellt hat, oder, wenn er offline ist, einen anderen Agenten online, der diesen Speicher verwendet hat (Agenten ab 0.61; die erste Seite kann bis zu einer halben Minute dauern, bis der Agent die Anfrage erhält). Mit älteren Agenten stellen Sie stattdessen mit <i>Nur diese Pfade</i> wieder her (siehe <a href="/docs/restore#browse-files">Wiederherstellen</a>);</li>
   <li>wird ein Agent entfernt, löscht die Konsole seine Sicherungen dort nicht; löschen Sie den Ordner auf dem Speicher selbst.</li>
 </ul>
 

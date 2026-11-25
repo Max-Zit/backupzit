@@ -14,7 +14,7 @@
     </tr>
     {{end}}
   </table></div>
-  {{if $agentsOnly}}<div class="callout tip"><p>{{T "Storage marked agents only is reachable by the agents but not by the console, for example a NAS on a customer's network. The console never connects to it: Test connection and Find backups run on an agent, the console backup cannot use it, and the files of its backups are restored with paths instead of browsed in the console."}}</p></div>{{end}}
+  {{if $agentsOnly}}<div class="callout tip"><p>{{T "Storage marked agents only is reachable by the agents but not by the console, for example a NAS on a customer's network. The console never connects to it: Test connection and Find backups run on an agent, the console backup cannot use it, and the files of its backups are browsed and downloaded through an agent that uses it (agents 0.61 and newer)."}}</p></div>{{end}}
   <p class="muted">{{T "Each agent stores its backups in its own repository below the target location:"}} <code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>.</p>
   {{else}}<p class="muted">{{T "No storage targets yet."}}</p>{{end}}
 </div>
@@ -141,7 +141,7 @@
     </div>
     <label data-kind="sftp">{{T "Private key (optional, instead of password)"}} <textarea name="sftp_key" placeholder="{{T "-----BEGIN OPENSSH PRIVATE KEY-----"}}"></textarea></label>
     <label data-kind="local" hidden>{{T "Path on the agent"}} <small>{{T "e.g. D:\\Backups or /mnt/backup"}}</small><input name="url" disabled></label>
-    <label class="check" data-kind="sftp s3 azure hardened smb"><input type="checkbox" name="agents_only"> {{T "Reachable by agents only"}} <small>{{T "for storage the console cannot reach, e.g. a NAS on a customer's network: the console never connects to it, agents test it and search it for backups, the console backup cannot use it, and files of its backups are restored with paths instead of browsed"}}</small></label>
+    <label class="check" data-kind="sftp s3 azure hardened smb"><input type="checkbox" name="agents_only"> {{T "Reachable by agents only"}} <small>{{T "for storage the console cannot reach, e.g. a NAS on a customer's network: the console never connects to it, agents test it and search it for backups, the console backup cannot use it, and the files of its backups are browsed through an agent"}}</small></label>
     <label data-kind="sftp s3 azure hardened smb">{{T "Test the connection from"}} <small>{{T "the console, or an agent that reaches the storage (agent 0.60.0 or newer)"}}</small>
       <select name="test_from">
         <option value="console">{{T "This console"}}</option>

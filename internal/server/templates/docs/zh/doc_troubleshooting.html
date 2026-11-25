@@ -70,7 +70,7 @@
   <tr><td>Proxmox：“runs on node X; install the BackupZit agent on X”</td><td>该来宾已被迁移。在每个节点上安装代理，并用各节点的代理备份该节点的来宾。</td></tr>
   <tr><td>Proxmox 备份或还原很慢，存储服务器上出现 SFTP “connection lost”、“message authentication code incorrect”</td><td>Proxmox 主机上 Intel e1000e 网卡的已知问题（日志：“Detected Hardware Unit Hang”、“Reset adapter unexpectedly”）。关闭卸载功能：<code>ethtool -K eno1 tso off gso off gro off</code>，并将其作为接口的 <code>post-up</code> 行添加到 <code>/etc/network/interfaces</code> 中。</td></tr>
   <tr><td>浏览文件：“stored on a local path of the agent”</td><td>控制台只能读取网络存储上的备份。请在代理上使用 <code>backupzit-agent pve ls/extract</code> 或 <code>image-ls/image-extract</code>。</td></tr>
-  <tr id="agents-only"><td>添加或测试存储目标时：“连接测试失败 … 控制台能否访问存储”，但代理的备份正常</td><td>控制台无法访问该存储，例如控制台运行在 VPS 上，而 NAS 位于客户网络中。请从该站点的代理进行测试（<b>测试连接</b>，然后选择该代理），并将目标标记为<a href="/docs/storage#agents-only">仅代理可访问</a>，使控制台不再连接它。之后浏览文件会提示“仅代理可访问”：请使用<i>仅这些路径</i>进行还原。</td></tr>
+  <tr id="agents-only"><td>添加或测试存储目标时：“连接测试失败 … 控制台能否访问存储”，但代理的备份正常</td><td>控制台无法访问该存储，例如控制台运行在 VPS 上，而 NAS 位于客户网络中。请从该站点的代理进行测试（<b>测试连接</b>，然后选择该代理），并将目标标记为<a href="/docs/storage#agents-only">仅代理可访问</a>，使控制台不再连接它。之后，浏览文件会通过该站点的代理读取其备份（代理 0.61 及更高版本）。</td></tr>
   <tr><td>Linux 系统还原：“missing programs …”</td><td>在执行还原的机器上安装所列软件包，或从包含这些软件包的 BackupZit Linux 恢复 ISO 启动。</td></tr>
   <tr><td>还原后的 Linux 机器没有网络</td><td>网络设置绑定到了旧的 MAC 地址（netplan <code>match: macaddress</code>）。使用 <i>不同硬件</i> 还原，或删除 <code>/etc/netplan/</code> 中的 <code>match</code> 行。</td></tr>
   <tr><td>还原后的 Windows 停在 INACCESSIBLE_BOOT_DEVICE</td><td>使用 <i>还原到不同硬件</i> 重新还原，或从恢复 ISO 启动并运行 <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>。</td></tr>

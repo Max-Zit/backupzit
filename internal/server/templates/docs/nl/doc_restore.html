@@ -52,7 +52,7 @@
   <li><b>Op een agent herstellen</b> — naar een map of naar de oorspronkelijke locatie, zoals een herstel met <i>Alleen deze paden</i>.</li>
 </ul>
 <p>Een <b>symbolische koppeling</b> naar een bestand (bijv. <code>/etc/os-release</code>) wordt gedownload als het bestand waarnaar ze wijst, als dat bestand in de back-up zit; koppelingen naar mappen worden in ZIP-archieven weggelaten. Hetzelfde geldt voor bestanden die uit back-ups van virtuele machines worden gedownload (ext4, XFS). Een herstel op een agent maakt koppelingen opnieuw aan als koppelingen.</p>
-<p>De console leest de back-up zelf van de opslag, dus bladeren werkt voor back-ups op netwerkopslag (SFTP, S3, SMB, Azure, geharde repository); herstel voor een lokale of USB-schijf van een agent, en voor opslag die <a href="/docs/storage#agents-only">alleen bereikbaar is voor agents</a>, met de paden. Gebruikers met een herstelrol mogen bladeren en downloaden.</p>
+<p>De console leest de back-up zelf van de opslag, dus doorbladeren werkt voor back-ups op netwerkopslag (SFTP, S3, SMB, Azure, geharde repository); opslag die <a href="/docs/storage#agents-only">alleen voor agents bereikbaar</a> is, leest hij via een agent die die opslag gebruikt (agents 0.61 en nieuwer). Voor een lokale schijf of een USB-schijf van een agent zet u terug met de paden. Gebruikers met een herstelrol mogen doorbladeren en downloaden.</p>
 
 <div class="callout tip"><p><b>De juiste back-up vinden:</b> gebruik de <a href="/calendar">Kalender</a> om te zien welke back-ups op welke dag draaiden, of de geschiedenis op de taakpagina.</p></div>
 
@@ -87,7 +87,7 @@
       <li>Kopieer de ISO optioneel naar de map <code>/var/lib/backupzit/dist</code> van de console; hij wordt dan aangeboden op de pagina Herstelmedia.</li>
     </ol></li>
 </ul>
-<p>Bestanden bladeren in de console werkt voor back-ups op netwerkopslag (SFTP, S3, SMB, Azure, geharde repository); de console leest ze rechtstreeks. Voor back-ups op een lokale schijf van een agent, op SFTP met een SSH-sleutel of op opslag die alleen bereikbaar is voor agents (de console meldt dat dan meteen), werkt een herstel met <i>Alleen deze paden</i> nog steeds vanuit de console; gebruik de opdrachtregel om erin te kijken.</p>
+<p>Bestanden doorbladeren in de console werkt voor back-ups op netwerkopslag (SFTP, S3, SMB, Azure, geharde repository): de console leest ze rechtstreeks of, bij opslag die alleen voor agents bereikbaar is, via een agent die die opslag gebruikt (ook met een SSH-sleutel; agents 0.61 en nieuwer). Voor back-ups op een lokale schijf van een agent of op SFTP met een SSH-sleutel werkt terugzetten met <i>Alleen deze paden</i> vanuit de console nog steeds; gebruik de opdrachtregel om erin te kijken.</p>
 
 <h2>Herstellen zonder de console</h2>
 <p>Gaat de console zelf verloren, dan kan elke machine met de agent rechtstreeks vanaf de opslag herstellen met het <b>herstelblad</b> van het opslagdoel:</p>

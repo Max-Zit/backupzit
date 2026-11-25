@@ -26,7 +26,7 @@
   <li>la console non verifica la destinazione né quando viene aggiunta né in seguito; <b>Verifica connessione</b> offre solo agenti;</li>
   <li><a href="#find">Trova backup</a> effettua la ricerca tramite un agente, come per i dischi locali e USB;</li>
   <li>non viene proposta per il <a href="/docs/install#console-backup">backup della console</a>, e la destinazione del backup della console non può ricevere l’opzione;</li>
-  <li>sfogliare i file dei suoi backup e scaricare singoli file segnala subito che la console non si connette allo storage, invece di attendere che la connessione scada; ripristina invece con <i>Solo questi percorsi</i> (vedi <a href="/docs/restore#browse-files">Ripristino</a>);</li>
+  <li>sfogliare i file dei suoi backup e scaricare singoli file passa attraverso un agente che usa lo storage: l’agente che ha fatto il backup o, se è offline, un altro agente online che ha usato questo storage (agenti 0.61 e successivi; la prima pagina può richiedere fino a mezzo minuto finché l’agente riceve la richiesta). Con agenti più vecchi, ripristinate invece con <i>Solo questi percorsi</i> (vedere <a href="/docs/restore#browse-files">Ripristino</a>);</li>
   <li>quando si rimuove un agente, la console non elimina i suoi backup su quello storage; elimina la cartella direttamente sullo storage.</li>
 </ul>
 

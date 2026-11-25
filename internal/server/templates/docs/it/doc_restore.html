@@ -52,7 +52,7 @@
   <li><b>Ripristinali su un agente</b> — in una cartella o nella posizione originale, come un ripristino con <i>Solo questi percorsi</i>.</li>
 </ul>
 <p>Un <b>link simbolico</b> a un file (ad es. <code>/etc/os-release</code>) viene scaricato come il file a cui punta, se quel file è nel backup; i link a cartelle vengono esclusi dagli archivi ZIP. Lo stesso vale per i file scaricati dai backup di macchine virtuali (ext4, XFS). Un ripristino su un agente ricrea i link come link.</p>
-<p>La console legge il backup direttamente dallo storage, quindi la navigazione funziona per i backup su storage di rete (SFTP, S3, SMB, Azure, repository protetto); per un disco locale o USB di un agente, e per lo storage <a href="/docs/storage#agents-only">raggiungibile solo dagli agenti</a>, ripristinate con i percorsi. Gli utenti con un ruolo di ripristino possono sfogliare e scaricare.</p>
+<p>La console legge il backup dallo storage da sola, quindi la navigazione funziona per i backup su storage di rete (SFTP, S3, SMB, Azure, repository rafforzato); lo storage <a href="/docs/storage#agents-only">raggiungibile solo dagli agenti</a> viene letto tramite un agente che lo usa (agenti 0.61 e successivi). Per un disco locale o un disco USB di un agente, ripristinate con i percorsi. Gli utenti con un ruolo di ripristino possono sfogliare e scaricare.</p>
 
 <div class="callout tip"><p><b>Trovare il backup giusto:</b> usate il <a href="/calendar">Calendario</a> per vedere quali backup sono stati eseguiti in quale giorno, o lo storico nella pagina del job.</p></div>
 
@@ -87,7 +87,7 @@
       <li>Facoltativamente copiate la ISO nella directory <code>/var/lib/backupzit/dist</code> della console; viene allora offerta nella pagina Supporti di ripristino.</li>
     </ol></li>
 </ul>
-<p>La navigazione dei file nella console funziona per i backup su storage di rete (SFTP, S3, SMB, Azure, repository protetto); la console li legge direttamente. Per i backup su un disco locale di un agente, su SFTP con una chiave SSH o su uno storage raggiungibile solo dagli agenti (in tal caso la console lo segnala subito), un ripristino con <i>Solo questi percorsi</i> funziona comunque dalla console; per esaminarne il contenuto usate la riga di comando.</p>
+<p>Sfogliare i file nella console funziona per i backup su storage di rete (SFTP, S3, SMB, Azure, repository rafforzato): la console li legge direttamente o, per lo storage raggiungibile solo dagli agenti, tramite un agente che lo usa (anche con una chiave SSH; agenti 0.61 e successivi). Per i backup su un disco locale di un agente o su SFTP con una chiave SSH, un ripristino con <i>Solo questi percorsi</i> funziona ancora dalla console; per guardarci dentro, usate la riga di comando.</p>
 
 <h2>Ripristinare senza la console</h2>
 <p>Se la console stessa va persa, qualsiasi macchina con l'agente installato può ripristinare direttamente dallo storage usando il <b>foglio di ripristino</b> della destinazione di archiviazione:</p>

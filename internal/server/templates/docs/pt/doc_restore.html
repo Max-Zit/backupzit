@@ -52,7 +52,7 @@
   <li><b>Restaurá-los num agente</b> — numa pasta ou no local original, como uma restauração com <i>Somente estes caminhos</i>.</li>
 </ul>
 <p>Um <b>link simbólico</b> para um arquivo (p. ex. <code>/etc/os-release</code>) é baixado como o arquivo para onde aponta, se esse arquivo estiver no backup; links para pastas são omitidos dos arquivos ZIP. O mesmo vale para arquivos baixados de backups de máquinas virtuais (ext4, XFS). Uma restauração num agente recria os links como links.</p>
-<p>A console lê o backup diretamente do armazenamento, por isso a navegação funciona para backups em armazenamento de rede (SFTP, S3, SMB, Azure, repositório protegido); para um disco local ou USB de um agente, e para armazenamento <a href="/docs/storage#agents-only">acessível somente pelos agentes</a>, restaure com os caminhos. Usuários com uma função de restauração podem navegar e baixar.</p>
+<p>O console lê o backup do armazenamento por conta própria, então a navegação funciona para backups em armazenamento de rede (SFTP, S3, SMB, Azure, repositório reforçado); o armazenamento <a href="/docs/storage#agents-only">acessível somente por agentes</a> é lido por meio de um agente que o usa (agentes 0.61 e mais recentes). Para um disco local ou um disco USB de um agente, restaure com os caminhos. Usuários com uma função de restauração podem navegar e baixar.</p>
 
 <div class="callout tip"><p><b>Encontrar o backup certo:</b> use o <a href="/calendar">Calendário</a> para ver que backups foram executados em que dia, ou o histórico na página da tarefa.</p></div>
 
@@ -87,7 +87,7 @@
       <li>Opcionalmente copie a ISO para o diretório <code>/var/lib/backupzit/dist</code> da console; ela passa então a ser oferecida na página Mídia de recuperação.</li>
     </ol></li>
 </ul>
-<p>A navegação de arquivos na console funciona para backups em armazenamento de rede (SFTP, S3, SMB, Azure, repositório protegido); a console lê-os diretamente. Para backups num disco local de um agente, em SFTP com uma chave SSH ou em armazenamento acessível somente pelos agentes (a console então avisa isso na hora), uma restauração com <i>Somente estes caminhos</i> continua funcionando a partir da console; para ver o conteúdo deles, use a linha de comandos.</p>
+<p>Navegar por arquivos no console funciona para backups em armazenamento de rede (SFTP, S3, SMB, Azure, repositório reforçado): o console os lê diretamente ou, para armazenamento acessível somente por agentes, por meio de um agente que o usa (também com uma chave SSH; agentes 0.61 e mais recentes). Para backups em um disco local de um agente ou em SFTP com uma chave SSH, uma restauração com <i>Somente estes caminhos</i> continua funcionando a partir do console; para ver o conteúdo, use a linha de comando.</p>
 
 <h2>Restaurar sem a console</h2>
 <p>Se a própria console se perder, qualquer máquina com o agente instalado pode restaurar diretamente do armazenamento usando a <b>ficha de recuperação</b> do destino de armazenamento:</p>

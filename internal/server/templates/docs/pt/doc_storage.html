@@ -26,7 +26,7 @@
   <li>o console não testa o destino quando ele é adicionado nem depois; <b>Testar conexão</b> oferece somente agentes;</li>
   <li><a href="#find">Localizar backups</a> o pesquisa por meio de um agente, como nos discos locais e USB;</li>
   <li>ele não é oferecido para o <a href="/docs/install#console-backup">backup do console</a>, e o destino do backup do console não pode receber a opção;</li>
-  <li>navegar pelos arquivos dos seus backups e baixar arquivos individuais avisam na hora que o console não se conecta ao armazenamento, em vez de esperar até a conexão expirar; restaure com <i>Somente estes caminhos</i> (veja <a href="/docs/restore#browse-files">Restauração</a>);</li>
+  <li>navegar pelos arquivos dos seus backups e baixar arquivos avulsos passa por um agente que usa o armazenamento: o agente que fez o backup ou, quando ele está offline, outro agente online que já usou este armazenamento (agentes 0.61 e mais recentes; a primeira página pode levar até meio minuto até o agente receber o pedido). Com agentes mais antigos, restaure em vez disso com <i>Somente estes caminhos</i> (veja <a href="/docs/restore#browse-files">Restauração</a>);</li>
   <li>quando um agente é removido, o console não exclui os backups dele nesse armazenamento; exclua a pasta diretamente no armazenamento.</li>
 </ul>
 

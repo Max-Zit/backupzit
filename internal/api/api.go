@@ -115,6 +115,8 @@ type PollRequest struct {
 	// unknown; macOS agents 0.61 and newer, empty elsewhere): the console marks
 	// a Mac without it (#62).
 	FullDiskAccess string `json:"full_disk_access,omitempty"`
+	// Relay: the agent reads storage for the console (RelayRequest, 0.61).
+	Relay bool `json:"relay,omitempty"`
 	// Time is the agent's clock in unix milliseconds when it sent the poll
 	// (0.44.0 and newer); the console warns when it is off.
 	Time int64 `json:"time,omitempty"`
@@ -134,6 +136,9 @@ type PollResponse struct {
 	// with its next poll instead of waiting for the 15-minute interval
 	// (Refresh on the Agents page; agents before 0.54.1 ignore it).
 	SendInventory bool `json:"send_inventory,omitempty"`
+	// Relay asks the agent to fetch the storage reads the console has waiting
+	// for it (PathRelayNext, 0.61, #63).
+	Relay bool `json:"relay,omitempty"`
 }
 
 // Run kinds.

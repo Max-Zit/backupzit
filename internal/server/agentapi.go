@@ -99,6 +99,9 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.inventoryWanted.LoadAndDelete(a.ID); ok {
 		resp.SendInventory = true
 	}
+	// Storage reads wait for this agent (browsing storage reachable by
+	// agents only, #63).
+	resp.Relay = s.relay.pending(a.ID)
 	if req.WantStatus {
 		if st, err := s.agentStatus(r.Context(), a.ID); err == nil {
 			resp.Status = st

@@ -52,7 +52,7 @@
   <li><b>Obnovit je na agentovi</b> — do složky nebo do původního umístění, jako obnova s <i>Jen tyto cesty</i>.</li>
 </ul>
 <p><b>Symbolický odkaz</b> na soubor (např. <code>/etc/os-release</code>) se stáhne jako soubor, na který ukazuje, pokud je tento soubor v záloze; odkazy na složky se v archivech ZIP vynechávají. Totéž platí pro soubory stažené ze záloh virtuálních počítačů (ext4, XFS). Obnova na agentovi vytvoří odkazy znovu jako odkazy.</p>
-<p>Konzole čte zálohu z úložiště sama, takže procházení funguje pro zálohy na síťovém úložišti (SFTP, S3, SMB, Azure, zabezpečené úložiště); u místního disku nebo disku USB agenta a u úložiště <a href="/docs/storage#agents-only">dostupného jen agentům</a> obnovujte zadáním cest. Uživatelé s rolí pro obnovu mohou procházet a stahovat.</p>
+<p>Konzole čte zálohu z úložiště sama, takže procházení funguje pro zálohy na síťovém úložišti (SFTP, S3, SMB, Azure, zabezpečený repozitář); úložiště <a href="/docs/storage#agents-only">dostupné jen agentům</a> čte přes agenta, který ho používá (agenti 0.61 a novější). Pro místní nebo USB disk agenta obnovte zadáním cest. Uživatelé s rolí obnovy mohou procházet a stahovat.</p>
 
 <div class="callout tip"><p><b>Jak najít správnou zálohu:</b> v <a href="/calendar">Kalendáři</a> uvidíte, které zálohy běžely v který den, nebo použijte historii na stránce úlohy.</p></div>
 
@@ -87,7 +87,7 @@
       <li>Volitelně zkopírujte ISO do adresáře <code>/var/lib/backupzit/dist</code> konzole; pak se nabízí na stránce Obnovovací média.</li>
     </ol></li>
 </ul>
-<p>Procházení souborů v konzoli funguje pro zálohy na síťovém úložišti (SFTP, S3, SMB, Azure, zabezpečené úložiště); konzole je čte přímo. U záloh na místním disku agenta, na SFTP s klíčem SSH nebo na úložišti dostupném jen agentům (konzole to pak hned oznámí) funguje z konzole i nadále obnova s volbou <i>Jen tyto cesty</i>; chcete-li se do nich podívat, použijte příkazový řádek.</p>
+<p>Procházení souborů v konzoli funguje pro zálohy na síťovém úložišti (SFTP, S3, SMB, Azure, zabezpečený repozitář): konzole je čte přímo, nebo u úložiště dostupného jen agentům přes agenta, který ho používá (i s klíčem SSH; agenti 0.61 a novější). Pro zálohy na místním disku agenta nebo na SFTP s klíčem SSH stále funguje obnova s <i>Jen tyto cesty</i> z konzole; chcete-li se do nich podívat, použijte příkazový řádek.</p>
 
 <h2>Obnova bez konzole</h2>
 <p>Pokud přijdete o samotnou konzoli, každý počítač s nainstalovaným agentem může obnovovat přímo z úložiště pomocí <b>listu pro obnovu</b> daného cíle úložiště:</p>
