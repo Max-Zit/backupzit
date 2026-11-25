@@ -230,3 +230,94 @@ func TestParallelIndexLoad(t *testing.T) {
 		}
 	}
 }
+
+// gatedShare uploads one pack at a time like a share (no Concurrency) and
+// holds every pack upload until the test lets it go.
+type gatedShare struct {
+	backend.Backend
+	release chan struct{}
+	started chan struct{}
+	now     atomic.Int32
+	maxSeen atomic.Int32
+}
+
+func (g *gatedShare) Save(ctx context.Context, name string, data []byte) error {
+	if !strings.HasPrefix(name, "data/") {
+		return g.Backend.Save(ctx, name, data)
+	}
+	cur := g.now.Add(1)
+	defer g.now.Add(-1)
+	for {
+		m := g.maxSeen.Load()
+		if cur <= m || g.maxSeen.CompareAndSwap(m, cur) {
+			break
+		}
+	}
+	g.started <- struct{}{}
+	<-g.release
+	return g.Backend.Save(ctx, name, data)
+}
+
+// On a share (one upload at a time) a pack uploads in the background: the
+// writer fills the next pack meanwhile instead of waiting for the network,
+// and never more than one upload runs at once.
+func TestShareUploadsInBackground(t *testing.T) {
+	local, err := backend.OpenLocal(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	be := &gatedShare{Backend: local, release: make(chan struct{}), started: make(chan struct{}, 16)}
+	r := newTestRepo(t, be, 64<<10)
+	if r.maxUploads != 1 {
+		t.Fatalf("maxUploads %d", r.maxUploads)
+	}
+	ctx := context.Background()
+	blobs := randomBlobs(10, 16<<10) // pack 1 is full after 4 blobs
+	var ids []ID
+	for _, b := range blobs[:7] {
+		id, _, err := r.SaveBlob(ctx, DataBlob, b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+	}
+	// Pack 1 is uploading (held), and blobs 5–7 went into pack 2 meanwhile.
+	select {
+	case <-be.started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("first pack upload did not start")
+	}
+	if n := r.Stats().PacksUploaded; n != 0 {
+		t.Fatalf("%d packs uploaded while the first is held", n)
+	}
+	done := make(chan error, 1)
+	go func() {
+		for _, b := range blobs[7:] {
+			id, _, err := r.SaveBlob(ctx, DataBlob, b)
+			if err != nil {
+				done <- err
+				return
+			}
+			ids = append(ids, id)
+		}
+		done <- r.Flush(ctx)
+	}()
+	go func() {
+		for range be.started {
+		}
+	}()
+	close(be.release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if got := be.maxSeen.Load(); got != 1 {
+		t.Errorf("%d uploads at once on a share, want 1", got)
+	}
+	for i, b := range blobs {
+		got, err := r.LoadBlob(ctx, DataBlob, ids[i])
+		if err != nil || !bytes.Equal(got, b) {
+			t.Fatalf("blob %d: %v", i, err)
+		}
+	}
+	r.Close()
+}

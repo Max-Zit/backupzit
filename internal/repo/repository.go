@@ -81,9 +81,9 @@ type Repository struct {
 	noCompress     bool // store new blobs uncompressed (SetCompression("off"))
 	vmBlockSizeKiB int  // session option; zero keeps the historical 1 MiB
 
-	// Packs are uploaded in the background, up to maxUploads at once, on
-	// backends that handle parallel uploads (object stores); elsewhere
-	// maxUploads is 1 and the caller uploads the pack as before. The blobs
+	// Packs are uploaded in the background, up to maxUploads at once on
+	// backends that handle parallel uploads (object stores), one at a time
+	// elsewhere (see uploadSlots). The blobs
 	// of a pack in flight stay in pending until it is uploaded, so the
 	// index only ever names packs that exist. upDone (on mu) is signalled
 	// when an upload ends; upErr keeps the first failure.
@@ -466,19 +466,11 @@ func (r *Repository) flushPackLocked(ctx context.Context) error {
 		return err
 	}
 	r.pack = &packBuilder{}
-	if r.maxUploads <= 1 {
-		if err := r.be.Save(ctx, packName(packID), data); err != nil {
-			// Sticky, as for parallel uploads: the pack's blobs stay pending,
-			// so a later save of the same data would count as stored (a later
-			// VM of the run saved without it). Nothing more can be saved.
-			r.upErr = fmt.Errorf("upload pack %s: %w", packID.Short(), err)
-			return r.upErr
-		}
-		return r.packUploadedLocked(ctx, packID, blobs)
-	}
-	// Wait for a free upload slot (Wait releases mu meanwhile, so other
-	// writers keep filling the next pack).
-	for r.inflight >= r.maxUploads && r.upErr == nil {
+	// Upload in the background: the next pack fills (reading, hashing and
+	// compressing go on) while this one is on its way. Backends without
+	// parallel uploads (local disks, SMB, SFTP) still get one at a time.
+	// Wait releases mu meanwhile, so other writers keep filling the pack.
+	for r.inflight >= r.uploadSlots() && r.upErr == nil {
 		r.upDone.Wait()
 	}
 	if r.upErr != nil {
@@ -516,6 +508,9 @@ func (r *Repository) packUploadedLocked(ctx context.Context, packID ID, blobs []
 	}
 	return nil
 }
+
+// uploadSlots is how many packs may upload at once.
+func (r *Repository) uploadSlots() int { return max(r.maxUploads, 1) }
 
 // waitUploadsLocked waits until no pack upload is in flight and returns the
 // first upload error.
@@ -558,7 +553,7 @@ func (r *Repository) Flush(ctx context.Context) error {
 // LoadBlob reads, decompresses and verifies a blob.
 func (r *Repository) LoadBlob(ctx context.Context, t BlobType, id ID) ([]byte, error) {
 	loc, ok := r.idx.Lookup(BlobHandle{Type: t, ID: id})
-	if !ok && r.maxUploads > 1 {
+	if !ok {
 		// The blob may be in a pack that is still uploading.
 		r.mu.Lock()
 		_ = r.waitUploadsLocked()
