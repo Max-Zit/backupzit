@@ -1,21 +1,19 @@
-package diskimg
+package repo
 
 import (
 	"context"
 	"sync"
-
-	"github.com/max-zit/backupzit/internal/repo"
 )
 
-// readAhead loads the blocks a restore will write next, several at once on
-// object stores (where one ranged read mostly waits on the network), and
-// hands them out in disk order. With a concurrency of 1 it reads each block
-// when asked, as before.
-type readAhead struct {
+// ReadAhead loads the data blocks a restore writes next, several at once
+// (ReadConcurrency), and hands them out in disk order, so the storage and the
+// target disk work at the same time instead of waiting for each other. With
+// a concurrency of 1 it reads each block when asked.
+type ReadAhead struct {
 	ctx    context.Context
 	cancel context.CancelFunc
-	r      *repo.Repository
-	ids    []repo.ID
+	r      *Repository
+	ids    []ID
 	want   func(i int) bool // blocks that are read (not null, not skipped)
 	n      int              // reads at once
 	window int              // blocks started ahead of the writer
@@ -32,17 +30,20 @@ type blockFuture struct {
 	err  error
 }
 
-func newReadAhead(ctx context.Context, r *repo.Repository, ids []repo.ID, want func(int) bool) *readAhead {
-	n := r.Concurrency()
+// ReadAhead prepares reading the data blobs ids in order; want tells which of
+// them will be asked for (no other is read ahead). It holds at most about
+// twice ReadConcurrency blocks in memory. Close it when done.
+func (r *Repository) ReadAhead(ctx context.Context, ids []ID, want func(i int) bool) *ReadAhead {
+	n := r.ReadConcurrency()
 	ctx, cancel := context.WithCancel(ctx)
-	return &readAhead{ctx: ctx, cancel: cancel, r: r, ids: ids, want: want, n: n, window: 2 * n,
+	return &ReadAhead{ctx: ctx, cancel: cancel, r: r, ids: ids, want: want, n: n, window: 2 * n,
 		futs: map[int]*blockFuture{}, sem: make(chan struct{}, n)}
 }
 
-// get returns block i. Blocks must be asked for in increasing order.
-func (a *readAhead) get(i int) ([]byte, error) {
+// Get returns block i. Blocks must be asked for in increasing order.
+func (a *ReadAhead) Get(i int) ([]byte, error) {
 	if a.n <= 1 {
-		return a.r.LoadBlob(a.ctx, repo.DataBlob, a.ids[i])
+		return a.r.LoadBlob(a.ctx, DataBlob, a.ids[i])
 	}
 	if a.next <= i {
 		a.next = i
@@ -54,7 +55,7 @@ func (a *readAhead) get(i int) ([]byte, error) {
 	}
 	f := a.futs[i]
 	if f == nil { // not wanted by the filter, or asked out of order
-		return a.r.LoadBlob(a.ctx, repo.DataBlob, a.ids[i])
+		return a.r.LoadBlob(a.ctx, DataBlob, a.ids[i])
 	}
 	delete(a.futs, i)
 	select {
@@ -65,7 +66,7 @@ func (a *readAhead) get(i int) ([]byte, error) {
 	return f.b, f.err
 }
 
-func (a *readAhead) start(i int) {
+func (a *ReadAhead) start(i int) {
 	f := &blockFuture{done: make(chan struct{})}
 	a.futs[i] = f
 	a.wg.Add(1)
@@ -78,14 +79,14 @@ func (a *readAhead) start(i int) {
 			f.err = a.ctx.Err()
 			return
 		}
-		f.b, f.err = a.r.LoadBlob(a.ctx, repo.DataBlob, a.ids[i])
+		f.b, f.err = a.r.LoadBlob(a.ctx, DataBlob, a.ids[i])
 		<-a.sem
 	}()
 }
 
-// close stops reads still in flight and waits for them, so none outlives
+// Close stops reads still in flight and waits for them, so none outlives
 // the repository.
-func (a *readAhead) close() {
+func (a *ReadAhead) Close() {
 	a.cancel()
 	a.wg.Wait()
 }

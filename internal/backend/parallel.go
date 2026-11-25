@@ -23,6 +23,19 @@ func Concurrency(be Backend) int {
 	return 1
 }
 
+// shareReadConcurrency is how many blocks a restore reads at once from storage
+// that takes uploads one after another (SMB, SFTP, local and USB disks). Those
+// answer several reads at once well; with one read at a time, a disk image
+// restore from an SMB share used about 40 % of a 1 Gbit/s link while the
+// network and the target disk waited for each other (#65).
+const shareReadConcurrency = 3
+
+// ReadConcurrency tells how many blocks a restore may read at once: as many
+// as uploads on object stores, shareReadConcurrency elsewhere.
+func ReadConcurrency(be Backend) int {
+	return max(Concurrency(be), shareReadConcurrency)
+}
+
 func (s *S3) Concurrency() int       { return objectStoreConcurrency }
 func (a *Azure) Concurrency() int    { return objectStoreConcurrency }
 func (h *Hardened) Concurrency() int { return objectStoreConcurrency }

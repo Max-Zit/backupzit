@@ -88,6 +88,7 @@ type Repository struct {
 	// index only ever names packs that exist. upDone (on mu) is signalled
 	// when an upload ends; upErr keeps the first failure.
 	maxUploads int
+	maxReads   int // blocks a restore reads at once (ReadAhead)
 	inflight   int
 	upDone     *sync.Cond
 	upErr      error
@@ -247,6 +248,7 @@ func newRepository(be backend.Backend, cfg Config, polStr string, key []byte) (*
 		pack:       &packBuilder{},
 		pending:    map[BlobHandle]struct{}{},
 		maxUploads: backend.Concurrency(be),
+		maxReads:   backend.ReadConcurrency(be),
 	}
 	r.upDone = sync.NewCond(&r.mu)
 	return r, nil
@@ -260,6 +262,11 @@ func (r *Repository) ChunkerPolynomial() chunker.Pol { return r.pol }
 // Concurrency is how many blobs may be read at once from the backend
 // (restores read ahead on object stores; 1 elsewhere).
 func (r *Repository) Concurrency() int { return max(r.maxUploads, 1) }
+
+// ReadConcurrency is how many blocks a restore reads ahead at once
+// (ReadAhead): more than Concurrency on storage that takes uploads one after
+// another but answers several reads at once (SMB, SFTP, local disks).
+func (r *Repository) ReadConcurrency() int { return max(r.maxReads, 1) }
 
 // Stats returns write statistics for this session.
 func (r *Repository) Stats() WriteStats {
