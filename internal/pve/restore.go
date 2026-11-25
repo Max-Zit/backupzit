@@ -141,7 +141,7 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		// As before 0.59: room for one copy only, but no guest if the
 		// restore fails.
 		opts.Log("removing existing guest before the restore", "vmid", target)
-		if old.Status == "running" {
+		if guestRunning(ctx, *old) {
 			if _, err := command(ctx, tool, "stop", id); err != nil {
 				return nil, fmt.Errorf("stop guest %d: %w", target, err)
 			}
@@ -294,7 +294,9 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	if old != nil {
 		opts.Log("replacing existing guest", "vmid", target)
 		stopped := false
-		if old.Status == "running" {
+		// Its own tool says whether it runs now: the cluster list read at the
+		// start lags some seconds (a guest started just before the restore).
+		if guestRunning(ctx, *old) {
 			if _, err := command(ctx, tool, "stop", id); err != nil {
 				return nil, unchanged(fmt.Errorf("stop guest %d: %w", target, err))
 			}

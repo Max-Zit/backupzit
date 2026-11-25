@@ -26,6 +26,7 @@ func TestOverwriteRestoreOrder(t *testing.T) {
 		destroyErr  bool
 		configThere bool
 		freeKiB     string // free space pvesm reports, default plenty
+		live        string // what "qm status" says now, default as the cluster list
 		wantCalls   []string
 		wantErr     []string // substrings; none = success
 		wantNoCall  []string
@@ -40,6 +41,9 @@ func TestOverwriteRestoreOrder(t *testing.T) {
 	for _, sc := range []scenario{
 		{name: "safe order", running: true, wantCalls: []string{alloc, "write", stop, destroy}, wantNoCall: []string{free, start}},
 		{name: "stopped guest is not stopped", wantCalls: []string{alloc, "write", destroy}, wantNoCall: []string{stop, free}},
+		{name: "guest started since the cluster list: stopped first", live: "running", wantCalls: []string{alloc, "write", stop, destroy}, wantNoCall: []string{free, start}},
+		{name: "remove first: guest started since the cluster list", live: "running", removeFirst: true,
+			wantCalls: []string{stop, "qm destroy 100", alloc, "write"}},
 		{name: "no room: old guest unchanged", running: true, writeErr: errors.New("write: no space left on device"),
 			wantCalls: []string{alloc, "write", free}, wantNoCall: []string{stop, "qm destroy"},
 			wantErr: []string{"existing guest 100 was not changed", "remove the existing guest first"}},
@@ -84,6 +88,12 @@ func TestOverwriteRestoreOrder(t *testing.T) {
 				switch {
 				case strings.HasPrefix(c, "pvesh get /cluster/resources"):
 					return []byte(fmt.Sprintf(`[{"vmid":100,"name":"web","type":"qemu","node":%q,"status":%q}]`, LocalNode(), status)), nil
+				case c == "qm status 100":
+					live := sc.live
+					if live == "" {
+						live = status
+					}
+					return []byte("status: " + live + "\n"), nil
 				case c == "pveversion":
 					return []byte("pve-manager/9.2.21"), nil
 				case c == "pvesm status --storage local":
