@@ -30,6 +30,20 @@ func Concurrency(be Backend) int {
 // network and the target disk waited for each other (#65).
 const shareReadConcurrency = 3
 
+// shareUploadConcurrency is how many packs a backup uploads at once to
+// storage that takes other work one after another (SMB, SFTP, local and USB
+// disks). One upload at a time left a 1 Gbit/s link to an SMB share about
+// 30 % idle during a VM backup (each 16 MiB pack also waits for its flush
+// and rename); two raised the backup from 101 to 120 MB/s there and from 153
+// to 193 MB/s on a local disk.
+const shareUploadConcurrency = 2
+
+// UploadConcurrency tells how many packs a backup uploads at once: as many
+// as Concurrency on object stores, shareUploadConcurrency elsewhere.
+func UploadConcurrency(be Backend) int {
+	return max(Concurrency(be), shareUploadConcurrency)
+}
+
 // ReadConcurrency tells how many blocks a restore may read at once: as many
 // as uploads on object stores, shareReadConcurrency elsewhere.
 func ReadConcurrency(be Backend) int {

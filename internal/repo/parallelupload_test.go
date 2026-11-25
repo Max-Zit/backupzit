@@ -258,9 +258,9 @@ func (g *gatedShare) Save(ctx context.Context, name string, data []byte) error {
 	return g.Backend.Save(ctx, name, data)
 }
 
-// On a share (one upload at a time) a pack uploads in the background: the
-// writer fills the next pack meanwhile instead of waiting for the network,
-// and never more than one upload runs at once.
+// On a share a pack uploads in the background: the writer fills the next
+// pack meanwhile instead of waiting for the network, and never more than
+// two uploads run at once.
 func TestShareUploadsInBackground(t *testing.T) {
 	local, err := backend.OpenLocal(t.TempDir())
 	if err != nil {
@@ -268,8 +268,8 @@ func TestShareUploadsInBackground(t *testing.T) {
 	}
 	be := &gatedShare{Backend: local, release: make(chan struct{}), started: make(chan struct{}, 16)}
 	r := newTestRepo(t, be, 64<<10)
-	if r.maxUploads != 1 {
-		t.Fatalf("maxUploads %d", r.maxUploads)
+	if r.maxUploads != 1 || r.uploads != 2 {
+		t.Fatalf("maxUploads %d, uploads %d", r.maxUploads, r.uploads)
 	}
 	ctx := context.Background()
 	blobs := randomBlobs(10, 16<<10) // pack 1 is full after 4 blobs
@@ -310,8 +310,8 @@ func TestShareUploadsInBackground(t *testing.T) {
 	if err := <-done; err != nil {
 		t.Fatal(err)
 	}
-	if got := be.maxSeen.Load(); got != 1 {
-		t.Errorf("%d uploads at once on a share, want 1", got)
+	if got := be.maxSeen.Load(); got < 1 || got > 2 {
+		t.Errorf("%d uploads at once on a share, want 1–2", got)
 	}
 	for i, b := range blobs {
 		got, err := r.LoadBlob(ctx, DataBlob, ids[i])
@@ -320,4 +320,71 @@ func TestShareUploadsInBackground(t *testing.T) {
 		}
 	}
 	r.Close()
+}
+
+// orderedShare makes the first pack upload slow and, with fail, fail; the
+// second finishes first.
+type orderedShare struct {
+	backend.Backend
+	fail  bool
+	packs atomic.Int32
+}
+
+func (o *orderedShare) Save(ctx context.Context, name string, data []byte) error {
+	if strings.HasPrefix(name, "data/") && o.packs.Add(1) == 1 {
+		time.Sleep(100 * time.Millisecond)
+		if o.fail {
+			return errors.New("first upload failed")
+		}
+	}
+	return o.Backend.Save(ctx, name, data)
+}
+
+// With two uploads at once a later pack can finish first. Packs are
+// indexed in the order they were filled; when the earlier one fails, the
+// later one is not indexed, Flush reports the failure and nothing hangs.
+func TestShareUploadsIndexedInOrder(t *testing.T) {
+	for _, fail := range []bool{false, true} {
+		local, err := backend.OpenLocal(t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		be := &orderedShare{Backend: local, fail: fail}
+		r := newTestRepo(t, be, 64<<10)
+		ctx := context.Background()
+		var ids []ID
+		for _, b := range randomBlobs(9, 16<<10) { // two full packs, one partial
+			id, _, err := r.SaveBlob(ctx, DataBlob, b)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ids = append(ids, id)
+		}
+		done := make(chan error, 1)
+		go func() { done <- r.Flush(ctx) }()
+		select {
+		case err = <-done:
+		case <-time.After(10 * time.Second):
+			t.Fatal("Flush hangs")
+		}
+		if fail {
+			if err == nil || !strings.Contains(err.Error(), "first upload failed") {
+				t.Fatalf("Flush after a failed first upload: %v", err)
+			}
+			if r.Index().Has(BlobHandle{Type: DataBlob, ID: ids[4]}) {
+				t.Error("a pack filled after the failed one was indexed")
+			}
+		} else {
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(r.Index().packs) != 3 {
+				t.Errorf("%d packs indexed, want 3", len(r.Index().packs))
+			}
+			if n := len(r.unindexed); n != 0 {
+				t.Errorf("%d packs left unindexed after Flush", n)
+			}
+		}
+		r.Close()
+	}
 }

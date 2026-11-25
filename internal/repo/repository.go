@@ -81,15 +81,20 @@ type Repository struct {
 	noCompress     bool // store new blobs uncompressed (SetCompression("off"))
 	vmBlockSizeKiB int  // session option; zero keeps the historical 1 MiB
 
-	// Packs are uploaded in the background, up to maxUploads at once on
-	// backends that handle parallel uploads (object stores), one at a time
-	// elsewhere (see uploadSlots). The blobs
+	// Packs are uploaded in the background, up to uploads at once
+	// (backend.UploadConcurrency: 4 on object stores, 2 elsewhere);
+	// maxUploads is the backend's concurrency for other work (prune, index
+	// loading). The blobs
 	// of a pack in flight stay in pending until it is uploaded, so the
 	// index only ever names packs that exist. upDone (on mu) is signalled
 	// when an upload ends; upErr keeps the first failure.
 	maxUploads int
+	uploads    int // packs uploaded at once
 	maxReads   int // blocks a restore reads at once (ReadAhead)
 	inflight   int
+	upSeq      uint64                  // number of the next pack to upload
+	upNext     uint64                  // number of the next pack to index
+	upReady    map[uint64]uploadedPack // uploaded, waiting for earlier packs
 	upDone     *sync.Cond
 	upErr      error
 }
@@ -248,6 +253,7 @@ func newRepository(be backend.Backend, cfg Config, polStr string, key []byte) (*
 		pack:       &packBuilder{},
 		pending:    map[BlobHandle]struct{}{},
 		maxUploads: backend.Concurrency(be),
+		uploads:    backend.UploadConcurrency(be),
 		maxReads:   backend.ReadConcurrency(be),
 	}
 	r.upDone = sync.NewCond(&r.mu)
@@ -477,6 +483,8 @@ func (r *Repository) flushPackLocked(ctx context.Context) error {
 		return r.upErr
 	}
 	r.inflight++
+	seq := r.upSeq
+	r.upSeq++
 	go func() {
 		// The pack's ID is the hash of all its bytes: computed here, the
 		// next pack fills meanwhile.
@@ -485,17 +493,39 @@ func (r *Repository) flushPackLocked(ctx context.Context) error {
 		r.mu.Lock()
 		defer r.mu.Unlock()
 		defer r.upDone.Broadcast()
-		r.inflight--
-		if err == nil {
-			err = r.packUploadedLocked(ctx, packID, blobs)
-		} else {
-			err = fmt.Errorf("upload pack %s: %w", packID.Short(), err)
-		}
 		if err != nil && r.upErr == nil {
-			r.upErr = err
+			r.upErr = fmt.Errorf("upload pack %s: %w", packID.Short(), err)
+		}
+		// Packs are indexed in the order they were filled, whichever
+		// upload ends first: the index files are the same as with one
+		// upload at a time. A pack counts as in flight until indexed.
+		if r.upReady == nil {
+			r.upReady = map[uint64]uploadedPack{}
+		}
+		r.upReady[seq] = uploadedPack{packID, blobs, err == nil}
+		for {
+			p, ok := r.upReady[r.upNext]
+			if !ok {
+				break
+			}
+			delete(r.upReady, r.upNext)
+			r.upNext++
+			r.inflight--
+			if !p.ok || r.upErr != nil {
+				continue // after a failed upload nothing more is indexed
+			}
+			if err := r.packUploadedLocked(ctx, p.id, p.blobs); err != nil {
+				r.upErr = err
+			}
 		}
 	}()
 	return nil
+}
+
+type uploadedPack struct {
+	id    ID
+	blobs []PackedBlob
+	ok    bool // false: the upload failed
 }
 
 // packUploadedLocked indexes a pack that reached the backend.
@@ -513,7 +543,7 @@ func (r *Repository) packUploadedLocked(ctx context.Context, packID ID, blobs []
 }
 
 // uploadSlots is how many packs may upload at once.
-func (r *Repository) uploadSlots() int { return max(r.maxUploads, 1) }
+func (r *Repository) uploadSlots() int { return max(r.uploads, 1) }
 
 // waitUploadsLocked waits until no pack upload is in flight and returns the
 // first upload error.
