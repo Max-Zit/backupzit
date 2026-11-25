@@ -26,7 +26,7 @@ func perfStart() {
 	perf.on = os.Getenv("BACKUPZIT_PERF") != ""
 	perf.start = time.Now()
 	if p := os.Getenv("BACKUPZIT_CPUPROFILE"); p != "" {
-		f, err := os.Create(p)
+		f, err := os.Create(p) // #nosec G304 G703 -- a file the operator names in BACKUPZIT_CPUPROFILE for a command line run
 		if err == nil && pprof.StartCPUProfile(f) == nil {
 			perf.prof = f
 		} else {

@@ -269,7 +269,7 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 			next <- b
 		}
 		close(next)
-		for range min(uint64(bw.Workers()), j-i) {
+		for range min(uint64(bw.Workers()), j-i) { // #nosec G115 -- Workers is at least 1
 			wg.Add(1)
 			go func() {
 				defer wg.Done()

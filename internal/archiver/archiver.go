@@ -291,8 +291,18 @@ func Dir(ctx context.Context, r *repo.Repository, dir, name string, parent *repo
 		skips:  systemSkips([]string{dir}),
 		roots:  []string{dir},
 	}
+	bw, err := repo.NewBlobWriter(ctx, r, 0)
+	if err != nil {
+		return repo.Node{}, a.stats, err
+	}
+	defer func() { _ = bw.Close() }()
+	a.bw = bw
 	n, ok, err := a.archivePath(ctx, dir, name, parent)
 	if err != nil {
+		return n, a.stats, err
+	}
+	// The caller flushes the repository: every blob must be in a pack by then.
+	if err := bw.Close(); err != nil {
 		return n, a.stats, err
 	}
 	if !ok || n.Type != repo.NodeDir || n.Subtree == nil {

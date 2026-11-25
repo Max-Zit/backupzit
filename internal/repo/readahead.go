@@ -77,7 +77,7 @@ func (a *ReadAhead) start(i int) {
 		a.queue = make(chan *blockFuture, a.window+2)
 		a.wg.Add(a.n)
 		for range a.n {
-			go a.work()
+			go a.work(a.queue) // Close clears a.queue: the workers keep their own
 		}
 	}
 	f := &blockFuture{i: i, done: make(chan struct{})}
@@ -85,9 +85,9 @@ func (a *ReadAhead) start(i int) {
 	a.queue <- f
 }
 
-func (a *ReadAhead) work() {
+func (a *ReadAhead) work(queue <-chan *blockFuture) {
 	defer a.wg.Done()
-	for f := range a.queue {
+	for f := range queue {
 		if err := a.ctx.Err(); err != nil {
 			f.err = err
 		} else {
