@@ -584,6 +584,7 @@ type consoleBackupPage struct {
 	ConsoleBackupSettings
 	Targets []Target // network targets the console reaches
 	RepoURL string
+	Kind    string // kind of the chosen target: the restore steps show only its credentials
 }
 
 func (s *Server) consoleBackupPage(ctx context.Context) consoleBackupPage {
@@ -593,7 +594,7 @@ func (s *Server) consoleBackupPage(ctx context.Context) consoleBackupPage {
 		if t.Kind != "local" && t.Kind != "usb" && !t.AgentsOnly {
 			p.Targets = append(p.Targets, t)
 			if t.ID == p.TargetID {
-				p.RepoURL = consoleRepoURL(t)
+				p.RepoURL, p.Kind = consoleRepoURL(t), t.Kind
 			}
 		}
 	}
