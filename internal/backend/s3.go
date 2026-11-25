@@ -53,6 +53,11 @@ type s3Version struct {
 
 // OpenS3 connects to the bucket named in u.
 func OpenS3(ctx context.Context, u *url.URL, opts Options) (*S3, error) {
+	// Keys pasted with a space or a line break were refused by the service as
+	// malformed (#68); no S3 key or region has white space of its own.
+	opts.S3AccessKey = strings.TrimSpace(opts.S3AccessKey)
+	opts.S3SecretKey = strings.TrimSpace(opts.S3SecretKey)
+	opts.S3Region = strings.TrimSpace(opts.S3Region)
 	if opts.S3AccessKey == "" || opts.S3SecretKey == "" {
 		return nil, errors.New("s3: access key and secret key are required")
 	}
@@ -81,7 +86,7 @@ func OpenS3(ctx context.Context, u *url.URL, opts Options) (*S3, error) {
 	}
 	ok, err := client.BucketExists(ctx, bucket)
 	if err != nil {
-		return nil, fmt.Errorf("s3: access bucket %q at %s: %w", bucket, u.Host, withClockHint(err))
+		return nil, fmt.Errorf("s3: access bucket %q at %s: %w", bucket, u.Host, withKeyHint(withClockHint(err), u.Hostname()))
 	}
 	if !ok {
 		return nil, fmt.Errorf("s3: bucket %q does not exist at %s", bucket, u.Host)

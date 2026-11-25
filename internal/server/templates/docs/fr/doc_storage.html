@@ -44,6 +44,13 @@
 <p id="s3-default-retention">Donnez aussi au bucket une <b>rétention par défaut</b> en <b>mode conformité</b> d’au moins N jours (AWS : <i>Object Lock → Default retention</i> ; MinIO : <code>mc retention set --default COMPLIANCE 30d</code>). Le bucket verrouille alors lui-même chaque nouvel objet, même celui qu’un ordinateur compromis écrit sans verrou. Le test de connexion de la cible avertit lorsque la rétention par défaut manque ou est inférieure à N jours.</p>
 <p>Une suppression (par la rétention ou par un attaquant) ajoute seulement un « marqueur de suppression ». Ajoutez une règle de cycle de vie qui fait expirer les <i>versions non actuelles</i> après un jour, pour libérer l'espace une fois les verrous terminés. Voir <a href="/docs/ransomware">Protection contre les rançongiciels</a>.</p>
 
+<h3 id="b2">Backblaze B2</h3>
+<ol>
+  <li>Dans Backblaze, ouvrez <i>Application Keys</i> et créez une <b>clé d'application</b> avec accès en lecture et en écriture au bucket. L'API S3 de B2 n'accepte pas la clé principale (master key) du compte : BackupZit signale alors <i>Malformed Access Key Id</i>.</li>
+  <li>Ajoutez une cible S3 avec le <b>point de terminaison S3</b> du bucket tel que l'affiche sa page, par exemple <code>s3.us-west-004.backblazeb2.com</code> (sans le nom du bucket), le nom du bucket, le <i>keyID</i> de la clé d'application comme clé d'accès et son <i>applicationKey</i> comme clé secrète, ainsi que la région du point de terminaison (<code>us-west-004</code>).</li>
+</ol>
+<p>Les espaces et sauts de ligne copiés avec les clés sont supprimés à l'enregistrement de la cible. Pour l'immuabilité, créez le bucket avec <i>Object Lock</i> activé.</p>
+
 <h3>Google Cloud Storage</h3>
 <p>Google Cloud Storage fonctionne comme cible compatible S3 via son API d'<i>interopérabilité</i> :</p>
 <ol>

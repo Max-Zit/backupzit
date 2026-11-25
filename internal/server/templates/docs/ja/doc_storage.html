@@ -44,6 +44,13 @@
 <p id="s3-default-retention">バケットには、<b>コンプライアンス モード</b>で少なくとも N 日の<b>既定の保持期間</b>も設定してください (AWS: <i>Object Lock → Default retention</i>、MinIO: <code>mc retention set --default COMPLIANCE 30d</code>)。これにより、侵害されたコンピューターがロックなしで書き込んだオブジェクトも含め、バケット自身がすべての新しいオブジェクトをロックします。既定の保持期間がない場合や N 日より短い場合は、保存先の接続テストで警告されます。</p>
 <p>削除（保持処理または攻撃者による）は「削除マーカー」を追加するだけです。ロックの終了後に領域が解放されるよう、<i>最新でないバージョン</i>を 1 日後に期限切れにするライフサイクル ルールを追加してください。<a href="/docs/ransomware">ランサムウェア対策</a>を参照してください。</p>
 
+<h3 id="b2">Backblaze B2</h3>
+<ol>
+  <li>Backblaze で <i>Application Keys</i> を開き、バケットへの読み書き権限を持つ<b>アプリケーションキー</b>を作成します。B2 の S3 API はアカウントのマスターキーを受け付けません。その場合 BackupZit は <i>Malformed Access Key Id</i> と表示します。</li>
+  <li>バケットのページに表示される <b>S3 エンドポイント</b>（例: <code>s3.us-west-004.backblazeb2.com</code>、バケット名は含めない）、バケット名、アクセスキーとしてアプリケーションキーの <i>keyID</i>、シークレットキーとしてその <i>applicationKey</i>、エンドポイントのリージョン（<code>us-west-004</code>）を指定して S3 ターゲットを追加します。</li>
+</ol>
+<p>キーと一緒にコピーされた空白や改行は、ターゲットの保存時に取り除かれます。イミュータブルにするには、<i>Object Lock</i> を有効にしてバケットを作成します。</p>
+
 <h3>Google Cloud Storage</h3>
 <p>Google Cloud Storage は、<i>相互運用性</i> API を通じて S3 互換ターゲットとして動作します:</p>
 <ol>

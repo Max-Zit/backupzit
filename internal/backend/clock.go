@@ -20,6 +20,24 @@ var ErrClockSkew = errors.New(clockHint)
 
 // withClockHint adds the clock hint to err when the storage refused the
 // request because of the time.
+// withKeyHint explains what an S3 service's "unusable key" answer usually
+// means (#68: Backblaze B2 answers "Malformed Access Key Id" for its master
+// key, which its S3 API does not accept).
+func withKeyHint(err error, host string) error {
+	if err == nil {
+		return nil
+	}
+	code := minio.ToErrorResponse(err).Code
+	if code != "InvalidAccessKeyId" && code != "SignatureDoesNotMatch" && !strings.Contains(err.Error(), "Malformed Access Key Id") {
+		return err
+	}
+	hint := "check the access key and the secret key"
+	if strings.HasSuffix(strings.ToLower(host), ".backblazeb2.com") {
+		hint = "Backblaze B2 needs an application key, its keyID as the access key and its applicationKey as the secret key, not the master key; the region is the one in the endpoint s3.<region>.backblazeb2.com"
+	}
+	return fmt.Errorf("%w (%s)", err, hint)
+}
+
 func withClockHint(err error) error {
 	if err == nil || errors.Is(err, ErrClockSkew) {
 		return err

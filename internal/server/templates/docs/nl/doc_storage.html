@@ -44,6 +44,13 @@
 <p id="s3-default-retention">Geef de bucket ook een <b>standaardbewaring</b> in <b>compliancemodus</b> van minstens N dagen (AWS: <i>Object Lock → Default retention</i>; MinIO: <code>mc retention set --default COMPLIANCE 30d</code>). De bucket vergrendelt dan zelf elk nieuw object, ook een object dat een gecompromitteerde computer zonder vergrendeling schrijft. De verbindingstest van het doel waarschuwt als de standaardbewaring ontbreekt of korter is dan N dagen.</p>
 <p>Verwijderen (door bewaring of door een aanvaller) voegt alleen een „verwijdermarkering” toe. Voeg een levenscyclusregel toe die <i>niet-actuele versies</i> na één dag laat verlopen, zodat er ruimte vrijkomt zodra de vergrendelingen eindigen. Zie <a href="/docs/ransomware">Ransomwarebescherming</a>.</p>
 
+<h3 id="b2">Backblaze B2</h3>
+<ol>
+  <li>Open in Backblaze <i>Application Keys</i> en maak een <b>applicatiesleutel</b> met lees- en schrijfrechten op de bucket. De S3-API van B2 accepteert de hoofdsleutel (master key) van het account niet: BackupZit meldt dan <i>Malformed Access Key Id</i>.</li>
+  <li>Voeg een S3-doel toe met het <b>S3-endpoint</b> van de bucket zoals de bucketpagina het toont, bijvoorbeeld <code>s3.us-west-004.backblazeb2.com</code> (zonder de bucketnaam), de bucketnaam, de <i>keyID</i> van de applicatiesleutel als toegangssleutel en zijn <i>applicationKey</i> als geheime sleutel, en de regio uit het endpoint (<code>us-west-004</code>).</li>
+</ol>
+<p>Spaties en regeleinden die met de sleutels zijn meegekopieerd, worden bij het opslaan van het doel verwijderd. Maak voor onveranderlijkheid de bucket aan met <i>Object Lock</i> ingeschakeld.</p>
+
 <h3>Google Cloud Storage</h3>
 <p>Google Cloud Storage werkt als S3-compatibel doel via de <i>interoperabiliteits</i>-API:</p>
 <ol>

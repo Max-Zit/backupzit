@@ -44,6 +44,13 @@
 <p id="s3-default-retention">Bucket'a ayrıca <b>uyumluluk modunda</b> en az N günlük bir <b>varsayılan saklama süresi</b> verin (AWS: <i>Object Lock → Default retention</i>; MinIO: <code>mc retention set --default COMPLIANCE 30d</code>). Bucket böylece her yeni nesneyi, ele geçirilmiş bir bilgisayarın kilitsiz yazdığı nesneyi bile, kendisi kilitler. Hedefin bağlantı testi, varsayılan saklama süresi yoksa veya N günden kısaysa uyarır.</p>
 <p>Silme (saklama veya saldırgan tarafından) yalnızca bir "silme işareti" ekler. Kilitler bittiğinde alan boşalsın diye <i>güncel olmayan sürümleri</i> bir gün sonra sona erdiren bir yaşam döngüsü kuralı ekleyin. Bkz. <a href="/docs/ransomware">Fidye yazılımı koruması</a>.</p>
 
+<h3 id="b2">Backblaze B2</h3>
+<ol>
+  <li>Backblaze'de <i>Application Keys</i> bölümünü açın ve bucket'a okuma ve yazma erişimi olan bir <b>uygulama anahtarı</b> oluşturun. B2'nin S3 API'si hesabın ana anahtarını (master key) kabul etmez: BackupZit bu durumda <i>Malformed Access Key Id</i> bildirir.</li>
+  <li>Bucket sayfasında gösterilen <b>S3 uç noktası</b> (örneğin <code>s3.us-west-004.backblazeb2.com</code>, bucket adı olmadan), bucket adı, erişim anahtarı olarak uygulama anahtarının <i>keyID</i> değeri, gizli anahtar olarak <i>applicationKey</i> değeri ve uç noktadaki bölge (<code>us-west-004</code>) ile bir S3 hedefi ekleyin.</li>
+</ol>
+<p>Anahtarlarla birlikte kopyalanan boşluklar ve satır sonları hedef kaydedilirken kaldırılır. Değiştirilemezlik için bucket'ı <i>Object Lock</i> etkin olarak oluşturun.</p>
+
 <h3>Google Cloud Storage</h3>
 <p>Google Cloud Storage, <i>birlikte çalışabilirlik</i> API'si aracılığıyla S3 uyumlu bir hedef olarak çalışır:</p>
 <ol>

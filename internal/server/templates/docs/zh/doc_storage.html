@@ -44,6 +44,13 @@
 <p id="s3-default-retention">还要为存储桶设置至少 N 天、<b>合规模式</b>的<b>默认保留</b>（AWS：<i>Object Lock → Default retention</i>；MinIO：<code>mc retention set --default COMPLIANCE 30d</code>）。这样存储桶会自行锁定每个新对象，即使被入侵的计算机写入时未加锁。若默认保留缺失或短于 N 天，目标的连接测试会发出警告。</p>
 <p>删除（由保留策略或攻击者执行）只会添加一个“删除标记”。请添加一条生命周期规则，让<i>非当前版本</i>在一天后过期，以便锁定结束后释放空间。参见 <a href="/docs/ransomware">勒索软件防护</a>。</p>
 
+<h3 id="b2">Backblaze B2</h3>
+<ol>
+  <li>在 Backblaze 中打开 <i>Application Keys</i>，创建一个对该存储桶有读写权限的<b>应用密钥</b>。B2 的 S3 API 不接受账户的主密钥（master key）：此时 BackupZit 会报告 <i>Malformed Access Key Id</i>。</li>
+  <li>添加一个 S3 目标：使用存储桶页面上显示的 <b>S3 端点</b>，例如 <code>s3.us-west-004.backblazeb2.com</code>（不含存储桶名称），填写存储桶名称，以应用密钥的 <i>keyID</i> 作为访问密钥、其 <i>applicationKey</i> 作为秘密密钥，并填写端点中的区域（<code>us-west-004</code>）。</li>
+</ol>
+<p>与密钥一起复制的空格和换行会在保存目标时去除。如需不可变性，请创建启用了 <i>Object Lock</i> 的存储桶。</p>
+
 <h3>Google Cloud Storage</h3>
 <p>Google Cloud Storage 通过其<i>互操作性</i> API 作为 S3 兼容目标使用：</p>
 <ol>

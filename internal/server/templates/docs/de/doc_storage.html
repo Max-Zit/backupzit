@@ -44,6 +44,13 @@
 <p id="s3-default-retention">Geben Sie dem Bucket außerdem eine <b>Standard-Aufbewahrung</b> im <b>Compliance-Modus</b> von mindestens N Tagen (AWS: <i>Object Lock → Default retention</i>; MinIO: <code>mc retention set --default COMPLIANCE 30d</code>). Der Bucket sperrt dann jedes neue Objekt selbst, auch eines, das ein kompromittierter Computer ohne Sperre schreibt. Der Verbindungstest des Ziels warnt, wenn die Standard-Aufbewahrung fehlt oder kürzer als N Tage ist.</p>
 <p>Löschen (durch Aufbewahrung oder durch einen Angreifer) fügt nur eine „Löschmarkierung“ hinzu. Fügen Sie eine Lebenszyklusregel hinzu, die <i>nicht aktuelle Versionen</i> nach einem Tag ablaufen lässt, damit Platz frei wird, sobald die Sperren enden. Siehe <a href="/docs/ransomware">Ransomware-Schutz</a>.</p>
 
+<h3 id="b2">Backblaze B2</h3>
+<ol>
+  <li>Öffnen Sie in Backblaze <i>Application Keys</i> und erstellen Sie einen <b>Anwendungsschlüssel</b> mit Lese- und Schreibzugriff auf den Bucket. Die S3-API von B2 akzeptiert den Master-Schlüssel des Kontos nicht: BackupZit meldet dann <i>Malformed Access Key Id</i>.</li>
+  <li>Legen Sie ein S3-Ziel mit dem <b>S3-Endpunkt</b> des Buckets an, wie ihn die Bucket-Seite zeigt, zum Beispiel <code>s3.us-west-004.backblazeb2.com</code> (ohne den Bucket-Namen), dem Bucket-Namen, der <i>keyID</i> des Anwendungsschlüssels als Zugriffsschlüssel und seinem <i>applicationKey</i> als geheimem Schlüssel sowie der Region aus dem Endpunkt (<code>us-west-004</code>).</li>
+</ol>
+<p>Leerzeichen und Zeilenumbrüche, die mit den Schlüsseln kopiert wurden, werden beim Speichern des Ziels entfernt. Für Unveränderlichkeit erstellen Sie den Bucket mit aktiviertem <i>Object Lock</i>.</p>
+
 <h3>Google Cloud Storage</h3>
 <p>Google Cloud Storage funktioniert über seine <i>Interoperabilitäts</i>-API als S3-kompatibles Ziel:</p>
 <ol>

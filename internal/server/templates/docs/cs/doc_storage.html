@@ -44,6 +44,13 @@
 <p id="s3-default-retention">Nastavte bucketu také <b>výchozí uchování</b> v <b>režimu compliance</b> alespoň na N dní (AWS: <i>Object Lock → Default retention</i>; MinIO: <code>mc retention set --default COMPLIANCE 30d</code>). Bucket pak sám zamkne každý nový objekt, i ten, který napadený počítač zapíše bez zámku. Test připojení cíle upozorní, když výchozí uchování chybí nebo je kratší než N dní.</p>
 <p>Smazání (uchováváním nebo útočníkem) jen přidá „značku smazání“. Přidejte pravidlo životního cyklu, které nechá <i>neaktuální verze</i> vypršet po jednom dni, aby se místo uvolnilo, jakmile zámky skončí. Viz <a href="/docs/ransomware">Ochrana proti ransomwaru</a>.</p>
 
+<h3 id="b2">Backblaze B2</h3>
+<ol>
+  <li>V Backblaze otevřete <i>Application Keys</i> a vytvořte <b>aplikační klíč</b> s právem čtení a zápisu do bucketu. S3 API služby B2 nepřijímá hlavní klíč účtu (master key): BackupZit pak hlásí <i>Malformed Access Key Id</i>.</li>
+  <li>Přidejte cíl S3 s <b>S3 endpointem</b> bucketu, jak ho ukazuje stránka bucketu, například <code>s3.us-west-004.backblazeb2.com</code> (bez názvu bucketu), s názvem bucketu, s <i>keyID</i> aplikačního klíče jako přístupovým klíčem a jeho <i>applicationKey</i> jako tajným klíčem a s regionem z endpointu (<code>us-west-004</code>).</li>
+</ol>
+<p>Mezery a zalomení řádků zkopírované spolu s klíči se při uložení cíle odstraní. Pro neměnnost vytvořte bucket se zapnutým <i>Object Lock</i>.</p>
+
 <h3>Google Cloud Storage</h3>
 <p>Google Cloud Storage funguje jako cíl kompatibilní s S3 přes své API pro <i>interoperabilitu</i>:</p>
 <ol>

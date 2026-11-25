@@ -950,9 +950,10 @@ func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ st
 			return
 		}
 		t.URL = u
-		t.S3AccessKey = r.FormValue("s3_access_key")
-		t.S3SecretKey = r.FormValue("s3_secret_key")
-		t.S3Region = r.FormValue("s3_region")
+		// Pasted keys often carry a space or a line break (#68).
+		t.S3AccessKey = strings.TrimSpace(r.FormValue("s3_access_key"))
+		t.S3SecretKey = strings.TrimSpace(r.FormValue("s3_secret_key"))
+		t.S3Region = strings.TrimSpace(r.FormValue("s3_region"))
 		if r.FormValue("s3_immutable") == "on" {
 			t.S3LockDays = atoiDefault(r.FormValue("s3_lock_days"))
 			if t.S3LockDays < 1 || t.S3LockDays > 3650 {

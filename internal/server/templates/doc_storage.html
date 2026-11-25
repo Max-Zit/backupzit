@@ -44,6 +44,13 @@
 <p id="s3-default-retention">Also give the bucket a <b>default retention</b> in <b>compliance mode</b> of at least N days (AWS: <i>Object Lock → Default retention</i>; MinIO: <code>mc retention set --default COMPLIANCE 30d</code>). The bucket then locks every new object itself, even one that a compromised computer writes without a lock. The connection test of the target warns when the default retention is missing or shorter than N days.</p>
 <p>Deleting (by retention or by an attacker) only adds a "delete marker". Add a lifecycle rule that expires <i>noncurrent versions</i> after one day, so space is freed once locks end. See <a href="/docs/ransomware">Ransomware protection</a>.</p>
 
+<h3 id="b2">Backblaze B2</h3>
+<ol>
+  <li>In Backblaze open <i>Application Keys</i> and create an <b>application key</b> with read and write access to the bucket. B2's S3 API does not accept the account's master key: BackupZit then reports <i>Malformed Access Key Id</i>.</li>
+  <li>Add an S3 target with the bucket's <b>S3 endpoint</b> as its bucket page shows it, for example <code>s3.us-west-004.backblazeb2.com</code> (without the bucket name), the bucket name, the application key's <i>keyID</i> as the access key and its <i>applicationKey</i> as the secret key, and the region from the endpoint (<code>us-west-004</code>).</li>
+</ol>
+<p>Spaces and line breaks copied along with the keys are removed when the target is saved. For immutability create the bucket with <i>Object Lock</i> enabled.</p>
+
 <h3>Google Cloud Storage</h3>
 <p>Google Cloud Storage works as an S3 compatible target through its <i>interoperability</i> API:</p>
 <ol>

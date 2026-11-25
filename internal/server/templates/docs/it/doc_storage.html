@@ -44,6 +44,13 @@
 <p id="s3-default-retention">Assegnare al bucket anche una <b>conservazione predefinita</b> in <b>modalità compliance</b> di almeno N giorni (AWS: <i>Object Lock → Default retention</i>; MinIO: <code>mc retention set --default COMPLIANCE 30d</code>). Il bucket blocca così da sé ogni nuovo oggetto, anche quello che un computer compromesso scrive senza blocco. Il test di connessione della destinazione avvisa quando la conservazione predefinita manca o è inferiore a N giorni.</p>
 <p>L'eliminazione (dalla conservazione o da un attaccante) aggiunge solo un «marcatore di eliminazione». Aggiungete una regola del ciclo di vita che faccia scadere le <i>versioni non correnti</i> dopo un giorno, così lo spazio si libera quando i blocchi terminano. Vedete <a href="/docs/ransomware">Protezione dal ransomware</a>.</p>
 
+<h3 id="b2">Backblaze B2</h3>
+<ol>
+  <li>In Backblaze aprite <i>Application Keys</i> e create una <b>chiave applicativa</b> con accesso in lettura e scrittura al bucket. L'API S3 di B2 non accetta la chiave master dell'account: BackupZit segnala allora <i>Malformed Access Key Id</i>.</li>
+  <li>Aggiungete una destinazione S3 con l'<b>endpoint S3</b> del bucket indicato nella sua pagina, per esempio <code>s3.us-west-004.backblazeb2.com</code> (senza il nome del bucket), il nome del bucket, il <i>keyID</i> della chiave applicativa come chiave di accesso e la sua <i>applicationKey</i> come chiave segreta, e la regione dell'endpoint (<code>us-west-004</code>).</li>
+</ol>
+<p>Spazi e a capo copiati insieme alle chiavi vengono rimossi al salvataggio della destinazione. Per l'immutabilità create il bucket con <i>Object Lock</i> attivo.</p>
+
 <h3>Google Cloud Storage</h3>
 <p>Google Cloud Storage funziona come destinazione compatibile S3 tramite la sua API di <i>interoperabilità</i>:</p>
 <ol>

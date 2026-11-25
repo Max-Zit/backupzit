@@ -44,6 +44,13 @@
 <p id="s3-default-retention">Bucketu dajte i <b>podrazumevano zadržavanje</b> u <b>compliance režimu</b> od najmanje N dana (AWS: <i>Object Lock → Default retention</i>; MinIO: <code>mc retention set --default COMPLIANCE 30d</code>). Bucket tada sam zaključava svaki nov objekat, čak i onaj koji kompromitovan računar upiše bez zaključavanja. Test veze destinacije upozorava kada podrazumevano zadržavanje nedostaje ili je kraće od N dana.</p>
 <p>Brisanje (retencijom ili od strane napadača) samo dodaje „oznaku brisanja“. Dodajte lifecycle pravilo koje briše <i>prethodne verzije</i> (noncurrent versions) posle jednog dana, da bi se prostor oslobodio kada zaključavanja isteknu. Vidi <a href="/docs/ransomware">Zaštita od ransomware-a</a>.</p>
 
+<h3 id="b2">Backblaze B2</h3>
+<ol>
+  <li>U Backblaze-u otvorite <i>Application Keys</i> i napravite <b>aplikacioni ključ</b> sa pravom čitanja i pisanja u bucket. S3 API servisa B2 ne prihvata glavni ključ naloga (master key): BackupZit tada prijavljuje <i>Malformed Access Key Id</i>.</li>
+  <li>Dodajte S3 cilj sa <b>S3 endpointom</b> bucketa kako ga prikazuje stranica bucketa, na primer <code>s3.us-west-004.backblazeb2.com</code> (bez imena bucketa), imenom bucketa, <i>keyID</i>-jem aplikacionog ključa kao pristupnim ključem i njegovim <i>applicationKey</i>-jem kao tajnim ključem, i regionom iz endpointa (<code>us-west-004</code>).</li>
+</ol>
+<p>Razmaci i prelomi reda kopirani zajedno sa ključevima uklanjaju se pri čuvanju cilja. Za nepromenljivost napravite bucket sa uključenim <i>Object Lock</i>.</p>
+
 <h3>Google Cloud Storage</h3>
 <p>Google Cloud Storage radi kao S3-kompatibilno skladište preko svog <i>interoperability</i> API-ja:</p>
 <ol>
