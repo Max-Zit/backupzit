@@ -3,6 +3,12 @@
 <h1>{{$a.Name}}</h1>
 <p class="muted">{{T "Host name reported by the computer:"}} <b class="mono">{{$a.Hostname}}</b> · {{$a.OS}}/{{$a.Arch}} · {{T "agent"}} <span class="mono">{{$a.Version}}</span> · <a href="/agents">{{T "all agents"}}</a></p>
 
+{{if eq $a.FullDiskAccess "denied"}}
+<div class="callout warn">
+  <p>{{T "This Mac's agent has no Full Disk Access: backups skip the folders macOS protects (Mail, Messages, Safari, Desktop, Documents, other apps' data). The user of the Mac turns BackupZit Agent on again in System Settings → Privacy & Security → Full Disk Access; the menu bar app shows the steps."}} <a href="/docs/macos#permissions">{{T "help"}}</a></p>
+</div>
+{{end}}
+
 {{with .Data.SameHost}}
 <div class="callout warn">
   <p>{{T "Other agents report the same host name:"}} {{range $i, $o := .}}{{if $i}}, {{end}}<a href="/agents/{{$o.ID}}">{{$o.Label}}</a>{{end}}. {{T "Give each one a name of its own, so the right computer is chosen for jobs and restores."}}</p>

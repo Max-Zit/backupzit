@@ -27,6 +27,7 @@ import (
 	"github.com/max-zit/backupzit/internal/backend"
 	"github.com/max-zit/backupzit/internal/fsutil"
 	"github.com/max-zit/backupzit/internal/leftover"
+	"github.com/max-zit/backupzit/internal/macperm"
 	"github.com/max-zit/backupzit/internal/repo"
 	"github.com/max-zit/backupzit/internal/restorer"
 	"github.com/max-zit/backupzit/internal/tlsutil"
@@ -296,6 +297,10 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	req.WantStatus = a.wantStatus()
 	req.ConfigurableVMBlocks = true
 	req.Runs, req.ReportsRuns = active, true
+	// macOS: the console marks a Mac without Full Disk Access (0.61, #62).
+	if fda := macperm.FullDiskAccess(); fda != macperm.NotApplicable {
+		req.FullDiskAccess = string(fda)
+	}
 	a.machineOnce.Do(func() {
 		if ids := vmware.MachineUUIDs(); len(ids) > 0 {
 			a.machineUUID = ids[0]

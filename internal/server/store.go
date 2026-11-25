@@ -366,6 +366,9 @@ type Agent struct {
 	// never sets either.
 	DisplayName string
 	Tags        []string
+	// FullDiskAccess is the macOS permission as the agent reports it
+	// (granted, denied, unknown; "" for other systems and agents before 0.61).
+	FullDiskAccess string
 }
 
 // Disks decodes the reported disk inventory.
@@ -382,11 +385,11 @@ func (a Agent) Online() bool {
 	return a.LastSeen != nil && time.Since(*a.LastSeen) < 3*time.Minute
 }
 
-const agentCols = `id, uuid, hostname, repo_dir, os, arch, version, enrolled_at, last_seen_at, inventory, inventory_at, recovery, local_ips, remote_addr, hypervisor, max_runs, removed_at, display_name, tags`
+const agentCols = `id, uuid, hostname, repo_dir, os, arch, version, enrolled_at, last_seen_at, inventory, inventory_at, recovery, local_ips, remote_addr, hypervisor, max_runs, removed_at, display_name, tags, full_disk_access`
 
 func scanAgent(r pgx.Row, extra ...any) (Agent, error) {
 	var a Agent
-	dest := append([]any{&a.ID, &a.UUID, &a.Hostname, &a.RepoDir, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen, &a.Inventory, &a.InventoryAt, &a.Recovery, &a.LocalIPs, &a.RemoteAddr, &a.Hypervisor, &a.MaxRuns, &a.RemovedAt, &a.DisplayName, &a.Tags}, extra...)
+	dest := append([]any{&a.ID, &a.UUID, &a.Hostname, &a.RepoDir, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen, &a.Inventory, &a.InventoryAt, &a.Recovery, &a.LocalIPs, &a.RemoteAddr, &a.Hypervisor, &a.MaxRuns, &a.RemovedAt, &a.DisplayName, &a.Tags, &a.FullDiskAccess}, extra...)
 	err := r.Scan(dest...)
 	return a, err
 }
@@ -437,6 +440,19 @@ func (s *Store) TouchAgent(ctx context.Context, id int64, req api.PollRequest, r
 		machine_uuid=COALESCE(NULLIF($6,''),machine_uuid) WHERE id=$1`,
 		id, req.Hostname, req.OS, req.Arch, req.Version, strings.ToLower(clip(req.MachineUUID, 64)))
 	return err
+}
+
+// setFullDiskAccess stores the Full Disk Access a macOS agent reported and
+// returns the state it had before when it changed (changed false: same as
+// before, nothing written).
+func (s *Store) setFullDiskAccess(ctx context.Context, id int64, state string) (prev string, changed bool, err error) {
+	err = s.db.QueryRow(ctx, `UPDATE agents a SET full_disk_access=$2
+		FROM (SELECT full_disk_access AS old FROM agents WHERE id=$1 FOR UPDATE) o
+		WHERE a.id=$1 AND a.full_disk_access<>$2 RETURNING o.old`, id, state).Scan(&prev)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", false, nil
+	}
+	return prev, err == nil, err
 }
 
 // agentMachineUUID is the BIOS UUID the agent reported ("" if none).

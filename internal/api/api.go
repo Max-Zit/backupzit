@@ -111,6 +111,10 @@ type PollRequest struct {
 	// MachineUUID is the BIOS UUID of the agent's machine (Linux in a VM,
 	// 0.55): the console finds a VMware proxy's VM, and so its ESXi host.
 	MachineUUID string `json:"machine_uuid,omitempty"`
+	// FullDiskAccess is the macOS agent's Full Disk Access (granted, denied or
+	// unknown; macOS agents 0.61 and newer, empty elsewhere): the console marks
+	// a Mac without it (#62).
+	FullDiskAccess string `json:"full_disk_access,omitempty"`
 	// Time is the agent's clock in unix milliseconds when it sent the poll
 	// (0.44.0 and newer); the console warns when it is off.
 	Time int64 `json:"time,omitempty"`

@@ -91,6 +91,9 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 	if len(req.Progress) > 0 {
 		s.live.set(a.ID, req.Progress, s.clock())
 	}
+	if req.FullDiskAccess != "" {
+		s.agentFullDiskAccess(r.Context(), a, req.FullDiskAccess, remoteIP(r))
+	}
 	s.clocks.seen(a.ID, req.Time, s.clock())
 	resp := api.PollResponse{PollIntervalSec: s.PollInterval}
 	if _, ok := s.inventoryWanted.LoadAndDelete(a.ID); ok {
