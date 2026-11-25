@@ -1,0 +1,54 @@
+name: macOS Intel
+
+# The macOS agent is one universal package for Apple silicon and Intel Macs.
+# The CI workflow builds and tests it on Apple silicon; this one does the
+# same natively on an Intel Mac runner, so the x86_64 half is tested on
+# Intel hardware and not only under Rosetta. It is a separate workflow and
+# not a required check: when GitHub has no Intel runner free (or retires the
+# label), develop and main are not held up.
+
+on:
+  push:
+    branches: [develop]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-intel-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  intel:
+    name: Build and test (macOS, Intel)
+    runs-on: macos-15-intel
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Intel runner
+        run: |
+          uname -m
+          test "$(uname -m)" = x86_64
+      - name: go build and go vet
+        run: |
+          go build ./...
+          go vet ./...
+      - name: Tests (agent-side packages)
+        run: >-
+          go test -count=1 -timeout 30m
+          ./internal/agent ./internal/archiver ./internal/restorer ./internal/fsutil ./internal/repo
+          ./internal/e2e ./internal/macperm ./internal/localipc ./internal/apfssnap ./internal/launchd
+          ./cmd/backupzit-agent ./cmd/backupzit-tray
+      - name: Installer package, run natively on Intel
+        run: |
+          ./packaging/macos/test-scripts.sh
+          OUT_DIR="$RUNNER_TEMP/pkg" WORK_DIR="$RUNNER_TEMP/pkgwork" ./packaging/macos/build-pkg.sh 0.0.0-ci
+          agent="$RUNNER_TEMP/pkgwork/payload/Library/BackupZit/bin/backupzit-agent"
+          lipo -archs "$agent" | grep -q x86_64
+          lipo -archs "$agent" | grep -q arm64
+          "$agent" version
