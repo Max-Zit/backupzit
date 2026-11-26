@@ -428,6 +428,14 @@ func (s *Server) addRetention(ctx context.Context, run *Run, ar *api.Run) {
 	if j.RetentionHold {
 		return // paused after a suspicious backup
 	}
+	if j.Kind == "copy" && j.SourceJobID != nil {
+		// A copy job removes nothing while its source job is paused after a
+		// suspicious backup: the damaged backups it copies must not push the
+		// clean copies out.
+		if src, err := s.store.GetJob(ctx, *j.SourceJobID); err != nil || src.RetentionHold {
+			return
+		}
+	}
 	if !j.Retention.Empty() {
 		p := j.Retention
 		ar.Retention = &p

@@ -20,7 +20,7 @@
   <li>liczba plików nagle spadła o jedną trzecią lub więcej,</li>
   <li>nagły skok ilości nowych danych (także dla obrazów dysków, systemów Linux i maszyn wirtualnych).</li>
 </ul>
-<p>Wtedy BackupZit wysyła e-mail z alertem (przy włączonych powiadomieniach o błędach), pokazuje kopię na pulpicie jako <i>podejrzanych kopii do sprawdzenia</i> i <b>wstrzymuje przechowywanie zadania</b>: żadna starsza kopia nie jest usuwana, więc ostatnie czyste kopie pozostają możliwe do przywrócenia, nawet jeśli nadal napływają uszkodzone kopie. Po sprawdzeniu maszyny kliknij <i>Sprawdzono — wznów przechowywanie</i> na stronie zadania.</p>
+<p>Wtedy BackupZit wysyła e-mail z alertem (przy włączonych powiadomieniach o błędach), pokazuje kopię na pulpicie jako <i>podejrzanych kopii do sprawdzenia</i> i <b>wstrzymuje przechowywanie zadania</b>: żadna starsza kopia nie jest usuwana, więc ostatnie czyste kopie pozostają możliwe do przywrócenia, nawet jeśli nadal napływają uszkodzone kopie. Po sprawdzeniu maszyny kliknij <i>Sprawdzono — wznów przechowywanie</i> na stronie zadania. Kopie też czekają: do tego czasu nie uruchamiają się kopie po każdej kopii zapasowej ani replikacja, a kopie z własnym harmonogramem kopiują bez usuwania starszych kopii, więc uszkodzone kopie nie mogą też wypchnąć czystych kopii z drugiego magazynu.</p>
 
 <h2>Niezmienny S3 z Object Lock</h2>
 <ol>

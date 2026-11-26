@@ -11,7 +11,7 @@
   <li><b>Kopiuj dzienniki co … minut</b>: np. 15 — dzienniki transakcji (SQL Server), zarchiwizowany WAL (PostgreSQL) lub dzienniki binarne (MySQL). Pozostaw puste, jeśli wystarczy przywracanie na czas pełnej kopii.</li>
   <li><b>Harmonogram</b> dotyczy pełnych kopii, np. codziennie o 22:00.</li>
 </ul>
-<p>Kopie są deduplikowane — niezmienione dane nie są wysyłane ponownie — i szyfrowane jak każda kopia. Przechowywanie liczy pełne kopie; kopie dzienników są przechowywane tak długo jak pełna kopia, na której się opierają. Strona uruchomienia pokazuje, co zawiera każda kopia.</p>
+<p>Kopie są deduplikowane — niezmienione dane nie są wysyłane ponownie — i szyfrowane jak każda kopia. Przechowywanie liczy pełne kopie; kopie dzienników są przechowywane tak długo jak pełna kopia, na której się opierają. Strona uruchomienia pokazuje, co zawiera każda kopia. Jeśli w pełnej kopii brakuje bazy danych (już nie istnieje, jest offline lub nie udało się jej zrzucić), uruchomienie kończy się ostrzeżeniem, a przechowywanie zadania nie jest stosowane, więc starsze kopie zawierające tę bazę zostają.</p>
 
 <h2>Microsoft SQL Server</h2>
 <ol>

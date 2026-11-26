@@ -20,7 +20,7 @@
   <li>il numero di file è calato improvvisamente di un terzo o più,</li>
   <li>un salto improvviso nella quantità di nuovi dati (anche per immagini disco, sistemi Linux e VM).</li>
 </ul>
-<p>BackupZit invia allora un'e-mail di avviso (con le notifiche di errore attive), mostra il backup nella dashboard tra i <i>backup sospetti da esaminare</i> e <b>sospende la conservazione del job</b>: nessun backup più vecchio viene eliminato, così gli ultimi backup puliti restano ripristinabili anche se continuano ad arrivare backup danneggiati. Dopo aver controllato la macchina, fai clic su <i>Verificato — riprendi la conservazione</i> nella pagina del job.</p>
+<p>BackupZit invia allora un'e-mail di avviso (con le notifiche di errore attive), mostra il backup nella dashboard tra i <i>backup sospetti da esaminare</i> e <b>sospende la conservazione del job</b>: nessun backup più vecchio viene eliminato, così gli ultimi backup puliti restano ripristinabili anche se continuano ad arrivare backup danneggiati. Dopo aver controllato la macchina, fai clic su <i>Verificato — riprendi la conservazione</i> nella pagina del job. Anche le copie aspettano: fino ad allora non partono le copie di backup dopo ogni backup né la replica, e le copie di backup con una propria pianificazione copiano senza rimuovere copie più vecchie, così i backup danneggiati non possono nemmeno spingere fuori le copie pulite dall'altro storage.</p>
 
 <h2>S3 immutabile con Object Lock</h2>
 <ol>

@@ -11,7 +11,7 @@
   <li><b>Bekap logova na svakih … minuta</b>: npr. 15 — transakcioni logovi (SQL Server), arhivirani WAL (PostgreSQL) ili binarni logovi (MySQL). Ostavite prazno ako je dovoljno vraćanje na vreme punog bekapa.</li>
   <li><b>Raspored</b> je raspored punih bekapa, npr. svakog dana u 22:00.</li>
 </ul>
-<p>Bekapi su deduplicirani — nepromenjeni podaci se ne šalju ponovo — i šifrovani kao svaki bekap. Retencija broji pune bekape; bekapi logova se čuvaju dok postoji puni bekap na koji se nastavljaju. Stranica pokretanja navodi šta svaki bekap sadrži.</p>
+<p>Bekapi su deduplicirani — nepromenjeni podaci se ne šalju ponovo — i šifrovani kao svaki bekap. Retencija broji pune bekape; bekapi logova se čuvaju dok postoji puni bekap na koji se nastavljaju. Stranica pokretanja navodi šta svaki bekap sadrži. Ako u punom bekapu nedostaje baza (više ne postoji, offline je ili nije mogla da se izveze), pokretanje se završava upozorenjem i retencija posla se ne primenjuje, pa stariji bekapi koji je sadrže ostaju.</p>
 
 <h2>Microsoft SQL Server</h2>
 <ol>

@@ -11,7 +11,7 @@
   <li><b>Günlükleri her … dakikada bir yedekle</b>: ör. 15 — işlem günlükleri (SQL Server), arşivlenmiş WAL (PostgreSQL) veya ikili günlükler (MySQL). Tam yedeğin zamanına geri yükleme yeterliyse boş bırakın.</li>
   <li><b>Zamanlama</b>, tam yedeklerin zamanlamasıdır, ör. her gün 22:00'de.</li>
 </ul>
-<p>Yedekler tekilleştirilir — değişmeyen veriler yeniden yüklenmez — ve her yedek gibi şifrelenir. Saklama kuralı tam yedekleri sayar; günlük yedekleri, dayandıkları tam yedek var olduğu sürece tutulur. Çalıştırma sayfası her yedeğin neler içerdiğini listeler.</p>
+<p>Yedekler tekilleştirilir — değişmeyen veriler yeniden yüklenmez — ve her yedek gibi şifrelenir. Saklama kuralı tam yedekleri sayar; günlük yedekleri, dayandıkları tam yedek var olduğu sürece tutulur. Çalıştırma sayfası her yedeğin neler içerdiğini listeler. Tam bir yedekte bir veritabanı eksikse (artık yoksa, çevrimdışıysa veya dökümü alınamadıysa), çalıştırma bir uyarıyla biter ve işin saklama kuralı uygulanmaz; böylece o veritabanını içeren eski yedekler kalır.</p>
 
 <h2>Microsoft SQL Server</h2>
 <ol>

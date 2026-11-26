@@ -1534,6 +1534,7 @@
   "Unblock all": "Odblokovat vše",
   "Under its original name": "Pod původním názvem",
   "Uninstall the agent from the computer": "Odinstalovat agenta z počítače",
+  "Until then, copy jobs after each backup and replication wait, and copy jobs with their own schedule copy without removing older copies.": "Do té doby čekají kopie záloh po každé záloze i replikace a kopie záloh s vlastním plánem kopírují bez odstraňování starších kopií.",
   "Unusual backup:": "Neobvyklá záloha:",
   "Up to (MB)": "Až (MB)",
   "Update all agents (": "Aktualizovat všechny agenty (",

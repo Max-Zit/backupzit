@@ -1507,6 +1507,21 @@ func TestRansomwareDetection(t *testing.T) {
 			t.Fatalf("normal backup flagged: %s", r.Anomaly)
 		}
 	}
+	// A2: a copy job after each backup, keeping only the newest copy.
+	admin := newClient(t, e)
+	admin.login("admin", "admin-pass-123")
+	offsite, _ := e.store.CreateTarget(ctx, server.Target{Name: "offsite", Kind: "local", URL: filepath.Join(t.TempDir(), "offsite")})
+	if _, loc, _ := admin.do("POST", "/jobs", url.Values{"name": {"docs offsite"}, "kind": {"copy"}, "source_job": {fmt.Sprint(jobID)},
+		"target_id": {fmt.Sprint(offsite)}, "sched_kind": {"after"}, "keep_last": {"1"}}); !strings.Contains(loc, "msg=") {
+		t.Fatalf("create copy job: %s", loc)
+	}
+	var copyID int64
+	jobs, _ := e.store.ListJobs(ctx)
+	for _, j := range jobs {
+		if j.Kind == "copy" {
+			copyID = j.ID
+		}
+	}
 	// "Ransomware" encrypts every document.
 	rng := rand.New(rand.NewSource(1))
 	for i := 0; i < 120; i++ {
@@ -1534,8 +1549,27 @@ func TestRansomwareDetection(t *testing.T) {
 	if clean < 2 {
 		t.Errorf("clean backups expired while retention was paused (%d left)", clean)
 	}
-	admin := newClient(t, e)
-	admin.login("admin", "admin-pass-123")
+	// No copy after the suspicious backup or while paused; a copy started
+	// by hand copies but removes no older copy.
+	if cr, _ := e.store.ListRuns(ctx, server.RunFilter{JobID: copyID}); len(cr) != 0 {
+		t.Fatalf("copy queued while retention is paused: %d runs", len(cr))
+	}
+	for i := 0; i < 2; i++ {
+		if i == 1 {
+			backup() // one more backup for the copy, so keep_last=1 would remove the first copy
+			if cr, _ := e.store.ListRuns(ctx, server.RunFilter{JobID: copyID}); len(cr) != 1 {
+				t.Fatalf("copy queued after a backup while retention is paused: %d runs", len(cr))
+			}
+		}
+		cid, err := e.store.QueueBackup(ctx, copyID, "manual")
+		if err != nil {
+			t.Fatal(err)
+		}
+		runAgent(t, ag)
+		if c, _ := e.store.GetRun(ctx, cid); c.Status != api.StatusSuccess || strings.Contains(c.Message, "removed") {
+			t.Fatalf("copy %d while paused: %s %q", i+1, c.Status, c.Message)
+		}
+	}
 	if _, _, body := admin.do("GET", "/", nil); !strings.Contains(body, "suspicious backups to review") {
 		t.Error("dashboard lacks suspicious count")
 	}

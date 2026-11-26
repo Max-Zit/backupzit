@@ -1534,6 +1534,7 @@
   "Unblock all": "Desbloquear todo",
   "Under its original name": "Con su nombre original",
   "Uninstall the agent from the computer": "Desinstalar el agente del equipo",
+  "Until then, copy jobs after each backup and replication wait, and copy jobs with their own schedule copy without removing older copies.": "Hasta entonces, las copias secundarias tras cada copia y la replicación esperan, y las copias secundarias con su propia programación copian sin eliminar copias anteriores.",
   "Unusual backup:": "Copia inusual:",
   "Up to (MB)": "Hasta (MB)",
   "Update all agents (": "Actualizar todos los agentes (",

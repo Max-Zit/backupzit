@@ -1534,6 +1534,7 @@
   "Unblock all": "Alles deblokkeren",
   "Under its original name": "Onder de oorspronkelijke naam",
   "Uninstall the agent from the computer": "Agent van de computer verwijderen (deïnstalleren)",
+  "Until then, copy jobs after each backup and replication wait, and copy jobs with their own schedule copy without removing older copies.": "Tot dan wachten back-upkopieën na elke back-up en replicatie; back-upkopieën met een eigen schema kopiëren zonder oudere kopieën te verwijderen.",
   "Unusual backup:": "Ongebruikelijke back-up:",
   "Up to (MB)": "Tot (MB)",
   "Update all agents (": "Alle agents bijwerken (",

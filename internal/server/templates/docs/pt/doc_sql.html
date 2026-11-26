@@ -11,7 +11,7 @@
   <li><b>Fazer backup dos logs a cada … minutos</b>: por ex. 15 — logs de transação (SQL Server), WAL arquivado (PostgreSQL) ou logs binários (MySQL). Deixe vazio se restaurar no horário de um backup completo for suficiente.</li>
   <li>O <b>agendamento</b> é o dos backups completos, por ex. diariamente às 22:00.</li>
 </ul>
-<p>Os backups são deduplicados — dados inalterados não são enviados de novo — e criptografados como qualquer backup. A retenção conta os backups completos; backups de log são mantidos enquanto existir o backup completo em que se baseiam. A página da execução lista o que cada backup contém.</p>
+<p>Os backups são deduplicados — dados inalterados não são enviados de novo — e criptografados como qualquer backup. A retenção conta os backups completos; backups de log são mantidos enquanto existir o backup completo em que se baseiam. A página da execução lista o que cada backup contém. Se faltar um banco de dados em um backup completo (ele não existe mais, está offline ou não pôde ser exportado), a execução termina com um aviso e a retenção da tarefa não é aplicada, então os backups anteriores que o contêm são mantidos.</p>
 
 <h2>Microsoft SQL Server</h2>
 <ol>

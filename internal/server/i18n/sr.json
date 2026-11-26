@@ -1534,6 +1534,7 @@
   "Unblock all": "Deblokiraj sve",
   "Under its original name": "Pod originalnim nazivom",
   "Uninstall the agent from the computer": "Deinstaliraj agenta sa računara",
+  "Until then, copy jobs after each backup and replication wait, and copy jobs with their own schedule copy without removing older copies.": "Do tada kopije bekapa posle svakog bekapa i replikacija čekaju, a kopije bekapa sa sopstvenim rasporedom kopiraju bez brisanja starijih kopija.",
   "Unusual backup:": "Neobičan backup:",
   "Up to (MB)": "Do (MB)",
   "Update all agents (": "Ažuriraj sve agente (",

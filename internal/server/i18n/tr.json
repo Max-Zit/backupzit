@@ -1534,6 +1534,7 @@
   "Unblock all": "Tümünün engelini kaldır",
   "Under its original name": "Özgün adıyla",
   "Uninstall the agent from the computer": "Aracıyı bilgisayardan kaldır",
+  "Until then, copy jobs after each backup and replication wait, and copy jobs with their own schedule copy without removing older copies.": "O zamana kadar her yedekten sonraki yedek kopyaları ve çoğaltma bekler; kendi zamanlaması olan yedek kopyaları eski kopyaları kaldırmadan kopyalar.",
   "Unusual backup:": "Olağandışı yedek:",
   "Up to (MB)": "En fazla (MB)",
   "Update all agents (": "Tüm aracıları güncelle (",

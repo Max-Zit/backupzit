@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sort"
 	"time"
@@ -137,6 +138,12 @@ func (s *Store) QueueReplica(ctx context.Context, backup Run) (int64, error) {
 	j, err := s.GetJob(ctx, *backup.JobID)
 	if err != nil || j.Options.ReplicaAgentID == 0 || !j.Enabled {
 		return 0, err
+	}
+	if j.RetentionHold {
+		// Paused after a suspicious backup: the replica keeps the last state
+		// from before it until someone has checked the machine.
+		slog.Info("replication not started: the job's retention is paused after a suspicious backup", "job", j.ID)
+		return 0, nil
 	}
 	var id int64
 	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, snapshot_id)

@@ -11,7 +11,7 @@
   <li><b>Logboeken elke … minuten back-uppen</b>: bijv. 15 — transactielogboeken (SQL Server), gearchiveerde WAL (PostgreSQL) of binaire logboeken (MySQL). Laat leeg als herstel naar het tijdstip van een volledige back-up volstaat.</li>
   <li>Het <b>schema</b> is dat van de volledige back-ups, bijv. dagelijks om 22:00.</li>
 </ul>
-<p>Back-ups worden gededupliceerd — ongewijzigde gegevens worden niet opnieuw geüpload — en versleuteld zoals elke back-up. Het bewaarbeleid telt de volledige back-ups; logback-ups worden bewaard zolang de volledige back-up waarop ze voortbouwen bestaat. De runpagina toont wat elke back-up bevat.</p>
+<p>Back-ups worden gededupliceerd — ongewijzigde gegevens worden niet opnieuw geüpload — en versleuteld zoals elke back-up. Het bewaarbeleid telt de volledige back-ups; logback-ups worden bewaard zolang de volledige back-up waarop ze voortbouwen bestaat. De runpagina toont wat elke back-up bevat. Ontbreekt er een database in een volledige back-up (hij bestaat niet meer, is offline of kon niet worden gedumpt), dan eindigt de run met een waarschuwing en wordt het bewaarbeleid van de taak niet toegepast, zodat de oudere back-ups met die database blijven bestaan.</p>
 
 <h2>Microsoft SQL Server</h2>
 <ol>

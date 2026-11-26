@@ -20,7 +20,7 @@
   <li>el número de archivos cayó de repente en un tercio o más,</li>
   <li>un salto repentino en la cantidad de datos nuevos (también para imágenes de disco, sistemas Linux y VM).</li>
 </ul>
-<p>Entonces BackupZit envía un correo de alerta (con las notificaciones de fallos activadas), muestra la copia en el panel como <i>copias sospechosas por revisar</i> y <b>pausa la retención del trabajo</b>: no se borra ninguna copia anterior, de modo que las últimas copias limpias siguen siendo restaurables aunque sigan llegando copias dañadas. Tras revisar la máquina, haga clic en <i>Revisado: reanudar la retención</i> en la página del trabajo.</p>
+<p>Entonces BackupZit envía un correo de alerta (con las notificaciones de fallos activadas), muestra la copia en el panel como <i>copias sospechosas por revisar</i> y <b>pausa la retención del trabajo</b>: no se borra ninguna copia anterior, de modo que las últimas copias limpias siguen siendo restaurables aunque sigan llegando copias dañadas. Tras revisar la máquina, haga clic en <i>Revisado: reanudar la retención</i> en la página del trabajo. Las copias también esperan: hasta entonces no se inician las copias secundarias tras cada copia ni la replicación, y las copias secundarias con su propia programación copian sin eliminar copias anteriores, de modo que las copias dañadas tampoco pueden desplazar a las limpias del otro almacenamiento.</p>
 
 <h2>S3 inmutable con Object Lock</h2>
 <ol>

@@ -134,7 +134,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 <p><b>Časový limit běhu (hodiny)</b> v části <b>Pokročilé</b> formuláře úlohy zastaví zálohu nebo kopii úlohy, která běží déle, a označí ji jako neúspěšnou; v tomto případě se oznámení o chybě pošle. Prázdné nebo 0 znamená bez limitu. Pokud agent zastavení do 10 minut nepotvrdí, konzole běh označí jako neúspěšný sama.</p>
 
 <h2>Pozastavené uchovávání</h2>
-<p>Pokud záloha úlohy vypadala jako ransomware nebo hromadné mazání, stránka úlohy ukazuje <i>Uchovávání je pozastaveno</i>: žádné zálohy se neodstraní, dokud někdo počítač nezkontroluje a neklikne na <i>Zkontrolováno — obnovit uchovávání</i> (se zapnutým schválením čtyř očí to musí schválit druhý uživatel). Viz <a href="/docs/ransomware">Ochrana proti ransomwaru</a>.</p>
+<p>Pokud záloha úlohy vypadala jako ransomware nebo hromadné mazání, stránka úlohy ukazuje <i>Uchovávání je pozastaveno</i>: žádné zálohy se neodstraní, dokud někdo počítač nezkontroluje a neklikne na <i>Zkontrolováno — obnovit uchovávání</i> (se zapnutým schválením čtyř očí to musí schválit druhý uživatel). Viz <a href="/docs/ransomware">Ochrana proti ransomwaru</a>. Do té doby se nespouštějí kopie záloh, které běží po každé záloze, ani replikace; kopie záloh s vlastním plánem dál kopírují, ale neodstraňují žádné starší kopie.</p>
 
 <h2>Co hlásí běh zálohy</h2>
 <p>Otevřete běh v <a href="/runs">Aktivitě</a>: počet souborů, nové/změněné soubory, přečtená data, nově nahraná data (po deduplikaci a kompresi, s kompresním poměrem a podílem už uložených dat — viz <a href="#compression">Komprese</a>), doba trvání a soubory, které nešlo přečíst. Běh s nečitelnými soubory skončí stavem <b>varování</b> — ostatní data jsou zálohována.</p>

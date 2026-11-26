@@ -11,7 +11,7 @@
   <li><b>Sauvegarder les journaux toutes les … minutes</b> : par ex. 15 — journaux de transactions (SQL Server), WAL archivés (PostgreSQL) ou journaux binaires (MySQL). Laissez vide si restaurer à l'heure d'une sauvegarde complète suffit.</li>
   <li>La <b>planification</b> est celle des sauvegardes complètes, par ex. tous les jours à 22:00.</li>
 </ul>
-<p>Les sauvegardes sont dédupliquées — les données inchangées ne sont pas renvoyées — et chiffrées comme toute sauvegarde. La rétention compte les sauvegardes complètes ; les sauvegardes de journaux sont conservées aussi longtemps que la sauvegarde complète sur laquelle elles reposent. La page de l'exécution indique ce que contient chaque sauvegarde.</p>
+<p>Les sauvegardes sont dédupliquées — les données inchangées ne sont pas renvoyées — et chiffrées comme toute sauvegarde. La rétention compte les sauvegardes complètes ; les sauvegardes de journaux sont conservées aussi longtemps que la sauvegarde complète sur laquelle elles reposent. La page de l'exécution indique ce que contient chaque sauvegarde. S'il manque une base de données dans une sauvegarde complète (elle n'existe plus, est hors ligne ou n'a pas pu être exportée), l'exécution se termine par un avertissement et la rétention de la tâche ne s'applique pas : les sauvegardes plus anciennes qui la contiennent sont conservées.</p>
 
 <h2>Microsoft SQL Server</h2>
 <ol>

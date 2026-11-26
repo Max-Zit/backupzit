@@ -1534,6 +1534,7 @@
   "Unblock all": "全部解除阻止",
   "Under its original name": "使用原名称",
   "Uninstall the agent from the computer": "从计算机卸载代理",
+  "Until then, copy jobs after each backup and replication wait, and copy jobs with their own schedule copy without removing older copies.": "在此之前，每次备份后的备份副本和复制会等待，有自己计划的备份副本在复制时不会删除较旧的副本。",
   "Unusual backup:": "异常备份：",
   "Up to (MB)": "最多（MB）",
   "Update all agents (": "更新所有代理（",

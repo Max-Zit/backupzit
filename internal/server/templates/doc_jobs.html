@@ -134,7 +134,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 <p><b>Time limit of a run (hours)</b> under <b>Advanced</b> in the job form stops a backup or copy of the job that runs longer and marks it as failed; this one does send the failure notification. Empty or 0 means no limit. If the agent does not confirm a stop within 10 minutes, the console marks the run as failed itself.</p>
 
 <h2>Retention paused</h2>
-<p>If a backup of the job looked like ransomware or mass deletion, the job page shows <i>Retention is paused</i>: no backups are removed until someone checks the machine and clicks <i>Reviewed — resume retention</i> (with four-eyes approval on, a second user has to approve it). See <a href="/docs/ransomware">Ransomware protection</a>.</p>
+<p>If a backup of the job looked like ransomware or mass deletion, the job page shows <i>Retention is paused</i>: no backups are removed until someone checks the machine and clicks <i>Reviewed — resume retention</i> (with four-eyes approval on, a second user has to approve it). See <a href="/docs/ransomware">Ransomware protection</a>. Until then, copy jobs that run after each backup and replication do not start; copy jobs with their own schedule still copy, but remove no older copies.</p>
 
 <h2>What a backup run reports</h2>
 <p>Open a run in <a href="/runs">Activity</a>: number of files, new/changed files, data read, new data uploaded (after deduplication and compression, with the compression ratio and the share already stored — see <a href="#compression">Compression</a>), duration, and any files that could not be read. A run with unreadable files ends with status <b>warning</b> — the rest of the data is backed up.</p>

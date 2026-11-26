@@ -1534,6 +1534,7 @@
   "Unblock all": "Разблокировать все",
   "Under its original name": "Под исходным именем",
   "Uninstall the agent from the computer": "Деинсталлировать агента с компьютера",
+  "Until then, copy jobs after each backup and replication wait, and copy jobs with their own schedule copy without removing older copies.": "До этого копии после каждой резервной копии и репликация ждут, а копии с собственным расписанием копируют, не удаляя более старые копии.",
   "Unusual backup:": "Необычная копия:",
   "Up to (MB)": "До (МБ)",
   "Update all agents (": "Обновить всех агентов (",

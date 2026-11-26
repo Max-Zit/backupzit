@@ -11,7 +11,7 @@
   <li><b>Zálohovat protokoly každých … minut</b>: např. 15 — transakční protokoly (SQL Server), archivovaný WAL (PostgreSQL) nebo binární protokoly (MySQL). Nechte prázdné, pokud stačí obnova k času úplné zálohy.</li>
   <li><b>Plán</b> je plánem úplných záloh, např. denně ve 22:00.</li>
 </ul>
-<p>Zálohy jsou deduplikované — nezměněná data se znovu neodesílají — a šifrované jako každá záloha. Uchovávání počítá úplné zálohy; zálohy protokolů se uchovávají, dokud existuje úplná záloha, na kterou navazují. Stránka běhu vypisuje, co každá záloha obsahuje.</p>
+<p>Zálohy jsou deduplikované — nezměněná data se znovu neodesílají — a šifrované jako každá záloha. Uchovávání počítá úplné zálohy; zálohy protokolů se uchovávají, dokud existuje úplná záloha, na kterou navazují. Stránka běhu vypisuje, co každá záloha obsahuje. Pokud v úplné záloze chybí databáze (už neexistuje, je offline nebo ji nešlo vyexportovat), běh skončí s varováním a uchovávání úlohy se nespustí, takže starší zálohy, které ji obsahují, zůstanou.</p>
 
 <h2>Microsoft SQL Server</h2>
 <ol>

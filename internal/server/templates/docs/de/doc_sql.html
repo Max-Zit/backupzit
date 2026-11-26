@@ -11,7 +11,7 @@
   <li><b>Logs alle … Minuten sichern</b>: z. B. 15 — Transaktionslogs (SQL Server), archiviertes WAL (PostgreSQL) oder Binärlogs (MySQL). Leer lassen, wenn die Wiederherstellung auf den Zeitpunkt einer Vollsicherung genügt.</li>
   <li>Der <b>Zeitplan</b> ist der der Vollsicherungen, z. B. täglich um 22:00.</li>
 </ul>
-<p>Sicherungen werden dedupliziert — unveränderte Daten werden nicht erneut hochgeladen — und wie jede Sicherung verschlüsselt. Die Aufbewahrung zählt die Vollsicherungen; Log-Sicherungen werden so lange behalten wie die Vollsicherung, auf der sie aufbauen. Die Laufseite listet auf, was jede Sicherung enthält.</p>
+<p>Sicherungen werden dedupliziert — unveränderte Daten werden nicht erneut hochgeladen — und wie jede Sicherung verschlüsselt. Die Aufbewahrung zählt die Vollsicherungen; Log-Sicherungen werden so lange behalten wie die Vollsicherung, auf der sie aufbauen. Die Laufseite listet auf, was jede Sicherung enthält. Fehlt in einer Vollsicherung eine Datenbank (sie existiert nicht mehr, ist offline oder konnte nicht exportiert werden), endet der Lauf mit einer Warnung und die Aufbewahrung des Auftrags läuft nicht, sodass die älteren Sicherungen mit dieser Datenbank erhalten bleiben.</p>
 
 <h2>Microsoft SQL Server</h2>
 <ol>

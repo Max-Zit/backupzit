@@ -1534,6 +1534,7 @@
   "Unblock all": "すべてブロック解除",
   "Under its original name": "元の名前で",
   "Uninstall the agent from the computer": "コンピューターからエージェントをアンインストール",
+  "Until then, copy jobs after each backup and replication wait, and copy jobs with their own schedule copy without removing older copies.": "それまでは、各バックアップ後のバックアップ コピーとレプリケーションは待機し、独自のスケジュールを持つバックアップ コピーは古いコピーを削除せずにコピーします。",
   "Unusual backup:": "通常と異なるバックアップ:",
   "Up to (MB)": "上限（MB）",
   "Update all agents (": "すべてのエージェントを更新（",

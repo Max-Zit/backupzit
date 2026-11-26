@@ -118,8 +118,30 @@ func (a *Agent) sqlBackup(ctx context.Context, run api.Run) api.RunResult {
 	if kind == "log" {
 		return res
 	}
+	if sqlIncomplete(problems) && run.Retention != nil && !run.Retention.Empty() {
+		// A database (or the roles) is missing from this backup: the older
+		// backups that hold it stay, as after a VM backup with a missing
+		// guest (#38). The locks of immutable storage are still extended,
+		// then for every backup of the job.
+		run.Retention = nil
+		res.Message += ". Older backups were kept: this backup is incomplete, so the job's retention did not run"
+	}
 	_ = lock.Unlock() // retention needs an exclusive lock
 	return a.withRetention(ctx, r, run, res)
+}
+
+// sqlIncomplete tells whether the problems of a full SQL backup mean that
+// something is missing from it: a database that does not exist, is offline
+// or could not be dumped ("database …" in mssql, mysqldb and pgsql), or the
+// PostgreSQL roles. Other problems (the binary log is off, WAL archiving
+// is not set up) leave a complete backup and do not stop retention.
+func sqlIncomplete(problems []string) bool {
+	for _, p := range problems {
+		if strings.HasPrefix(p, "database ") || strings.HasPrefix(p, "roles were not saved") {
+			return true
+		}
+	}
+	return false
 }
 
 // sqlRestore restores one database from a full backup and log backups.

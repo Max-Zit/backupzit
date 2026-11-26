@@ -88,3 +88,24 @@ func TestRetentionPerPart(t *testing.T) {
 		t.Errorf("unsplit: removed %d", len(r))
 	}
 }
+
+// A1: a full SQL backup that misses a database (or the PostgreSQL roles)
+// must not run the job's retention; other problems must not stop it.
+func TestSQLIncomplete(t *testing.T) {
+	for _, c := range []struct {
+		problems []string
+		want     bool
+	}{
+		{nil, false},
+		{[]string{"point-in-time recovery is not possible: the binary log is off (add log_bin and server_id to the server configuration and restart it)"}, false},
+		{[]string{"could not update archive_command: permission denied"}, false},
+		{[]string{"database shop does not exist"}, true},
+		{[]string{"database shop is offline"}, true},
+		{[]string{"point-in-time recovery is not possible: x", "database shop: dump failed"}, true},
+		{[]string{"roles were not saved: pg_dumpall failed"}, true},
+	} {
+		if got := sqlIncomplete(c.problems); got != c.want {
+			t.Errorf("sqlIncomplete(%q) = %v, want %v", c.problems, got, c.want)
+		}
+	}
+}

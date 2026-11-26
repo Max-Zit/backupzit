@@ -11,7 +11,7 @@
   <li><b>Copiar los registros cada … minutos</b>: p. ej. 15: registros de transacciones (SQL Server), WAL archivado (PostgreSQL) o registros binarios (MySQL). Déjelo vacío si basta con restaurar a la hora de una copia completa.</li>
   <li>La <b>programación</b> es la de las copias completas, p. ej. a diario a las 22:00.</li>
 </ul>
-<p>Las copias se deduplican (los datos sin cambios no se vuelven a enviar) y se cifran como cualquier copia. La retención cuenta las copias completas; las copias de registros se conservan mientras exista la copia completa en la que se basan. La página de la ejecución muestra qué contiene cada copia.</p>
+<p>Las copias se deduplican (los datos sin cambios no se vuelven a enviar) y se cifran como cualquier copia. La retención cuenta las copias completas; las copias de registros se conservan mientras exista la copia completa en la que se basan. La página de la ejecución muestra qué contiene cada copia. Si a una copia completa le falta una base de datos (ya no existe, está sin conexión o no se pudo volcar), la ejecución termina con una advertencia y la retención del trabajo no se aplica, de modo que se conservan las copias anteriores que la contienen.</p>
 
 <h2>Microsoft SQL Server</h2>
 <ol>

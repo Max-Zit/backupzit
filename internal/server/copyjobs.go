@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"path"
 	"strings"
@@ -49,8 +50,19 @@ func (s *Store) queueCopy(ctx context.Context, j Job, a Agent, dst Target, trigg
 }
 
 // QueueCopiesAfter queues the copy jobs that run after each backup of
-// jobID ("after" schedule).
+// jobID ("after" schedule). Not while the job's retention is paused after
+// a suspicious backup: a ransomware run must not reach the off-site copy
+// before someone has checked the machine (copy jobs with their own
+// schedule still copy, but remove nothing, see addRetention).
 func (s *Store) QueueCopiesAfter(ctx context.Context, jobID int64) ([]int64, error) {
+	var hold bool
+	if err := s.db.QueryRow(ctx, `SELECT retention_hold FROM jobs WHERE id=$1`, jobID).Scan(&hold); err != nil {
+		return nil, err
+	}
+	if hold {
+		slog.Info("copy jobs not started: the job's retention is paused after a suspicious backup", "job", jobID)
+		return nil, nil
+	}
 	rows, err := s.db.Query(ctx, `SELECT id FROM jobs WHERE source_job_id=$1 AND kind='copy' AND enabled
 		AND schedule LIKE '%"kind":"after"%'`, jobID)
 	if err != nil {
