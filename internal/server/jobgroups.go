@@ -460,8 +460,13 @@ func (s *Server) handleGroup(w http.ResponseWriter, r *http.Request, user string
 			ok2++
 		}
 	}
+	var agents []Agent
+	for _, row := range rows {
+		agents = append(agents, row.Agent)
+	}
+	warnings := clusterVMTexts(requestLanguage(r), g, checkClusterVMs(g, agents, time.Now()))
 	s.render(w, r, "jobgroup", pageData{Title: g.Name, Nav: "jobs", User: user,
-		Data: map[string]any{"Group": g, "Rows": rows, "Failed": failed, "OK": ok2}})
+		Data: map[string]any{"Group": g, "Rows": rows, "Failed": failed, "OK": ok2, "ClusterVMWarnings": warnings}})
 }
 
 func (s *Server) handleGroupEditPage(w http.ResponseWriter, r *http.Request, user string) {

@@ -92,6 +92,7 @@
 </ol>
 <p>A página do job mostra cada nó com o último resultado; <i>Run backup now on all agents</i> inicia todos. Um nó que naquele momento não roda nenhuma VM do job informa <i>None of the job's VMs runs on this node now</i>, o que é um sucesso.</p>
 <p>Jobs de VM criados antes para nós isolados: desative-os ou exclua-os após o primeiro backup do job do cluster; caso contrário, as VMs do cluster são copiadas duas vezes. Os backups deles continuam no armazenamento. VMs fora do cluster (pertencem a um nó) não fazem parte do job do cluster; copie-as com um job desse nó.</p>
+<p id="cluster-missing-vms">Quando a tarefa nomeia suas VMs (não <i>All VMs</i>), o painel e a página da tarefa avisam sobre uma VM selecionada que nenhum nó informa mais como VM do cluster (excluída ou que não é mais uma função do cluster), porque a tarefa não faz backup dela. Para isso todos os nós da tarefa precisam estar online com uma lista de VMs de menos de 20 minutos; caso contrário, o aviso diz que as VMs não podem ser verificadas agora (um nó offline ou ocupado com um backup longo não faz uma VM parecer ausente).</p>
 <h3>Como funciona</h3>
 <ul>
   <li>Cada nó copia as VMs do cluster que roda naquele momento, todas em <b>um repositório do cluster</b> no armazenamento.</li>

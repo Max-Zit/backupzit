@@ -92,6 +92,7 @@
 </ol>
 <p>La página del trabajo muestra cada nodo con su último resultado; <i>Run backup now on all agents</i> los inicia todos. Un nodo que en ese momento no ejecuta ninguna VM del trabajo informa <i>None of the job's VMs runs on this node now</i>, lo cual es un éxito.</p>
 <p>Trabajos de VM creados antes para nodos sueltos: desactívelos o elimínelos tras la primera copia del trabajo del clúster; si no, las VM del clúster se copian dos veces. Sus copias siguen en el almacenamiento. Las VM que no están en el clúster (pertenecen a un nodo) no forman parte del trabajo del clúster; cópielas con un trabajo de ese nodo.</p>
+<p id="cluster-missing-vms">Cuando el trabajo nombra sus VM (no <i>All VMs</i>), el panel y la página del trabajo avisan de una VM seleccionada que ningún nodo informa ya como VM del clúster (eliminada o que ya no es un rol del clúster), porque el trabajo no la copia. Para ello todos los nodos del trabajo deben estar en línea con una lista de VM de menos de 20 minutos; si no, el aviso dice que las VM no se pueden comprobar ahora (un nodo desconectado u ocupado con una copia larga no hace que una VM parezca ausente).</p>
 <h3>Cómo funciona</h3>
 <ul>
   <li>Cada nodo copia las VM del clúster que ejecuta en ese momento, todas en <b>un repositorio del clúster</b> en el almacenamiento.</li>

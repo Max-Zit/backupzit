@@ -2,6 +2,7 @@
 {{with .Data.Group}}
 <p class="muted"><a href="/jobs">← {{T "Backup jobs"}}</a></p>
 <h1>{{.Name}} {{if not .Enabled}}<span class="badge">{{T "disabled"}}</span>{{end}}</h1>
+{{with $.Data.ClusterVMWarnings}}<div class="callout warn">{{range .}}<p>{{.}}</p>{{end}}</div>{{end}}
 <div class="actions">
   {{if $.Me.Can "run"}}<form method="post" action="/job-groups/{{.ID}}/run" class="inline"><button>{{T "Run backup now on all agents"}}</button></form>{{end}}
   {{if $.Me.Can "jobs"}}<a class="btn secondary-link" href="/job-groups/{{.ID}}/edit">{{template "icon" "edit"}}{{T "Edit"}}</a>

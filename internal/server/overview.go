@@ -196,6 +196,7 @@ func (s *Server) attention(ctx context.Context, now time.Time, l *language) []At
 		out = append(out, Attention{"warning", "admin", l.T("still has the generated initial password — change it under Account"), "/account", ""})
 	}
 	agents, _ := s.store.ListAgents(ctx)
+	out = append(out, s.clusterVMAttention(ctx, l, agents, now)...)
 	if bare := unprotectedAgents(agents, jobs, now); len(bare) > 0 {
 		var names []string
 		for _, a := range bare {
