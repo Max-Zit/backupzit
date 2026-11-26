@@ -510,6 +510,7 @@ func (s *Server) handleReportEmail(w http.ResponseWriter, r *http.Request, _ str
 		redirectErr(w, r, back, fmt.Errorf("send report: %w", err))
 		return
 	}
+	s.audit(r, "report.send", "%s to %s", rep.FileName(), strings.Join(e.To, ", "))
 	redirectMsg(w, r, back, "Report sent to "+strings.Join(e.To, ", ")+".")
 }
 
@@ -620,6 +621,7 @@ func (s *Server) handleReportScheduleCreate(w http.ResponseWriter, r *http.Reque
 		redirectErr(w, r, "/reports#scheduled", err)
 		return
 	}
+	s.audit(r, "report_schedule.create", "%q, %s, to %s", x.Name, x.Frequency, strings.Join(x.Recipients, ", "))
 	redirectMsg(w, r, "/reports", "Scheduled report created.")
 }
 
@@ -629,6 +631,7 @@ func (s *Server) handleReportScheduleDelete(w http.ResponseWriter, r *http.Reque
 		redirectErr(w, r, "/reports", err)
 		return
 	}
+	s.audit(r, "report_schedule.delete", "scheduled report %d", id)
 	redirectMsg(w, r, "/reports", "Scheduled report removed.")
 }
 

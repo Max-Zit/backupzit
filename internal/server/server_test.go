@@ -1042,8 +1042,22 @@ func TestReportsCalendarDocs(t *testing.T) {
 	if resp, _ := do("POST", "/reports/schedules", url.Values{"name": {"Weekly"}, "frequency": {"weekly"}, "hour": {"7"}, "recipients": {"a@example.com"}}); !strings.Contains(resp.Header.Get("Location"), "msg=") {
 		t.Fatalf("create schedule: %s", resp.Header.Get("Location"))
 	}
-	if list, _ := e.store.ListReportSchedules(ctx); len(list) != 1 || list[0].Recipients[0] != "a@example.com" {
+	list, _ := e.store.ListReportSchedules(ctx)
+	if len(list) != 1 || list[0].Recipients[0] != "a@example.com" {
 		t.Fatalf("schedules: %+v", list)
+	}
+	// A13: creating and removing a scheduled report is audited.
+	if resp, _ := do("POST", fmt.Sprintf("/reports/schedules/%d/delete", list[0].ID), url.Values{}); !strings.Contains(resp.Header.Get("Location"), "msg=") {
+		t.Fatalf("delete schedule: %s", resp.Header.Get("Location"))
+	}
+	audit, _ := e.store.ListAudit(ctx, 50)
+	var created, deleted bool
+	for _, a := range audit {
+		created = created || a.Action == "report_schedule.create" && strings.Contains(a.Detail, "a@example.com")
+		deleted = deleted || a.Action == "report_schedule.delete"
+	}
+	if !created || !deleted {
+		t.Errorf("scheduled report audit: created %v, deleted %v", created, deleted)
 	}
 
 	// Session settings
