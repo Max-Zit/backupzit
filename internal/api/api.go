@@ -501,8 +501,13 @@ type VMRestore struct {
 	Node string `json:"node,omitempty"`
 	// Instant recovery finish/discard: the guest started from the backup
 	// and the vm-instant run that started it.
-	InstantVMID int   `json:"instant_vmid,omitempty"`
-	InstantRun  int64 `json:"instant_run,omitempty"`
+	// KeepHostKeys (Proxmox, 0.62): keep the settings that act on the host
+	// (hook script, raw arguments, passed-through devices, raw LXC keys)
+	// also when the guest is restored on another node than it was backed up
+	// on; by default they are left out there. Older agents always keep them.
+	KeepHostKeys bool  `json:"keep_host_keys,omitempty"`
+	InstantVMID  int   `json:"instant_vmid,omitempty"`
+	InstantRun   int64 `json:"instant_run,omitempty"`
 }
 
 // PathJobRunPrefix lets an agent start one of its own jobs ("Back up now"

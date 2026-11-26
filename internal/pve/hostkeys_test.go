@@ -13,7 +13,7 @@ import (
 func TestRestoreConfigNamesHostSettings(t *testing.T) {
 	ct := &repo.Guest{Type: "lxc", VMID: 200, Config: "arch: amd64\nhostname: ct\nhookscript: local:snippets/hook.pl\nlxc.mount.entry: /srv srv none bind 0 0\nlxc.cgroup2.devices.allow: c 226:* rwm\ndev0: /dev/dri/card0\nrootfs: local-lvm:vm-200-disk-0,size=8G\n",
 		Disks: []repo.GuestDisk{{Key: "rootfs", Volume: "local-lvm:vm-200-disk-0", Size: 8 << 30}}}
-	conf, _, notes := restoreConfig(ct, map[string]string{"rootfs": "local-lvm:vm-201-disk-0"}, "", true)
+	conf, _, notes := restoreConfig(ct, map[string]string{"rootfs": "local-lvm:vm-201-disk-0"}, "", true, false)
 	if !strings.Contains(conf, "lxc.mount.entry: /srv srv none bind 0 0\n") || !strings.Contains(conf, "hookscript: local:snippets/hook.pl\n") {
 		t.Errorf("host settings not kept:\n%s", conf)
 	}
@@ -22,12 +22,28 @@ func TestRestoreConfigNamesHostSettings(t *testing.T) {
 	}
 	vm := &repo.Guest{Type: "qemu", VMID: 100, Config: "name: vm\nargs: -fw_cfg name=opt/x,file=/etc/shadow\nhostpci0: 0000:01:00.0\nusb0: host=1234:5678\nscsi0: local-lvm:vm-100-disk-0,size=8G\n",
 		Disks: []repo.GuestDisk{{Key: "scsi0", Volume: "local-lvm:vm-100-disk-0", Size: 8 << 30}}}
-	if _, _, notes := restoreConfig(vm, map[string]string{"scsi0": "local-lvm:vm-101-disk-0"}, "", true); !strings.Contains(strings.Join(notes, "\n"), "act on this host: args, hostpci0, usb0;") {
+	if _, _, notes := restoreConfig(vm, map[string]string{"scsi0": "local-lvm:vm-101-disk-0"}, "", true, false); !strings.Contains(strings.Join(notes, "\n"), "act on this host: args, hostpci0, usb0;") {
 		t.Errorf("VM notes = %q", notes)
 	}
 	plain := &repo.Guest{Type: "qemu", VMID: 100, Config: "name: vm\nscsi0: local-lvm:vm-100-disk-0,size=8G\n",
 		Disks: []repo.GuestDisk{{Key: "scsi0", Volume: "local-lvm:vm-100-disk-0", Size: 8 << 30}}}
-	if _, _, notes := restoreConfig(plain, map[string]string{"scsi0": "local-lvm:vm-101-disk-0"}, "", true); len(notes) != 0 {
+	if _, _, notes := restoreConfig(plain, map[string]string{"scsi0": "local-lvm:vm-101-disk-0"}, "", true, false); len(notes) != 0 {
 		t.Errorf("plain VM notes = %q", notes)
+	}
+}
+
+// B4: on another node than the backup's, the settings that act on the
+// host are left out (unless kept), and the notes say so.
+func TestRestoreConfigDropsHostSettings(t *testing.T) {
+	vm := &repo.Guest{Type: "qemu", VMID: 100, Config: "name: vm\nhookscript: local:snippets/hook.pl\nargs: -fw_cfg name=opt/x,file=/etc/shadow\nhostpci0: 0000:01:00.0\nusb0: host=1234:5678\nscsi0: local-lvm:vm-100-disk-0,size=8G\n",
+		Disks: []repo.GuestDisk{{Key: "scsi0", Volume: "local-lvm:vm-100-disk-0", Size: 8 << 30}}}
+	conf, _, notes := restoreConfig(vm, map[string]string{"scsi0": "local-lvm:vm-101-disk-0"}, "", true, true)
+	for _, k := range []string{"hookscript:", "args:", "hostpci0:", "usb0:"} {
+		if strings.Contains(conf, k) {
+			t.Errorf("%s kept on another node:\n%s", k, conf)
+		}
+	}
+	if !strings.Contains(conf, "scsi0: local-lvm:vm-101-disk-0") || !strings.Contains(strings.Join(notes, "\n"), "left out settings from the backup that act on the host, because the guest was backed up on another node: hookscript, args, hostpci0, usb0") {
+		t.Errorf("conf %q notes %q", conf, notes)
 	}
 }

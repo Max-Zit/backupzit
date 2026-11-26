@@ -44,6 +44,9 @@ type InstantOptions struct {
 	Start   bool
 	// Isolated disconnects the network cards (boot tests).
 	Isolated bool
+	// KeepHostKeys keeps the settings that act on the host also on another
+	// node than the backup's (B4).
+	KeepHostKeys bool
 	// ServeCommand starts the NBD server unit for the new VM ID and the
 	// socket path; it must return once the unit was started.
 	ServeCommand func(ctx context.Context, vmid int, socket string) error
@@ -167,7 +170,10 @@ func InstantStart(ctx context.Context, sn *repo.Snapshot, opts InstantOptions) (
 		newVol[d.Key] = InstantStorage + ":" + strconv.Itoa(target) + "/" + file
 		res.Disks = append(res.Disks, d.Key+" → "+newVol[d.Key]+" (reads from the backup)")
 	}
-	conf, cloudInit, notes := restoreConfig(g, newVol, opts.Name, clone)
+	// On another node than the backup's, the settings that act on the host
+	// are left out unless the user keeps them (B4).
+	dropHost := !opts.KeepHostKeys && g.Node != "" && g.Node != inv.Node
+	conf, cloudInit, notes := restoreConfig(g, newVol, opts.Name, clone, dropHost)
 	res.Notes = append(res.Notes, notes...)
 	res.NewMACs = clone
 	if opts.Name != "" {

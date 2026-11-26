@@ -105,7 +105,7 @@ func (a *Agent) vmInstant(ctx context.Context, run api.Run) api.RunResult {
 	if err != nil {
 		return failed(err)
 	}
-	res, err := pve.InstantStart(ctx, sn, pve.InstantOptions{VMID: o.VMID, NewVMID: o.NewVMID, Name: o.Name, Start: true,
+	res, err := pve.InstantStart(ctx, sn, pve.InstantOptions{VMID: o.VMID, NewVMID: o.NewVMID, Name: o.Name, Start: true, KeepHostKeys: o.KeepHostKeys,
 		ServeCommand: func(ctx context.Context, vmid int, socket string) error {
 			return StartInstantServer(ctx, run.Repository, sn.ID.String(), o.VMID, vmid, socket)
 		}, Log: logf})

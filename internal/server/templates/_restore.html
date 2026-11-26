@@ -146,6 +146,7 @@ page data; .Data holds the keys built by restoreFormData. */}}
   </div>
   <p class="muted small" data-lxc-files-hint hidden>{{T "This container was backed up file by file from ZFS subvolumes: it is restored onto a ZFS storage, as new subvolumes with the files, owners, permissions and extended attributes of the backup."}}</p>
   <label class="check"><input type="checkbox" name="start"> {{T "Start the guest after the restore"}}</label>
+  <label class="check"><input type="checkbox" name="keep_host_keys"> {{T "Keep settings that act on the host also on another node"}} <small>{{T "hook script, raw QEMU arguments, passed-through PCI and USB devices, raw LXC keys; on another node than the backup's they are left out unless this is ticked (agents 0.62 and newer)"}}</small></label>
   <div><button>{{T "Restore guest"}}</button></div>
 </form>
 {{else}}<p class="muted">{{T "No agent on a Proxmox VE host is enrolled. Install the BackupZit agent on the Proxmox node to restore."}}</p>{{end}}

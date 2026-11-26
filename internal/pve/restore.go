@@ -36,9 +36,12 @@ type RestoreOptions struct {
 	Overwrite   bool
 	RemoveFirst bool
 	// Start starts the guest after the restore.
-	Start    bool
-	Progress func(done, total uint64)
-	Log      func(msg string, args ...any)
+	Start bool
+	// KeepHostKeys keeps the settings that act on the host also on another
+	// node than the backup's (B4).
+	KeepHostKeys bool
+	Progress     func(done, total uint64)
+	Log          func(msg string, args ...any)
 }
 
 // RestoreResult describes the restored guest.
@@ -325,7 +328,10 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		return fmt.Errorf("%w (the guest it replaced is deleted; the restored disks of ID %d are kept: %s - attach them to a new guest %d, or remove them with pvesm free)", err, target, strings.Join(allocated, ", "), target)
 	}
 
-	conf, cloudInit, notes := restoreConfig(g, newVol, opts.Name, clone)
+	// On another node than the backup's, the settings that act on the host
+	// are left out unless the user keeps them (B4).
+	dropHost := !opts.KeepHostKeys && g.Node != "" && g.Node != inv.Node
+	conf, cloudInit, notes := restoreConfig(g, newVol, opts.Name, clone, dropHost)
 	res.Notes = append(res.Notes, notes...)
 	res.NewMACs = clone
 	if opts.Name != "" {
@@ -471,7 +477,7 @@ var (
 // restoreConfig rewrites a guest configuration for its new disks. It
 // returns the configuration, the cloud-init drives to recreate (key ->
 // original storage) and notes for the user.
-func restoreConfig(g *repo.Guest, newVol map[string]string, name string, clone bool) (string, map[string]string, []string) {
+func restoreConfig(g *repo.Guest, newVol map[string]string, name string, clone, dropHost bool) (string, map[string]string, []string) {
 	var b strings.Builder
 	var notes []string
 	cloudInit := map[string]string{}
@@ -503,6 +509,9 @@ func restoreConfig(g *repo.Guest, newVol map[string]string, name string, clone b
 		}
 		if actsOnHost(g.Type, k) && !slices.Contains(hostKeys, k) {
 			hostKeys = append(hostKeys, k)
+		}
+		if dropHost && actsOnHost(g.Type, k) {
+			continue
 		}
 		switch {
 		case re.MatchString(k):
@@ -538,7 +547,10 @@ func restoreConfig(g *repo.Guest, newVol map[string]string, name string, clone b
 		}
 		b.WriteString(line + "\n")
 	}
-	if len(hostKeys) > 0 {
+	switch {
+	case len(hostKeys) > 0 && dropHost:
+		notes = append(notes, fmt.Sprintf("left out settings from the backup that act on the host, because the guest was backed up on another node: %s (restore again with \"keep settings that act on the host\" ticked to keep them)", strings.Join(hostKeys, ", ")))
+	case len(hostKeys) > 0:
 		// Kept like Proxmox VE's own restore does, but they act on this host:
 		// from a backup of another (or a compromised) host they deserve a look.
 		notes = append(notes, fmt.Sprintf("kept settings from the backup that act on this host: %s; check them before starting the guest", strings.Join(hostKeys, ", ")))
