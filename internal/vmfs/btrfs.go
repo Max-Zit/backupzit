@@ -383,7 +383,7 @@ func (b *btrfsFS) readAt(p []byte, addr uint64, m int) error {
 			return btrfsErr("address %d", addr)
 		}
 		got, err := b.r.ReadAt(p[:n], int64(phys)) // #nosec G115 -- checked above
-		if uint64(got) < n { // #nosec G115 -- a byte count, not negative
+		if uint64(got) < n {                       // #nosec G115 -- a byte count, not negative
 			if err == nil || err == io.EOF {
 				err = btrfsErr("address %d lies past the end of the disk", addr)
 			}
