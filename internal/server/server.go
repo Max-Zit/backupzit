@@ -453,6 +453,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET /{$}", s.ui(PermView, s.handleDashboard))
 	mux.HandleFunc("GET /agents", s.ui(PermView, s.handleAgents))
 	mux.HandleFunc("POST /agents/token", s.ui(PermStorage, s.handleAgentToken))
+	mux.HandleFunc("POST /agents/tokens/revoke", s.ui(PermStorage, s.handleRevokeEnrollmentTokens))
 	mux.HandleFunc("POST /agents/install", s.ui(PermStorage, s.handleDeployStart))
 	mux.HandleFunc("POST /agents/install/confirm", s.ui(PermStorage, s.handleDeployConfirm))
 	mux.HandleFunc("GET /agents/install/{id}", s.ui(PermStorage, s.handleDeployPage))

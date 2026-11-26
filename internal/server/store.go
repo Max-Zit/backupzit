@@ -284,6 +284,26 @@ func (s *Store) CreateEnrollmentToken(ctx context.Context, ttl time.Duration) (s
 	return tok, exp, err
 }
 
+// createSingleUseToken makes an enrollment code for one machine (an agent
+// installed from the console, B9): the first enrollment uses it up.
+func (s *Store) createSingleUseToken(ctx context.Context, ttl time.Duration) (string, error) {
+	tok := randomToken(24)
+	_, err := s.db.Exec(ctx, `INSERT INTO enrollment_tokens(token_hash, expires_at, single_use) VALUES($1,$2,true)`, hashToken(tok), time.Now().Add(ttl))
+	return tok, err
+}
+
+// deleteEnrollmentToken removes one code (an install that ended).
+func (s *Store) deleteEnrollmentToken(ctx context.Context, tok string) {
+	_, _ = s.db.Exec(ctx, `DELETE FROM enrollment_tokens WHERE token_hash=$1`, hashToken(tok))
+}
+
+// RevokeEnrollmentTokens removes every enrollment code, the ones on
+// recovery media included; enrolled agents keep working.
+func (s *Store) RevokeEnrollmentTokens(ctx context.Context) (int64, error) {
+	ct, err := s.db.Exec(ctx, `DELETE FROM enrollment_tokens`)
+	return ct.RowsAffected(), err
+}
+
 var unsafeDirChars = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
 // agentRepoDir builds a readable, unique repository directory name.
@@ -301,7 +321,9 @@ func agentRepoDir(hostname, uuid string) string {
 // EnrollAgent validates a token and registers a new agent.
 func (s *Store) EnrollAgent(ctx context.Context, req api.EnrollRequest) (api.EnrollResponse, error) {
 	var ok bool
-	err := s.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM enrollment_tokens WHERE token_hash=$1 AND expires_at > now())`,
+	// A single-use code is used up by this enrollment (B9).
+	err := s.db.QueryRow(ctx, `WITH used AS (DELETE FROM enrollment_tokens WHERE token_hash=$1 AND single_use AND expires_at > now() RETURNING 1)
+		SELECT EXISTS(SELECT 1 FROM used) OR EXISTS(SELECT 1 FROM enrollment_tokens WHERE token_hash=$1 AND NOT single_use AND expires_at > now())`,
 		hashToken(req.Token)).Scan(&ok)
 	if err != nil {
 		return api.EnrollResponse{}, err

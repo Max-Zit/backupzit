@@ -292,10 +292,12 @@ func (s *Server) startDeploy(q deployRequest, consoleURL string) (*deployment, e
 }
 
 func (s *Server) deploy(ctx context.Context, d *deployment, q deployRequest, consoleURL string) error {
-	tok, _, err := s.store.CreateEnrollmentToken(ctx, 24*time.Hour)
+	// A code for this one machine, gone when the install ends (B9).
+	tok, err := s.store.createSingleUseToken(ctx, 2*time.Hour)
 	if err != nil {
 		return err
 	}
+	defer s.store.deleteEnrollmentToken(context.WithoutCancel(ctx), tok)
 	code := api.EncodeEnrollCode(consoleURL, tok, s.CertFingerprint)
 	since := time.Now().Add(-time.Second)
 	var hostname string

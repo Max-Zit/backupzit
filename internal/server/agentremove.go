@@ -602,3 +602,14 @@ func (s *Server) executeAgentDelete(ctx context.Context, ap Approval, approver s
 	_, err = s.startAgentRemoval(ctx, a, o, by, "")
 	return err
 }
+
+// handleRevokeEnrollmentTokens removes every enrollment code (B9).
+func (s *Server) handleRevokeEnrollmentTokens(w http.ResponseWriter, r *http.Request, _ string) {
+	n, err := s.store.RevokeEnrollmentTokens(r.Context())
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.audit(r, "enrollment.revoke", "%d enrollment codes revoked", n)
+	redirectMsg(w, r, "/agents", "All enrollment codes were revoked.")
+}

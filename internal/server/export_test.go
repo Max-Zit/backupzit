@@ -101,3 +101,8 @@ var (
 	ErrLDAPNoAccount = errBadLogin
 	ErrLDAPNoRole    = errNoRole
 )
+
+// CreateSingleUseToken makes an enrollment code that works once (B9).
+func (s *Store) CreateSingleUseToken(ctx context.Context, ttl time.Duration) (string, error) {
+	return s.createSingleUseToken(ctx, ttl)
+}

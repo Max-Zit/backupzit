@@ -152,6 +152,9 @@ echo "{{.Code}}" | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support
     <form method="post" action="/agents/token" class="stack">
       <div><button>{{T "Create enrollment token"}}</button></div>
     </form>
+    <form method="post" action="/agents/tokens/revoke" class="mt" data-confirm="{{T "Revoke every enrollment code, also those on recovery media? Enrolled agents keep working; new machines need a new code."}}">
+      <button class="link">{{T "Revoke all enrollment codes"}}</button> <small class="muted">{{T "e.g. when a code was shared by mistake; codes of installs from the console work once anyway"}}</small>
+    </form>
     <details class="mt" id="install">
       <summary><b>{{T "Install on a machine from here"}}</b> <span class="muted small">{{T "Linux over SSH, Windows over WinRM"}}</span></summary>
       <form method="post" action="/agents/install" class="stack mt" autocomplete="off">

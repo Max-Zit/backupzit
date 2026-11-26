@@ -15,7 +15,7 @@
 
 <h2>Registrar agentes</h2>
 <ol>
-  <li>Na página <a href="/agents">Agentes</a> clique em <b>Criar token de registro</b>. A console mostra um <b>código de registro</b> (<code>BZ1-…</code>), válido por 7 dias e utilizável em qualquer número de máquinas. Contém o endereço da console para agentes (com a porta dos agentes, geralmente 8443, mesmo quando a página está aberta na porta web 443), o token e a impressão digital do certificado. Agentes a partir da 0.33.6 também se registram com códigos criados por consoles mais antigas na porta web.</li>
+  <li>Na página <a href="/agents">Agentes</a> clique em <b>Criar token de registro</b>. A console mostra um <b>código de registro</b> (<code>BZ1-…</code>), válido por 7 dias e utilizável em qualquer número de máquinas. Contém o endereço da console para agentes (com a porta dos agentes, geralmente 8443, mesmo quando a página está aberta na porta web 443), o token e a impressão digital do certificado. Agentes a partir da 0.33.6 também se registram com códigos criados por consoles mais antigas na porta web. Um código que o console cria para uma instalação pela página Agentes vale uma vez e é removido quando a instalação termina. <b>Revogar todos os códigos de registro</b> remove todos os códigos (inclusive os das mídias de recuperação), ex.: quando um foi compartilhado por engano; os agentes registrados continuam funcionando.</li>
   <li>Windows: execute o MSI e cole o código quando o instalador pedir. Linux: execute o comando mostrado. macOS: instale o pacote e cole o código quando o app da barra de menus pedir, ou execute no Terminal o comando mostrado (veja <a href="/docs/macos#enroll">Agentes macOS</a>).</li>
   <li>A máquina aparece na lista de agentes em menos de um minuto.</li>
 </ol>
