@@ -82,7 +82,20 @@ const (
 	// how many it reads at all.
 	maxKeyFiles   = 32
 	maxKeyListing = 1000
+	// Limits for key files found in the storage: anyone who can write
+	// there can plant one, and a costly key derivation per open would
+	// exhaust the agent's or the console's memory and time. BackupZit only
+	// ever wrote kdfTime/kdfMemory/kdfThreads.
+	maxKDFMemory   = 256 * 1024 // KiB
+	maxKDFTime     = 4
+	maxKDFThreads  = 16
+	maxKeyFileSize = 64 << 10
 )
+
+// ErrTooManyKeyFiles: none of the key files tried fit the password, but
+// more were in the storage than an open tries (planted ones?). It is an
+// ErrWrongPassword, so callers that try several keys go on.
+var ErrTooManyKeyFiles = fmt.Errorf("%w; the repository has more key files than are tried (check its keys folder for files that do not belong there)", ErrWrongPassword)
 
 func newAEAD(key []byte) (cipher.AEAD, error) {
 	block, err := aes.NewCipher(key)
@@ -182,14 +195,24 @@ func unlock(ctx context.Context, be backend.Backend, password string) (*masterKe
 	// A repository has a few key files; planted ones must not make every
 	// open read thousands of files or try many key derivations. Only valid
 	// ones count toward the derivations, so invalid planted files cannot
-	// push the real key out (L-N11).
-	if len(names) > maxKeyListing {
+	// push the real key out (L-N11), and files with BackupZit's own
+	// parameters are tried first, so planted files with other (still
+	// allowed) parameters cannot either.
+	more := len(names) > maxKeyListing
+	if more {
 		names = names[:maxKeyListing]
 	}
-	tried := 0
+	type candidate struct {
+		name string
+		kf   keyFile
+	}
+	var own, other []candidate
 	for _, n := range names {
-		if tried >= maxKeyFiles {
-			break
+		if size, err := be.Size(ctx, n); err != nil {
+			loadErr = err
+			continue
+		} else if size > maxKeyFileSize {
+			continue
 		}
 		b, err := be.Load(ctx, n)
 		if err != nil {
@@ -197,14 +220,24 @@ func unlock(ctx context.Context, be backend.Backend, password string) (*masterKe
 			continue
 		}
 		var kf keyFile
-		// Anyone who can write to the storage can plant a key file: argon2
-		// panics on 0 rounds or threads, which would end the agent or the
-		// console, and huge costs would exhaust its memory and time (BackupZit
-		// writes 64 MiB, 3 passes).
-		if json.Unmarshal(b, &kf) != nil || kf.KDF != "argon2id" || kf.Memory > 1<<20 || kf.Time < 1 || kf.Time > 10 || kf.Threads < 1 {
+		// argon2 panics on 0 rounds or threads, which would end the agent
+		// or the console; huge costs would exhaust its memory and time.
+		if len(b) > maxKeyFileSize || json.Unmarshal(b, &kf) != nil || kf.KDF != "argon2id" ||
+			kf.Memory < 8 || kf.Memory > maxKDFMemory || kf.Time < 1 || kf.Time > maxKDFTime || kf.Threads < 1 || kf.Threads > maxKDFThreads {
 			continue
 		}
-		tried++
+		if kf.Time == kdfTime && kf.Memory == kdfMemory && kf.Threads == kdfThreads {
+			own = append(own, candidate{n, kf})
+		} else {
+			other = append(other, candidate{n, kf})
+		}
+	}
+	all := append(own, other...)
+	if len(all) > maxKeyFiles {
+		all, more = all[:maxKeyFiles], true
+	}
+	for _, c := range all {
+		kf := c.kf
 		kek, err := newAEAD(argon2.IDKey([]byte(password), kf.Salt, kf.Time, kf.Memory, kf.Threads, 32))
 		if err != nil {
 			continue
@@ -215,13 +248,16 @@ func unlock(ctx context.Context, be backend.Backend, password string) (*masterKe
 		}
 		var mk masterKey
 		if err := json.Unmarshal(plain, &mk); err != nil || len(mk.Key) != 32 {
-			return nil, fmt.Errorf("key file %s is damaged", n)
+			return nil, fmt.Errorf("key file %s is damaged", c.name)
 		}
 		return &mk, nil
 	}
 	if loadErr != nil {
 		// A storage error is not a wrong recovery key.
 		return nil, fmt.Errorf("read key files: %w", loadErr)
+	}
+	if more {
+		return nil, ErrTooManyKeyFiles
 	}
 	return nil, ErrWrongPassword
 }
