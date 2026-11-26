@@ -167,6 +167,9 @@ func (s *SFTP) Save(_ context.Context, name string, data []byte) error {
 		_ = s.client.Remove(tmp)
 		return fmt.Errorf("sftp write %s: %w", tmp, err)
 	}
+	// Best effort: on the disk before the rename makes the file visible
+	// (servers without the fsync extension skip it).
+	_ = f.Sync()
 	if err := f.Close(); err != nil {
 		_ = s.client.Remove(tmp)
 		return fmt.Errorf("sftp close %s: %w", tmp, err)
@@ -174,10 +177,12 @@ func (s *SFTP) Save(_ context.Context, name string, data []byte) error {
 	if err := s.client.PosixRename(tmp, p); err != nil {
 		// Server without posix-rename: plain rename fails if target exists.
 		if err2 := s.client.Rename(tmp, p); err2 != nil {
-			if _, statErr := s.client.Stat(p); statErr == nil {
-				if contentAddressed(name) {
+			if st, statErr := s.client.Stat(p); statErr == nil {
+				if contentAddressed(name) && st.Size() == int64(len(data)) {
 					// The name is the hash of the content: the existing
-					// file holds the same data.
+					// file holds the same data. One of another size is a
+					// cut-off copy (a crash on a server without atomic
+					// renames) and is replaced below.
 					_ = s.client.Remove(tmp)
 					return nil
 				}
