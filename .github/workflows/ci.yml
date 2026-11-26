@@ -30,6 +30,20 @@ jobs:
         run: test -z "$(gofmt -l ./cmd ./internal ./tools)" || (gofmt -l ./cmd ./internal ./tools; exit 1)
       - name: go vet
         run: go vet ./...
+      - name: Cache the test PostgreSQL (downloaded from Maven by embedded-postgres)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.embedded-postgres-go
+          key: embedded-postgres-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: embedded-postgres-${{ runner.os }}-
+      - name: Fetch the test PostgreSQL once, with retries (a failed download used to fail every test)
+        run: |
+          ok=0
+          for i in 1 2 3; do
+            if go test -count=1 -run '^TestJobEnableAudited$' ./internal/server; then ok=1; break; fi
+            echo "PostgreSQL download or start failed, try $i of 3"; sleep 30
+          done
+          test "$ok" = 1
       - name: Tests
         run: go test -count=1 -timeout 50m ./...
 
@@ -171,8 +185,20 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      - name: Fetch the test PostgreSQL once (parallel test binaries would all download it)
-        run: go test -race -count=1 -run '^TestJobEnableAudited$' ./internal/server
+      - name: Cache the test PostgreSQL (downloaded from Maven by embedded-postgres)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.embedded-postgres-go
+          key: embedded-postgres-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: embedded-postgres-${{ runner.os }}-
+      - name: Fetch the test PostgreSQL once, with retries (a failed download used to fail every test)
+        run: |
+          ok=0
+          for i in 1 2 3; do
+            if go test -race -count=1 -run '^TestJobEnableAudited$' ./internal/server; then ok=1; break; fi
+            echo "PostgreSQL download or start failed, try $i of 3"; sleep 30
+          done
+          test "$ok" = 1
       - name: Tests with -race (all packages except internal/server, which has its own job)
         run: go test -race -count=1 -timeout 60m $(go list ./... | grep -v '/internal/server$')
 
@@ -202,6 +228,20 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+      - name: Cache the test PostgreSQL (downloaded from Maven by embedded-postgres)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.embedded-postgres-go
+          key: embedded-postgres-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: embedded-postgres-${{ runner.os }}-
+      - name: Fetch the test PostgreSQL once, with retries (a failed download used to fail every test)
+        run: |
+          ok=0
+          for i in 1 2 3; do
+            if go test -race -count=1 -run '^TestJobEnableAudited$' ./internal/server; then ok=1; break; fi
+            echo "PostgreSQL download or start failed, try $i of 3"; sleep 30
+          done
+          test "$ok" = 1
       - name: Tests with -race (internal/server, ${{ matrix.part }})
         env:
           TESTS: ${{ matrix.tests }}
