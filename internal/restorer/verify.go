@@ -64,8 +64,11 @@ func SampleVerify(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, o 
 		}
 		st.Candidates = len(blocks)
 		rng.Shuffle(len(blocks), func(i, j int) { blocks[i], blocks[j] = blocks[j], blocks[i] })
-		for _, id := range blocks[:min(o.Blocks, len(blocks))] {
-			data, err := r.LoadBlob(ctx, repo.DataBlob, id)
+		// The sample is read a few blocks at a time, as a restore reads (#71).
+		sample := blocks[:min(o.Blocks, len(blocks))]
+		ra := r.ReadAhead(ctx, sample, func(int) bool { return true })
+		for i, id := range sample {
+			data, err := ra.Get(i)
 			if err != nil {
 				st.Errors = append(st.Errors, fmt.Sprintf("block %s: %v", id.Short(), err))
 				continue
@@ -73,6 +76,7 @@ func SampleVerify(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, o 
 			st.Blocks++
 			st.Bytes += uint64(len(data))
 		}
+		ra.Close()
 		fs, err := sampleFiles(ctx, r, sn, o, rng)
 		if err != nil {
 			return st, err

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -138,5 +139,39 @@ func TestReadAheadFailedRead(t *testing.T) {
 	ra2.Close()
 	if n := sh2.active.Load(); n != 0 {
 		t.Errorf("%d reads still running after a cancel", n)
+	}
+}
+
+// Close right after the first Get, before every reader may have started,
+// returns (a reader that looked for the queue only after Close cleared it
+// would wait for ever); one thread makes a late reader likely. Blocks that
+// are skipped are read correctly after them.
+func TestReadAheadCloseAndSkip(t *testing.T) {
+	r, _, ids, data := blocksOnShare(t, 0)
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for range 200 {
+			ra := r.ReadAhead(context.Background(), ids, func(i int) bool { return !ids[i].IsNull() })
+			_, _ = ra.Get(0)
+			ra.Close()
+			ra.Close() // a second Close does nothing
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		t.Fatal("ReadAhead.Close hangs")
+	}
+	ra := r.ReadAhead(context.Background(), ids, func(i int) bool { return !ids[i].IsNull() })
+	defer ra.Close()
+	for i := 0; i < len(ids); i += 3 { // the restore asks for every third block
+		if ids[i].IsNull() {
+			continue
+		}
+		if b, err := ra.Get(i); err != nil || !bytes.Equal(b, data[i]) {
+			t.Fatalf("block %d: %v", i, err)
+		}
 	}
 }

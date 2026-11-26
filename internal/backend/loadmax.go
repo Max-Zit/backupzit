@@ -82,12 +82,12 @@ func (s *SFTP) LoadMax(_ context.Context, name string, max int64) ([]byte, error
 
 // LoadMax implements maxLoader.
 func (s *SMB) LoadMax(_ context.Context, name string, max int64) ([]byte, error) {
-	f, err := s.share.Open(s.p(name))
+	f, err := s.openFile(name)
 	if err != nil {
 		return nil, smbNotFound(name, err)
 	}
 	defer f.Close()
-	return readMax(f, name, max)
+	return readWhole(f, name, max)
 }
 
 // LoadMax implements maxLoader.

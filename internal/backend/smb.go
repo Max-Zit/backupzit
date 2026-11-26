@@ -27,6 +27,9 @@ type SMB struct {
 	share   *smb2.Share
 	root    string
 	loc     string
+
+	handles smbHandles                         // open handles of packs read recently (smbread.go)
+	openRO  func(name string) (smbFile, error) // tests; nil: open on the share
 }
 
 // OpenSMB connects and mounts the share named in u.
@@ -116,6 +119,8 @@ func (s *SMB) Save(_ context.Context, name string, data []byte) error {
 	}
 	// Rename uses SMB ReplaceIfExists: readers see the old or new complete
 	// object. Never delete the destination first (locks must stay visible).
+	// A handle this backend keeps open would block the rename.
+	s.forget(name)
 	if err := s.share.Rename(tmp, p); err != nil {
 		_ = s.share.Remove(tmp)
 		return fmt.Errorf("smb rename %s: %w", p, err)
@@ -124,23 +129,25 @@ func (s *SMB) Save(_ context.Context, name string, data []byte) error {
 }
 
 func (s *SMB) Load(_ context.Context, name string) ([]byte, error) {
-	f, err := s.share.Open(s.p(name))
+	f, err := s.openFile(name)
 	if err != nil {
 		return nil, smbNotFound(name, err)
 	}
 	defer f.Close()
-	return io.ReadAll(f)
+	return readWhole(f, name, -1)
 }
 
 func (s *SMB) LoadRange(_ context.Context, name string, offset int64, length int) ([]byte, error) {
-	f, err := s.share.Open(s.p(name))
+	h, err := s.acquire(name)
 	if err != nil {
 		return nil, smbNotFound(name, err)
 	}
-	defer f.Close()
+	defer s.release(h)
+	f := h.f
 	if offset < 0 {
 		fi, err := f.Stat()
 		if err != nil {
+			s.forget(name)
 			return nil, err
 		}
 		offset += fi.Size()
@@ -153,6 +160,7 @@ func (s *SMB) LoadRange(_ context.Context, name string, offset int64, length int
 	if err == nil {
 		err = io.ErrUnexpectedEOF
 	}
+	s.forget(name) // the file may have changed or gone: open it again next time
 	return nil, fmt.Errorf("read %s@%d+%d: %w", name, offset, length, err)
 }
 
@@ -199,6 +207,7 @@ func (s *SMB) List(_ context.Context, dir string) (out []string, err error) {
 }
 
 func (s *SMB) Remove(_ context.Context, name string) error {
+	s.forget(name) // an open handle would keep the file
 	return smbNotFound(name, s.share.Remove(s.p(name)))
 }
 
@@ -228,6 +237,7 @@ func (s *SMB) RemoveDirs(_ context.Context) (err error) {
 }
 
 func (s *SMB) Close() error {
+	s.closeHandles()
 	_ = s.share.Umount()
 	_ = s.session.Logoff()
 	return s.conn.Close()

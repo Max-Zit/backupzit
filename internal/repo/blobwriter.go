@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"runtime"
 	"sync"
@@ -128,13 +129,21 @@ func (w *BlobWriter) Save(ctx context.Context, t BlobType, data []byte) (ID, boo
 	if w.workers == 1 {
 		return w.r.SaveBlob(ctx, t, data)
 	}
+	return w.SaveHashed(ctx, t, Hash(data), data)
+}
+
+// SaveHashed is Save for data the caller hashed already (id must be
+// Hash(data)), so that callers can hash several blocks at once.
+func (w *BlobWriter) SaveHashed(ctx context.Context, t BlobType, id ID, data []byte) (ID, bool, error) {
+	if w.workers == 1 {
+		return w.r.SaveBlob(ctx, t, data)
+	}
 	if err := w.failed(); err != nil {
 		return ID{}, false, err
 	}
 	if err := ctx.Err(); err != nil {
 		return ID{}, false, err
 	}
-	id := Hash(data)
 	h := BlobHandle{Type: t, ID: id}
 	r := w.r
 
@@ -169,6 +178,16 @@ func (w *BlobWriter) Save(ctx context.Context, t BlobType, data []byte) (ID, boo
 		}
 		return id, false, w.ctx.Err()
 	}
+}
+
+// SaveTree stores a directory tree like Repository.SaveTree.
+func (w *BlobWriter) SaveTree(ctx context.Context, t *Tree) (ID, error) {
+	b, err := json.Marshal(t)
+	if err != nil {
+		return ID{}, err
+	}
+	id, _, err := w.Save(ctx, TreeBlob, b)
+	return id, err
 }
 
 // unreserve undoes Save's bookkeeping for a blob that never reached a pack,

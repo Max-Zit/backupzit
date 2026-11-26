@@ -290,6 +290,11 @@ func (l *Lock) Unlock() error {
 	if !first {
 		return nil
 	}
+	// Packs still uploading (a run that failed before Flush) must land
+	// while the lock is held: a prune right after it would take them for
+	// leftovers and delete them, while an index written later names them.
+	// The lock is kept fresh meanwhile.
+	l.r.waitUploads()
 	close(l.stop)
 	l.done.Wait()
 	l.r.dropLock(l)

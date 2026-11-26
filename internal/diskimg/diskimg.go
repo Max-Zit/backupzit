@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/max-zit/backupzit/internal/repo"
 )
@@ -182,45 +184,124 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 	}
 	defer func() { _ = bw.Close() }()
 	runSize := uint64(32) * blockSize
-	buf := make([]byte, runSize)
+	type run struct{ i, j, n uint64 }
+	var runs []run
 	for i := uint64(0); i < p.Blocks; {
 		if !read[i] {
 			i++
 			continue
 		}
-		// Read a run of consecutive blocks at once.
+		// A run of consecutive blocks is read at once.
 		j := i
 		for j < p.Blocks && read[j] && (j-i+1)*blockSize <= runSize {
 			j++
 		}
-		start := i * blockSize
-		n := min(j*blockSize, size) - start
+		runs = append(runs, run{i, j, min(j*blockSize, size) - i*blockSize})
+		i = j
+	}
+	// A goroutine reads the runs into two buffers in turn, so the disk reads
+	// the next run while this one is checked for zeros and hashed (#71).
+	type filled struct {
+		run
+		buf []byte
+		err error
+	}
+	rctx, stopReading := context.WithCancel(ctx)
+	free := make(chan []byte, 2)
+	for k := 0; k < min(len(runs), 2); k++ {
+		free <- make([]byte, runSize)
+	}
+	full := make(chan filled)
+	defer func() { // on every return the reader has stopped: the caller may close f
+		stopReading()
+		for range full {
+		}
+	}()
+	go func() {
+		defer close(full)
+		for _, rn := range runs {
+			var buf []byte
+			select {
+			case buf = <-free:
+			case <-rctx.Done():
+				return
+			}
+			start := rn.i * blockSize
+			got, err := f.ReadAt(buf[:rn.n], int64(start)) // #nosec G115 -- disk sizes are below 2^63
+			got = max(0, min(got, int(rn.n)))              // #nosec G115 -- a run is 32 blocks
+			switch {
+			case got == int(rn.n): // #nosec G115 -- a run is 32 blocks
+				err = nil
+			case errors.Is(err, io.EOF) && rn.j == p.Blocks:
+				// The disk ends early: zeros, not bytes of an earlier run.
+				clear(buf[got:rn.n])
+				err = nil
+			default:
+				if err == nil {
+					err = io.ErrUnexpectedEOF
+				}
+				err = fmt.Errorf("read at %d: %w", start, err)
+			}
+			select {
+			case full <- filled{rn, buf, err}:
+			case <-rctx.Done():
+				return
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
+	for fr := range full {
+		if fr.err != nil {
+			return img, fr.err
+		}
 		if err := ctx.Err(); err != nil {
 			return img, err
 		}
-		if _, err := f.ReadAt(buf[:n], int64(start)); err != nil && !(errors.Is(err, io.EOF) && j == p.Blocks) { // #nosec G115 -- disk sizes are below 2^63
-			return img, fmt.Errorf("read at %d: %w", start, err)
-		}
+		i, j, n, buf := fr.i, fr.j, fr.n, fr.buf
 		if i == 0 && refreshHead {
 			var err error
 			if img.Head, _, err = bw.Save(ctx, repo.DataBlob, buf[:headSize]); err != nil {
 				return img, err
 			}
 		}
+		// The blocks of the run are checked for zeros and hashed on several
+		// goroutines (one core hashed about 400 MB/s on a CPU without SHA
+		// extensions, #71), then saved in disk order.
+		blk := func(b uint64) []byte { return buf[(b-i)*blockSize : min((b-i+1)*blockSize, n)] }
+		hashed := make([]repo.ID, j-i) // null: a block of zeros
+		var next atomic.Uint64
+		next.Store(i)
+		var wg sync.WaitGroup
+		for w := uint64(0); w < min(uint64(bw.Workers()), j-i); w++ { // #nosec G115 -- Workers is at least 1
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for b := next.Add(1) - 1; b < j; b = next.Add(1) - 1 {
+					if d := blk(b); !bytes.Equal(d, zeroBlock[:len(d)]) {
+						hashed[b-i] = repo.Hash(d)
+					}
+				}
+			}()
+		}
+		wg.Wait()
 		for b := i; b < j; b++ {
-			blk := buf[(b-i)*blockSize : min((b-i+1)*blockSize, n)]
-			if bytes.Equal(blk, zeroBlock[:len(blk)]) {
+			if hashed[b-i].IsNull() {
 				ids[b] = repo.ID{}
 				continue
 			}
-			id, _, err := bw.Save(ctx, repo.DataBlob, blk)
+			id, _, err := bw.SaveHashed(ctx, repo.DataBlob, hashed[b-i], blk(b))
 			if err != nil {
 				return img, err
 			}
 			ids[b] = id
 		}
 		progress(n)
-		i = j
+		free <- buf // SaveHashed copied what it keeps
+	}
+	if err := ctx.Err(); err != nil { // the reader stops early on a cancel
+		return img, err
 	}
 	if err := bw.Close(); err != nil {
 		return img, err
