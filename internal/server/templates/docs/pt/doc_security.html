@@ -26,7 +26,7 @@
 <p>Configure em <a href="/settings/security">Configurações → Login e segurança</a>. Os padrões são seguros para a maioria das instalações:</p>
 <table>
   <tr><th>Configuração</th><th>Padrão</th><th>Significado</th></tr>
-  <tr><td>Tentativas falhas por endereço</td><td>5</td><td>Logins com falha de um endereço IP dentro do período de contagem bloqueiam esse endereço. Contam senhas erradas, códigos de dois fatores errados e tokens de API inválidos.</td></tr>
+  <tr><td>Tentativas falhas por endereço</td><td>5</td><td>Logins com falha de um endereço IP dentro do período de contagem bloqueiam esse endereço. Contam senhas erradas, códigos de dois fatores errados e tokens de API inválidos. As verificações de senhas e códigos de um endereço, e para um nome de usuário, acontecem uma após a outra, então solicitações em paralelo não ganham tentativas extras; logins de muitos usuários atrás de um mesmo endereço apenas esperam um instante.</td></tr>
   <tr><td>Período de contagem</td><td>15 minutos</td><td>Falhas mais antigas são esquecidas.</td></tr>
   <tr><td>Bloquear por</td><td>30 minutos</td><td>Um endereço bloqueado não consegue entrar, nem com a senha certa. A página de login responde "Muitas tentativas de login com falha" e a API responde HTTP 429.</td></tr>
   <tr><td>Bloquear reincidentes por mais tempo</td><td>ligado</td><td>Cada novo bloqueio de um endereço no mesmo dia dura o dobro: 30 minutos, 1 hora, 2 horas, … até 7 dias.</td></tr>

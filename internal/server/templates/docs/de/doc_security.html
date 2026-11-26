@@ -26,7 +26,7 @@
 <p>Konfiguriert unter <a href="/settings/security">Einstellungen → Anmeldung &amp; Sicherheit</a>. Die Standardwerte sind für die meisten Installationen sicher:</p>
 <table>
   <tr><th>Einstellung</th><th>Standard</th><th>Bedeutung</th></tr>
-  <tr><td>Fehlversuche pro Adresse</td><td>5</td><td>Fehlgeschlagene Anmeldungen von einer IP-Adresse innerhalb des Zählzeitraums sperren diese Adresse. Gezählt werden falsche Passwörter, falsche Zwei-Faktor-Codes und ungültige API-Token.</td></tr>
+  <tr><td>Fehlversuche pro Adresse</td><td>5</td><td>Fehlgeschlagene Anmeldungen von einer IP-Adresse innerhalb des Zählzeitraums sperren diese Adresse. Gezählt werden falsche Passwörter, falsche Zwei-Faktor-Codes und ungültige API-Token. Passwort- und Codeprüfungen von einer Adresse und für einen Benutzernamen laufen nacheinander, sodass parallele Anfragen keine zusätzlichen Versuche erhalten; Anmeldungen vieler Benutzer hinter einer Adresse warten nur kurz.</td></tr>
   <tr><td>Zählzeitraum</td><td>15 Minuten</td><td>Ältere Fehlversuche werden vergessen.</td></tr>
   <tr><td>Sperren für</td><td>30 Minuten</td><td>Eine gesperrte Adresse kann sich nicht anmelden, auch nicht mit dem richtigen Passwort. Die Anmeldeseite antwortet „Zu viele fehlgeschlagene Anmeldungen“ und die API mit HTTP 429.</td></tr>
   <tr><td>Wiederholungstäter länger sperren</td><td>an</td><td>Jede weitere Sperre einer Adresse innerhalb eines Tages dauert doppelt so lange: 30 Minuten, 1 Stunde, 2 Stunden, … bis zu 7 Tage.</td></tr>

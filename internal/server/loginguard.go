@@ -132,6 +132,8 @@ type loginGuard struct {
 
 	mu    sync.Mutex
 	fails map[string][]time.Time
+	// slots serialize the checks per address and username (Begin).
+	slots map[string]*slot
 	// cached settings
 	cfg   LoginProtection
 	cfgAt time.Time
@@ -218,6 +220,92 @@ func (g *loginGuard) recent(key string, window time.Duration) []time.Time {
 	}
 	g.fails[key] = f
 	return f
+}
+
+// beginWait bounds how long an attempt waits for the one before it from the
+// same address or for the same username.
+const beginWait = 20 * time.Second
+
+// slot lets one password or code check at a time run per address and per
+// username; n counts the requests holding or waiting for it.
+type slot struct {
+	ch chan struct{}
+	n  int
+}
+
+func (g *loginGuard) enter(ctx context.Context, key string) (*slot, bool) {
+	g.mu.Lock()
+	if g.slots == nil {
+		g.slots = map[string]*slot{}
+	}
+	s := g.slots[key]
+	if s == nil {
+		s = &slot{ch: make(chan struct{}, 1)}
+		g.slots[key] = s
+	}
+	s.n++
+	g.mu.Unlock()
+	select {
+	case s.ch <- struct{}{}:
+		return s, true
+	case <-ctx.Done():
+		g.unref(key, s)
+		return nil, false
+	}
+}
+
+func (g *loginGuard) unref(key string, s *slot) {
+	g.mu.Lock()
+	s.n--
+	if s.n == 0 && g.slots[key] == s {
+		delete(g.slots, key)
+	}
+	g.mu.Unlock()
+}
+
+// Begin starts a password or code check: it waits until the checks before
+// it from the same address and for the same username have finished (and
+// recorded their failures), then returns how long the sign-in has to wait
+// as Blocked does. Without it, many parallel requests all pass Blocked
+// before the first failure is counted and get many guesses. Waiting is
+// preferred over refusing, so users behind one NAT address are only
+// delayed. release must be called when the check has been recorded (Fail
+// or Success); calling it again does nothing. Addresses in the trusted
+// networks only wait per username.
+func (g *loginGuard) Begin(r *http.Request, username string) (release func(), wait time.Duration) {
+	ctx, cancel := context.WithTimeout(r.Context(), beginWait)
+	defer cancel()
+	ip := g.ClientIP(r)
+	var keys []string
+	if !inPrefixes(ip, g.settings(r.Context()).TrustedNetworks) {
+		keys = append(keys, "ip:"+ip)
+	}
+	if username != "" {
+		keys = append(keys, userKey(username))
+	}
+	type held struct {
+		key string
+		s   *slot
+	}
+	var hs []held
+	var once sync.Once
+	release = func() {
+		once.Do(func() {
+			for i := len(hs) - 1; i >= 0; i-- {
+				<-hs[i].s.ch
+				g.unref(hs[i].key, hs[i].s)
+			}
+		})
+	}
+	for _, k := range keys {
+		s, ok := g.enter(ctx, k)
+		if !ok {
+			release()
+			return func() {}, time.Minute // too many checks at once: try again shortly
+		}
+		hs = append(hs, held{k, s})
+	}
+	return release, g.Blocked(r, username)
 }
 
 // Blocked returns how long a sign-in from r for username has to wait, or 0.

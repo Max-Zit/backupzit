@@ -785,7 +785,9 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	username := r.FormValue("username")
-	if wait := s.guard.Blocked(r, username); wait > 0 {
+	release, wait := s.guard.Begin(r, username)
+	defer release()
+	if wait > 0 {
 		s.log.Warn("sign-in refused: too many failed attempts", "user", username, "remote", s.guard.ClientIP(r))
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusTooManyRequests)

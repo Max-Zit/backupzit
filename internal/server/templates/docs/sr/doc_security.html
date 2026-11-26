@@ -26,7 +26,7 @@
 <p>Podešava se u <a href="/settings/security">Podešavanja → Prijava i bezbednost</a>. Podrazumevane vrednosti su bezbedne za većinu instalacija:</p>
 <table>
   <tr><th>Podešavanje</th><th>Podrazumevano</th><th>Značenje</th></tr>
-  <tr><td>Neuspeli pokušaji po adresi</td><td>5</td><td>Neuspele prijave sa jedne IP adrese u periodu brojanja blokiraju tu adresu. Broje se pogrešne lozinke, pogrešni dvofaktorski kodovi i neispravni API tokeni.</td></tr>
+  <tr><td>Neuspeli pokušaji po adresi</td><td>5</td><td>Neuspele prijave sa jedne IP adrese u periodu brojanja blokiraju tu adresu. Broje se pogrešne lozinke, pogrešni dvofaktorski kodovi i neispravni API tokeni. Provere lozinki i kodova sa jedne adrese i za jedno korisničko ime idu jedna za drugom, pa paralelni zahtevi ne dobijaju dodatne pokušaje; prijave mnogo korisnika iza jedne adrese samo kratko sačekaju.</td></tr>
   <tr><td>Period brojanja</td><td>15 minuta</td><td>Neuspesi stariji od ovoga se zaboravljaju.</td></tr>
   <tr><td>Blokiraj na</td><td>30 minuta</td><td>Blokirana adresa ne može da se prijavi, čak ni sa ispravnom lozinkom. Stranica za prijavu odgovara „Previše neuspelih prijava”, a API odgovara HTTP 429.</td></tr>
   <tr><td>Duže blokiraj ponovne prekršioce</td><td>uključeno</td><td>Svaka sledeća blokada adrese u toku dana traje dvostruko duže: 30 minuta, 1 sat, 2 sata, … do 7 dana.</td></tr>

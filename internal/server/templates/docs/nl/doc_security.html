@@ -26,7 +26,7 @@
 <p>Stel het in onder <a href="/settings/security">Instellingen → Aanmelden en beveiliging</a>. De standaardwaarden zijn voor de meeste installaties veilig:</p>
 <table>
   <tr><th>Instelling</th><th>Standaard</th><th>Betekenis</th></tr>
-  <tr><td>Mislukte pogingen per adres</td><td>5</td><td>Mislukte aanmeldingen vanaf één IP-adres binnen de telperiode blokkeren dat adres. Dit telt verkeerde wachtwoorden, verkeerde tweestapscodes en ongeldige API-tokens.</td></tr>
+  <tr><td>Mislukte pogingen per adres</td><td>5</td><td>Mislukte aanmeldingen vanaf één IP-adres binnen de telperiode blokkeren dat adres. Dit telt verkeerde wachtwoorden, verkeerde tweestapscodes en ongeldige API-tokens. Wachtwoord- en codecontroles vanaf één adres, en voor één gebruikersnaam, lopen na elkaar, zodat parallelle verzoeken geen extra pogingen krijgen; aanmeldingen van veel gebruikers achter één adres wachten alleen even.</td></tr>
   <tr><td>Telperiode</td><td>15 minuten</td><td>Oudere mislukkingen worden vergeten.</td></tr>
   <tr><td>Blokkeren gedurende</td><td>30 minuten</td><td>Een geblokkeerd adres kan zich niet aanmelden, zelfs niet met het juiste wachtwoord. De aanmeldpagina antwoordt "Te veel mislukte aanmeldingen" en de API antwoordt HTTP 429.</td></tr>
   <tr><td>Herhaalde overtreders langer blokkeren</td><td>aan</td><td>Elke volgende blokkade van een adres binnen een dag duurt twee keer zo lang: 30 minuten, 1 uur, 2 uur, … tot 7 dagen.</td></tr>

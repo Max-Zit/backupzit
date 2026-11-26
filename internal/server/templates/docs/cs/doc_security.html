@@ -26,7 +26,7 @@
 <p>Nastavuje se v <a href="/settings/security">Nastavení → Přihlášení a zabezpečení</a>. Výchozí hodnoty jsou bezpečné pro většinu instalací:</p>
 <table>
   <tr><th>Nastavení</th><th>Výchozí</th><th>Význam</th></tr>
-  <tr><td>Neúspěšné pokusy na adresu</td><td>5</td><td>Neúspěšná přihlášení z jedné IP adresy během doby počítání tuto adresu zablokují. Počítají se špatná hesla, špatné dvoufázové kódy a neplatné tokeny API.</td></tr>
+  <tr><td>Neúspěšné pokusy na adresu</td><td>5</td><td>Neúspěšná přihlášení z jedné IP adresy během doby počítání tuto adresu zablokují. Počítají se špatná hesla, špatné dvoufázové kódy a neplatné tokeny API. Kontroly hesel a kódů z jedné adresy a pro jedno uživatelské jméno běží jedna po druhé, takže souběžné požadavky nezískají pokusy navíc; přihlášení mnoha uživatelů za jednou adresou jen chvíli počkají.</td></tr>
   <tr><td>Doba počítání</td><td>15 minut</td><td>Starší neúspěchy se zapomínají.</td></tr>
   <tr><td>Blokovat na</td><td>30 minut</td><td>Zablokovaná adresa se nemůže přihlásit, ani se správným heslem. Přihlašovací stránka odpoví „Příliš mnoho neúspěšných přihlášení“ a API odpoví HTTP 429.</td></tr>
   <tr><td>Opakované útočníky blokovat déle</td><td>zapnuto</td><td>Každá další blokace adresy během dne trvá dvakrát déle: 30 minut, 1 hodina, 2 hodiny, … až 7 dní.</td></tr>

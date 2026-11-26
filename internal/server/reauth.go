@@ -19,7 +19,9 @@ func (s *Server) confirmIdentity(r *http.Request) error {
 	if me == nil {
 		return errors.New("sign in again to delete backups")
 	}
-	if wait := s.guard.Blocked(r, me.Username); wait > 0 {
+	release, wait := s.guard.Begin(r, me.Username)
+	defer release()
+	if wait > 0 {
 		return fmt.Errorf("Too many failed sign-ins. Try again in %d minutes.", int(wait.Minutes())+1)
 	}
 	if me.TwoFactor {
@@ -52,7 +54,9 @@ func (s *Server) confirmAdmin(r *http.Request) error {
 	if me == nil {
 		return errors.New("sign in again")
 	}
-	if wait := s.guard.Blocked(r, me.Username); wait > 0 {
+	release, wait := s.guard.Begin(r, me.Username)
+	defer release()
+	if wait > 0 {
 		return fmt.Errorf("Too many failed sign-ins. Try again in %d minutes.", int(wait.Minutes())+1)
 	}
 	switch {
@@ -98,7 +102,9 @@ func (s *Server) confirmEnrollment(r *http.Request) error {
 	if me == nil {
 		return errors.New("sign in again")
 	}
-	if wait := s.guard.Blocked(r, me.Username); wait > 0 {
+	release, wait := s.guard.Begin(r, me.Username)
+	defer release()
+	if wait > 0 {
 		return fmt.Errorf("Too many failed sign-ins. Try again in %d minutes.", int(wait.Minutes())+1)
 	}
 	if me.Source == "sso" {
@@ -122,7 +128,9 @@ func (s *Server) checkOwnCode(r *http.Request, msg string) error {
 	if me == nil {
 		return errors.New("sign in again")
 	}
-	if wait := s.guard.Blocked(r, me.Username); wait > 0 {
+	release, wait := s.guard.Begin(r, me.Username)
+	defer release()
+	if wait > 0 {
 		return fmt.Errorf("Too many failed sign-ins. Try again in %d minutes.", int(wait.Minutes())+1)
 	}
 	if _, err := s.store.checkSecondFactor(r.Context(), me.ID, strings.TrimSpace(r.FormValue("code")), s.clock()); err != nil {

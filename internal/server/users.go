@@ -614,7 +614,9 @@ func (s *Server) renderAccount(w http.ResponseWriter, r *http.Request, user, new
 
 func (s *Server) handleAccountPassword(w http.ResponseWriter, r *http.Request, _ string) {
 	me := currentUser(r)
-	if wait := s.guard.Blocked(r, me.Username); wait > 0 {
+	release, wait := s.guard.Begin(r, me.Username)
+	defer release()
+	if wait > 0 {
 		redirectErr(w, r, "/account", fmt.Errorf("Too many failed sign-ins. Try again in %d minutes.", int(wait.Minutes())+1))
 		return
 	}

@@ -26,7 +26,7 @@
 <p>Configúrela en <a href="/settings/security">Configuración → Inicio de sesión y seguridad</a>. Los valores predeterminados son seguros para la mayoría de las instalaciones:</p>
 <table>
   <tr><th>Ajuste</th><th>Predeterminado</th><th>Significado</th></tr>
-  <tr><td>Intentos fallidos por dirección</td><td>5</td><td>Los inicios de sesión fallidos desde una dirección IP dentro del periodo de recuento bloquean esa dirección. Cuentan las contraseñas erróneas, los códigos de dos pasos erróneos y los tokens de API no válidos.</td></tr>
+  <tr><td>Intentos fallidos por dirección</td><td>5</td><td>Los inicios de sesión fallidos desde una dirección IP dentro del periodo de recuento bloquean esa dirección. Cuentan las contraseñas erróneas, los códigos de dos pasos erróneos y los tokens de API no válidos. Las comprobaciones de contraseñas y códigos desde una dirección, y para un nombre de usuario, se ejecutan una tras otra, de modo que las solicitudes en paralelo no obtienen intentos extra; los inicios de sesión de muchos usuarios tras una misma dirección solo esperan un momento.</td></tr>
   <tr><td>Periodo de recuento</td><td>15 minutos</td><td>Los fallos más antiguos se olvidan.</td></tr>
   <tr><td>Bloquear durante</td><td>30 minutos</td><td>Una dirección bloqueada no puede iniciar sesión, ni siquiera con la contraseña correcta. La página de inicio de sesión responde «Demasiados inicios de sesión fallidos» y la API responde HTTP 429.</td></tr>
   <tr><td>Bloquear más tiempo a los reincidentes</td><td>activado</td><td>Cada nuevo bloqueo de una dirección en el mismo día dura el doble: 30 minutos, 1 hora, 2 horas… hasta 7 días.</td></tr>

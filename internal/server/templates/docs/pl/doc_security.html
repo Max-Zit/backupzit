@@ -26,7 +26,7 @@
 <p>Konfiguruje się ją w <a href="/settings/security">Ustawienia → Logowanie i bezpieczeństwo</a>. Wartości domyślne są bezpieczne dla większości instalacji:</p>
 <table>
   <tr><th>Ustawienie</th><th>Domyślnie</th><th>Znaczenie</th></tr>
-  <tr><td>Nieudane próby na adres</td><td>5</td><td>Nieudane logowania z jednego adresu IP w okresie liczenia blokują ten adres. Liczą się błędne hasła, błędne kody dwuskładnikowe i nieprawidłowe tokeny API.</td></tr>
+  <tr><td>Nieudane próby na adres</td><td>5</td><td>Nieudane logowania z jednego adresu IP w okresie liczenia blokują ten adres. Liczą się błędne hasła, błędne kody dwuskładnikowe i nieprawidłowe tokeny API. Sprawdzanie haseł i kodów z jednego adresu oraz dla jednej nazwy użytkownika odbywa się po kolei, więc równoległe żądania nie dostają dodatkowych prób; logowania wielu użytkowników za jednym adresem tylko chwilę czekają.</td></tr>
   <tr><td>Okres liczenia</td><td>15 minut</td><td>Starsze nieudane próby są zapominane.</td></tr>
   <tr><td>Blokuj na</td><td>30 minut</td><td>Zablokowany adres nie może się zalogować, nawet poprawnym hasłem. Strona logowania odpowiada „Zbyt wiele nieudanych logowań”, a API odpowiada HTTP 429.</td></tr>
   <tr><td>Dłużej blokuj recydywistów</td><td>włączone</td><td>Każda kolejna blokada adresu w ciągu dnia trwa dwa razy dłużej: 30 minut, 1 godzina, 2 godziny, … do 7 dni.</td></tr>

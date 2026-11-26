@@ -26,7 +26,7 @@
 <p>Si configura in <a href="/settings/security">Impostazioni → Accesso e sicurezza</a>. I valori predefiniti sono sicuri per la maggior parte delle installazioni:</p>
 <table>
   <tr><th>Impostazione</th><th>Predefinito</th><th>Significato</th></tr>
-  <tr><td>Tentativi falliti per indirizzo</td><td>5</td><td>Gli accessi non riusciti da un indirizzo IP entro il periodo di conteggio bloccano quell'indirizzo. Contano password errate, codici a due fattori errati e token API non validi.</td></tr>
+  <tr><td>Tentativi falliti per indirizzo</td><td>5</td><td>Gli accessi non riusciti da un indirizzo IP entro il periodo di conteggio bloccano quell'indirizzo. Contano password errate, codici a due fattori errati e token API non validi. I controlli di password e codici da un indirizzo, e per un nome utente, avvengono uno dopo l'altro, quindi le richieste parallele non ottengono tentativi in più; gli accessi di molti utenti dietro uno stesso indirizzo attendono solo un attimo.</td></tr>
   <tr><td>Periodo di conteggio</td><td>15 minuti</td><td>I tentativi più vecchi vengono dimenticati.</td></tr>
   <tr><td>Blocca per</td><td>30 minuti</td><td>Un indirizzo bloccato non può accedere, nemmeno con la password corretta. La pagina di accesso risponde "Troppi accessi non riusciti" e l'API risponde HTTP 429.</td></tr>
   <tr><td>Blocca più a lungo i recidivi</td><td>attivo</td><td>Ogni ulteriore blocco di un indirizzo nella stessa giornata dura il doppio: 30 minuti, 1 ora, 2 ore, … fino a 7 giorni.</td></tr>

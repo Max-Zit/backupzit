@@ -26,7 +26,7 @@
 <p>Configurez-la dans <a href="/settings/security">Paramètres → Connexion et sécurité</a>. Les valeurs par défaut conviennent à la plupart des installations :</p>
 <table>
   <tr><th>Paramètre</th><th>Par défaut</th><th>Signification</th></tr>
-  <tr><td>Échecs par adresse</td><td>5</td><td>Les échecs de connexion depuis une adresse IP pendant la période de comptage bloquent cette adresse. Sont comptés les mauvais mots de passe, les mauvais codes à deux facteurs et les jetons API invalides.</td></tr>
+  <tr><td>Échecs par adresse</td><td>5</td><td>Les échecs de connexion depuis une adresse IP pendant la période de comptage bloquent cette adresse. Sont comptés les mauvais mots de passe, les mauvais codes à deux facteurs et les jetons API invalides. Les vérifications de mots de passe et de codes depuis une adresse, et pour un nom d'utilisateur, s'exécutent l'une après l'autre : des requêtes parallèles n'obtiennent aucun essai supplémentaire ; les connexions de nombreux utilisateurs derrière une même adresse attendent seulement un instant.</td></tr>
   <tr><td>Période de comptage</td><td>15 minutes</td><td>Les échecs plus anciens sont oubliés.</td></tr>
   <tr><td>Bloquer pendant</td><td>30 minutes</td><td>Une adresse bloquée ne peut pas se connecter, même avec le bon mot de passe. La page de connexion répond « Trop d'échecs de connexion » et l'API répond HTTP 429.</td></tr>
   <tr><td>Bloquer plus longtemps les récidivistes</td><td>activé</td><td>Chaque nouveau blocage d'une adresse dans la journée dure deux fois plus longtemps : 30 minutes, 1 heure, 2 heures, … jusqu'à 7 jours.</td></tr>

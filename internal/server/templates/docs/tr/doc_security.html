@@ -26,7 +26,7 @@
 <p><a href="/settings/security">Ayarlar → Oturum açma ve güvenlik</a> altında yapılandırılır. Varsayılanlar çoğu kurulum için güvenlidir:</p>
 <table>
   <tr><th>Ayar</th><th>Varsayılan</th><th>Anlamı</th></tr>
-  <tr><td>Adres başına başarısız deneme</td><td>5</td><td>Sayım süresi içinde bir IP adresinden gelen başarısız oturum açmalar o adresi engeller. Yanlış parolalar, yanlış iki aşamalı kodlar ve geçersiz API belirteçleri sayılır.</td></tr>
+  <tr><td>Adres başına başarısız deneme</td><td>5</td><td>Sayım süresi içinde bir IP adresinden gelen başarısız oturum açmalar o adresi engeller. Yanlış parolalar, yanlış iki aşamalı kodlar ve geçersiz API belirteçleri sayılır. Bir adresten ve bir kullanıcı adı için yapılan parola ve kod denetimleri sırayla çalışır; bu nedenle paralel istekler fazladan deneme hakkı kazanmaz, tek bir adresin arkasındaki çok sayıda kullanıcının oturum açması yalnızca kısa bir süre bekler.</td></tr>
   <tr><td>Sayım süresi</td><td>15 dakika</td><td>Daha eski başarısızlıklar unutulur.</td></tr>
   <tr><td>Engelleme süresi</td><td>30 dakika</td><td>Engellenen bir adres doğru parolayla bile oturum açamaz. Oturum açma sayfası "Çok fazla başarısız oturum açma" yanıtını, API ise HTTP 429 yanıtını verir.</td></tr>
   <tr><td>Tekrarlayanları daha uzun engelle</td><td>açık</td><td>Bir adresin aynı gün içindeki her yeni engeli iki kat uzun sürer: 30 dakika, 1 saat, 2 saat, … 7 güne kadar.</td></tr>

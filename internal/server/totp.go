@@ -261,7 +261,9 @@ func (s *Server) handleLogin2FA(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	if wait := s.guard.Blocked(r, u.Username); wait > 0 {
+	release, wait := s.guard.Begin(r, u.Username)
+	defer release()
+	if wait > 0 {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusTooManyRequests)
 		s.render(w, r, "login2fa", pageData{Title: "Two-factor authentication",
