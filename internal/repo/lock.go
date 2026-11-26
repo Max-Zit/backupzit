@@ -141,7 +141,7 @@ func (r *Repository) conflicting(ctx context.Context, exclusive bool, ignore str
 		if n == ignore {
 			continue
 		}
-		b, err := r.be.Load(ctx, n)
+		b, err := backend.LoadMax(ctx, r.be, n, maxLockSize)
 		if err != nil {
 			if errors.Is(err, backend.ErrNotFound) {
 				continue // removed meanwhile
@@ -153,6 +153,12 @@ func (r *Repository) conflicting(ctx context.Context, exclusive bool, ignore str
 			continue
 		}
 		if time.Since(lf.Time) > staleLockAge {
+			continue
+		}
+		// A lock dated more than staleLockAge ahead never came from a
+		// working client (clocks are not that far apart): a planted one
+		// would otherwise block the repository until that date (B7).
+		if time.Until(lf.Time) > staleLockAge {
 			continue
 		}
 		if exclusive || lf.Exclusive {

@@ -83,3 +83,55 @@ func TestLockLost(t *testing.T) {
 	l.r.dropLock(l)
 	_ = l.r.be.Remove(ctx, l.name)
 }
+
+// B7: a lock dated far in the future and a huge planted lock file do not
+// block the repository.
+func TestPlantedLocks(t *testing.T) {
+	ctx := context.Background()
+	be, err := backend.OpenLocal(filepath.Join(t.TempDir(), "repo"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := Init(ctx, be)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	future := []byte(`{"time":"2999-01-01T00:00:00Z","exclusive":true,"hostname":"x","pid":1}`)
+	if err := be.Save(ctx, "locks/future", future); err != nil {
+		t.Fatal(err)
+	}
+	l, err := r.Lock(ctx, true, 0)
+	if err != nil {
+		t.Fatalf("a lock dated in 2999 blocks the repository: %v", err)
+	}
+	_ = l.Unlock()
+	if err := be.Save(ctx, "locks/huge", []byte(strings.Repeat("x", maxLockSize+1))); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Lock(ctx, false, 0); err == nil || !errors.Is(err, backend.ErrTooLarge) {
+		t.Fatalf("huge lock file: %v", err)
+	}
+}
+
+// B7: snapshot and config files above their limit are refused before they
+// are read whole.
+func TestPlantedHugeFiles(t *testing.T) {
+	ctx := context.Background()
+	be, err := backend.OpenLocal(filepath.Join(t.TempDir(), "repo"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := Init(ctx, be)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Close()
+	big := make([]byte, maxConfigSize+10)
+	if err := be.Save(ctx, "config", big); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Open(ctx, be); !errors.Is(err, backend.ErrTooLarge) {
+		t.Fatalf("huge config: %v", err)
+	}
+}

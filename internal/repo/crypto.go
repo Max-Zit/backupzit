@@ -208,13 +208,10 @@ func unlock(ctx context.Context, be backend.Backend, password string) (*masterKe
 	}
 	var own, other []candidate
 	for _, n := range names {
-		if size, err := be.Size(ctx, n); err != nil {
-			loadErr = err
-			continue
-		} else if size > maxKeyFileSize {
+		b, err := backend.LoadMax(ctx, be, n, maxKeyFileSize)
+		if errors.Is(err, backend.ErrTooLarge) {
 			continue
 		}
-		b, err := be.Load(ctx, n)
 		if err != nil {
 			loadErr = err
 			continue

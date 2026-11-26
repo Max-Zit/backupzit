@@ -161,7 +161,7 @@ func Open(ctx context.Context, be backend.Backend, opts ...Option) (*Repository,
 	for _, f := range opts {
 		f(&o)
 	}
-	b, err := be.Load(ctx, "config")
+	b, err := backend.LoadMax(ctx, be, "config", maxConfigSize)
 	if errors.Is(err, backend.ErrNotFound) {
 		return nil, fmt.Errorf("%s: %w", be.Location(), ErrNotInitialized)
 	}
@@ -354,7 +354,7 @@ func (r *Repository) loadIndex(ctx context.Context, progress func(done, total in
 }
 
 func (r *Repository) loadIndexFile(ctx context.Context, n string) error {
-	sealed, err := r.be.Load(ctx, n)
+	sealed, err := backend.LoadMax(ctx, r.be, n, maxIndexSize)
 	if err != nil {
 		return fmt.Errorf("load %s: %w", n, err)
 	}
@@ -366,7 +366,7 @@ func (r *Repository) loadIndexFile(ctx context.Context, n string) error {
 		// makes a backup store its packs' data again and skip retention
 		// (0.59 review).
 		if base := n[strings.LastIndex(n, "/")+1:]; Hash(sealed).String() != base {
-			if again, lerr := r.be.Load(ctx, n); lerr == nil && Hash(again).String() == base {
+			if again, lerr := backend.LoadMax(ctx, r.be, n, maxIndexSize); lerr == nil && Hash(again).String() == base {
 				sealed = again
 				f, err = r.parseIndexFile(n, sealed)
 			}
@@ -795,7 +795,7 @@ func (r *Repository) LoadSnapshot(ctx context.Context, ref string) (*Snapshot, e
 }
 
 func (r *Repository) loadSnapshotFile(ctx context.Context, name string) (*Snapshot, error) {
-	sealed, err := r.be.Load(ctx, name)
+	sealed, err := backend.LoadMax(ctx, r.be, name, maxSnapshotSize)
 	if err != nil {
 		return nil, err
 	}
@@ -1019,3 +1019,15 @@ func (r *Repository) refreshIndex(ctx context.Context) error {
 	}
 	return nil
 }
+
+// Size limits of the repository's own small files when they are read
+// (B7, 0.62): a planted huge file must not exhaust memory. BackupZit writes
+// far less: a config of a few hundred bytes, locks of about 100 bytes,
+// index files for 256 packs, snapshots of up to a few megabytes (VM jobs
+// with many guests and their configurations).
+const (
+	maxConfigSize   = 64 << 10
+	maxLockSize     = 64 << 10
+	maxIndexSize    = 128 << 20
+	maxSnapshotSize = 128 << 20
+)
