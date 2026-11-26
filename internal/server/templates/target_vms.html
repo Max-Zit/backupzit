@@ -13,7 +13,6 @@
 <details class="panel">
   <summary><b>{{.Name}}</b> <span class="muted">{{.Type}} {{.VMID}} · {{.Hostname}}</span>{{if .NoJob}} <span class="badge warning" title="{{T "No existing job backs up this VM any more: its job was deleted or no longer selects it."}}"><i></i>{{T "no job"}}</span>{{end}} · {{T "%d restore points" (len .Points)}} · {{ts .Oldest}} – {{ts .Newest}}</summary>
   <form method="post" action="/targets/{{$t.ID}}/vms/delete" data-confirm="{{T "Delete the ticked restore points of %v? They cannot be restored afterwards." .Name}}">
-    <input type="hidden" name="vm" value="{{.Name}}">
     <div class="table-wrap"><table>
       <tr><th></th><th>{{T "Time"}}</th><th>{{T "Job"}}</th><th>{{T "Size"}}</th><th></th></tr>
       {{range .Points}}

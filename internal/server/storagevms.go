@@ -278,15 +278,17 @@ func (s *Server) handleTargetVMsDelete(w http.ResponseWriter, r *http.Request, u
 			d.Runs = append(d.Runs, n)
 		}
 	}
-	d.VM = strings.TrimSpace(r.FormValue("vm"))
 	if len(d.Runs) == 0 {
 		redirectErr(w, r, back, errors.New(l.T("Tick the restore points to delete.")))
 		return
 	}
-	if _, err := s.store.vmDeletePoints(ctx, id, d); err != nil {
+	// The VM names come from the restore points, not from the form.
+	_, names, err := s.store.vmDeletePoints(ctx, id, d)
+	if err != nil {
 		redirectErr(w, r, back, errors.New(l.T(err.Error())))
 		return
 	}
+	d.VM = names
 	if err := s.confirmIdentity(r); err != nil {
 		redirectErr(w, r, back, errors.New(l.T(err.Error())))
 		return
@@ -304,37 +306,46 @@ func (s *Server) handleTargetVMsDelete(w http.ResponseWriter, r *http.Request, u
 // vmDeletePoints checks a deletion: every run is a VM backup (or a copy
 // of one) on this target, still kept, holding only the one VM. It returns
 // the snapshots to remove per repository.
-func (s *Store) vmDeletePoints(ctx context.Context, targetID int64, d vmDelete) (map[string][]string, error) {
+func (s *Store) vmDeletePoints(ctx context.Context, targetID int64, d vmDelete) (map[string][]string, string, error) {
 	vms, err := s.storageVMs(ctx, targetID)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	alone := map[int64]storedPoint{}
+	type point struct {
+		storedPoint
+		vm string
+	}
+	alone := map[int64]point{}
 	for _, v := range vms {
 		for _, p := range v.Points {
 			if p.Others == 0 {
-				alone[p.RunID] = p
+				alone[p.RunID] = point{p, v.Name}
 			}
 		}
 	}
 	out := map[string][]string{}
+	var names []string
 	for _, id := range d.Runs {
 		p, ok := alone[id]
 		if !ok {
-			return nil, errors.New("a restore point is no longer there, or it also holds other VMs: it is removed with the job's retention")
+			return nil, "", errors.New("a restore point is no longer there, or it also holds other VMs: it is removed with the job's retention")
 		}
 		out[p.Repo] = append(out[p.Repo], p.SnapshotID)
+		if !slices.Contains(names, p.vm) {
+			names = append(names, p.vm)
+		}
 	}
-	return out, nil
+	return out, strings.Join(names, ", "), nil
 }
 
 // startVMDelete removes the snapshots in the background and records the
 // result in the audit log.
 func (s *Server) startVMDelete(ctx context.Context, t Target, d vmDelete, by, remote string) error {
-	repos, err := s.store.vmDeletePoints(ctx, t.ID, d)
+	repos, names, err := s.store.vmDeletePoints(ctx, t.ID, d)
 	if err != nil {
 		return err
 	}
+	d.VM = names
 	_, _ = s.store.AppendAudit(ctx, by, "storage.vm_delete", fmt.Sprintf("%s on %s: %d restore points", d.VM, t.Name, len(d.Runs)), remote)
 	s.cleanups.Add(1)
 	go func() { // #nosec G118 -- background work that outlives the request on purpose
