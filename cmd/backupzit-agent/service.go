@@ -92,6 +92,10 @@ func cmdEnroll(ctx context.Context, args []string) error {
 	return nil
 }
 
+// serviceProgram is the program of the service being run (the Windows
+// service handler starts and stops it itself, #74).
+var serviceProgram *program
+
 // program adapts the agent loop to the service manager.
 type program struct {
 	cfgPath string
@@ -221,6 +225,7 @@ func newService(cfgPath string) (service.Service, *program, error) {
 	if err != nil {
 		return nil, p, err
 	}
+	serviceProgram = p
 	return platformService(svc, args), p, nil
 }
 
