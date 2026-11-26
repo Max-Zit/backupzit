@@ -165,6 +165,25 @@ type CopyRunStats struct {
 	Blobs       int    `json:"blobs"`
 	BytesRead   uint64 `json:"bytes_read"`
 	BytesStored uint64 `json:"bytes_stored"`
+	// 0.62 (#75): see repo.CopyStats.
+	First        bool    `json:"first"`
+	Packed       uint64  `json:"packed"`
+	ReadSeconds  float64 `json:"read_seconds"`
+	WriteSeconds float64 `json:"write_seconds"`
+}
+
+// ReadSpeed is how fast the source gave its data while it was read, ""
+// when not known (agents before 0.62, or too short to tell).
+func (c *CopyRunStats) ReadSpeed() string { return speed(c.Packed, c.ReadSeconds) }
+
+// WriteSpeed is how fast the destination took the uploads.
+func (c *CopyRunStats) WriteSpeed() string { return speed(c.BytesStored, c.WriteSeconds) }
+
+func speed(bytes uint64, secs float64) string {
+	if secs < 1 || bytes == 0 {
+		return ""
+	}
+	return humanBytes(uint64(float64(bytes)/secs)) + "/s"
 }
 
 // copyOfFiles reports whether a copy run copied file backups (not images).

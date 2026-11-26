@@ -111,6 +111,7 @@ type Repository struct {
 	upErr      error
 	upStop     context.Context
 	upCancel   context.CancelFunc
+	busySince  time.Time // when uploading last went from 0 to 1
 }
 
 // uploadedPack is a pack whose upload ended, waiting to be indexed.
@@ -131,6 +132,9 @@ type WriteStats struct {
 	RawBytes      uint64 // uncompressed size of new blobs
 	StoredBytes   uint64 // bytes uploaded in packs (excluding headers)
 	PacksUploaded int
+	// UploadBusy is the time with at least one pack upload in flight
+	// (0.62): with the bytes stored, how fast the storage takes data.
+	UploadBusy time.Duration
 }
 
 // Init creates a new repository at the backend location. With Password
@@ -305,7 +309,11 @@ func (r *Repository) ReadConcurrency() int { return max(r.maxReads, 1) }
 func (r *Repository) Stats() WriteStats {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.stats
+	st := r.stats
+	if r.uploading > 0 {
+		st.UploadBusy += time.Since(r.busySince)
+	}
+	return st
 }
 
 // indexReaders is how many index files are read at once from an object
@@ -511,6 +519,9 @@ func (r *Repository) flushPackLocked(ctx context.Context) error {
 		// saved without it). Nothing more can be saved.
 		return r.upErr
 	}
+	if r.uploading == 0 {
+		r.busySince = time.Now()
+	}
 	r.uploading++
 	r.inflight++
 	seq := r.upSeq
@@ -528,6 +539,9 @@ func (r *Repository) flushPackLocked(ctx context.Context) error {
 		defer r.mu.Unlock()
 		defer r.upDone.Broadcast()
 		r.uploading--
+		if r.uploading == 0 {
+			r.stats.UploadBusy += time.Since(r.busySince)
+		}
 		if err != nil && r.upErr == nil {
 			r.upErr = fmt.Errorf("upload pack %s: %w", packID.Short(), err)
 		}

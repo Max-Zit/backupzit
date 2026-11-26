@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
+	"time"
 
 	"github.com/max-zit/backupzit/internal/api"
 	"github.com/max-zit/backupzit/internal/repo"
@@ -90,24 +92,47 @@ func (a *Agent) copyRun(ctx context.Context, run api.Run) api.RunResult {
 	}
 	st := &repo.CopyStats{}
 	var copied []*repo.Snapshot
+	// Progress for the console and lines in the agent log (every few
+	// minutes and after each backup copied, #75). The parts of a split
+	// VMware job are copied one after another; their bytes add up.
+	var doneBase, totalBase uint64
+	lastLog, lastSnap := time.Now(), 0
+	progress := func(p repo.CopyProgress) {
+		stage := "copy-plan"
+		if p.Phase == repo.CopyTransfer {
+			stage = "copy"
+		}
+		a.progressCopy(ctx, stage, uint64(p.Snapshot), uint64(p.Snapshots), p.Time, p.First) // #nosec G115 -- counts, not negative
+		a.progress(ctx, doneBase+p.Done, totalBase+p.Total, 0)
+		if p.Phase != repo.CopyTransfer {
+			return
+		}
+		if p.Snapshot != lastSnap && lastSnap > 0 || time.Since(lastLog) >= 5*time.Minute {
+			a.log.Info("copy progress", "run", run.ID, "backup", p.Snapshot, "of", p.Snapshots,
+				"copied", humanSize(doneBase+p.Done), "total", humanSize(totalBase+p.Total))
+			lastLog = time.Now()
+		}
+		lastSnap = p.Snapshot
+	}
 	for _, k := range parts {
 		tags := base
 		if k != "" {
 			tags = append(append([]string{}, base...), k)
 		}
-		s, c, err := repo.Copy(ctx, src, dst, byPart[k], tags, nil)
+		s, c, err := repo.Copy(ctx, src, dst, byPart[k], tags, &repo.CopyOptions{JobTag: jobTag(run.JobID), Progress: progress})
 		if s != nil {
-			st.Snapshots += s.Snapshots
-			st.Skipped += s.Skipped
-			st.Blobs += s.Blobs
-			st.BytesRead += s.BytesRead
-			st.BytesStored += s.BytesStored
+			st.Add(s)
+			doneBase, totalBase = doneBase+s.Packed, totalBase+s.Packed
 		}
 		copied = append(copied, c...)
 		if err != nil {
 			return failed(fmt.Errorf("copy: %w", err))
 		}
 	}
+	a.progressStage(ctx, "", 0, 0)
+	a.log.Info("copy finished", "run", run.ID, "backups", st.Snapshots, "copied", humanSize(st.BytesRead),
+		"uploaded", humanSize(st.BytesStored), "read_mb_s", mbPerSecond(st.Packed, st.ReadSeconds),
+		"write_mb_s", mbPerSecond(st.BytesStored, st.WriteSeconds))
 	sort.Slice(copied, func(i, j int) bool { return copied[i].Time.Before(copied[j].Time) })
 	stats, _ := json.Marshal(st)
 	res := api.RunResult{Status: api.StatusSuccess, Stats: stats}
@@ -130,4 +155,12 @@ func (a *Agent) copyRun(ctx context.Context, run api.Run) api.RunResult {
 	// withRetention extends the locks of every copy the job keeps, the ones
 	// just copied included (they carry the job's tag).
 	return a.withRetention(ctx, dst, run, res)
+}
+
+// mbPerSecond is a rate for the log, 0 when the time is not known.
+func mbPerSecond(bytes uint64, seconds float64) float64 {
+	if seconds <= 0 {
+		return 0
+	}
+	return math.Round(float64(bytes)/seconds/1e5) / 10
 }

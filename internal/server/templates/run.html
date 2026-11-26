@@ -214,7 +214,11 @@
   <div class="stat"><b>{{.Skipped}}</b><span>{{T "already copied earlier"}}</span></div>
   <div class="stat"><b>{{bytes .BytesRead}}</b><span>{{T "new data copied"}}</span></div>
   <div class="stat"><b>{{bytes .BytesStored}}</b><span>{{T "uploaded (compressed)"}}</span></div>
+  {{if .Blobs}}<div class="stat"><b>{{.Blobs}}</b><span>{{T "pieces of data copied"}}</span></div>{{end}}
+  {{with .ReadSpeed}}<div class="stat"><b>{{.}}</b><span>{{T "read from the source"}}</span></div>{{end}}
+  {{with .WriteSpeed}}<div class="stat"><b>{{.}}</b><span>{{T "written to the destination"}}</span></div>{{end}}
 </div>
+{{if .First}}<p class="muted">{{T "First copy of this job to this storage: all of its data was transferred."}}</p>{{end}}
 {{end}}
 {{with .Data.RestoreStats}}
 <div class="grid">

@@ -61,6 +61,11 @@ type RunProgress struct {
 	VMsDone     int          `json:"vms_done,omitempty"`
 	VMsTotal    int          `json:"vms_total,omitempty"`
 	VMsFinished []VMFinished `json:"vms_finished,omitempty"`
+	// Backup is the time of the backup a copy run works on, and First marks
+	// a copy run's first copy to its storage, which transfers everything
+	// (0.62, #75).
+	Backup *time.Time `json:"backup,omitempty"`
+	First  bool       `json:"first,omitempty"`
 }
 
 // VMFinished is a VM a running VM backup has finished.

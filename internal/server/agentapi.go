@@ -91,6 +91,7 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(req.Progress) > 0 {
 		s.live.set(a.ID, req.Progress, s.clock())
+		s.noteCopyStalls(r.Context())
 	}
 	if req.FullDiskAccess != "" {
 		s.agentFullDiskAccess(r.Context(), a, req.FullDiskAccess, remoteIP(r))

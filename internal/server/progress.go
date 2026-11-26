@@ -20,7 +20,27 @@ type progressEntry struct {
 	api.RunProgress
 	agentID int64 // the agent that reported it
 	at      time.Time
+	// movedAt is when the reported numbers last changed; samples are the
+	// bytes done over the last minutes, for the speed (#75).
+	movedAt time.Time
+	samples []progressSample
+	// stallNoted: the run was handed to noteCopyStalls once.
+	stallNoted bool
 }
+
+type progressSample struct {
+	at   time.Time
+	done uint64
+}
+
+// moved reports whether a run got further between two reports.
+func moved(a, b api.RunProgress) bool {
+	return a.Done != b.Done || a.Files != b.Files || a.Scanned != b.Scanned || a.Stage != b.Stage ||
+		a.StageDone != b.StageDone || a.VM != b.VM || a.VMsDone != b.VMsDone
+}
+
+// speedWindow is how far back the speed looks.
+const speedWindow = 5 * time.Minute
 
 // set records the progress an agent reported; entries of runs that stopped
 // reporting are dropped after a while.
@@ -31,7 +51,23 @@ func (p *liveProgress) set(agentID int64, list []api.RunProgress, now time.Time)
 		p.m = map[int64]progressEntry{}
 	}
 	for _, x := range list {
-		p.m[x.RunID] = progressEntry{RunProgress: x, agentID: agentID, at: now}
+		n := progressEntry{RunProgress: x, agentID: agentID, at: now, movedAt: now}
+		if e, ok := p.m[x.RunID]; ok && e.agentID == agentID {
+			if !moved(e.RunProgress, x) {
+				n.movedAt = e.movedAt
+			}
+			n.stallNoted = e.stallNoted
+			if x.Done >= e.Done && x.Total == e.Total {
+				n.samples = e.samples
+			}
+		}
+		n.samples = append(n.samples, progressSample{now, x.Done})
+		cut := 0
+		for cut < len(n.samples)-2 && now.Sub(n.samples[cut].at) > speedWindow {
+			cut++
+		}
+		n.samples = append([]progressSample(nil), n.samples[cut:]...)
+		p.m[x.RunID] = n
 	}
 	for id, e := range p.m {
 		if now.Sub(e.at) > 10*time.Minute {
@@ -41,11 +77,25 @@ func (p *liveProgress) set(agentID int64, list []api.RunProgress, now time.Time)
 }
 
 // get is the progress of the run; only its own agent can report it.
-func (p *liveProgress) get(agentID, runID int64) (api.RunProgress, bool) {
+func (p *liveProgress) get(agentID, runID int64) (progressEntry, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	e, ok := p.m[runID]
-	return e.RunProgress, ok && e.agentID == agentID
+	return e, ok && e.agentID == agentID
+}
+
+// rate is the bytes per second over the last minutes, 0 when not known
+// yet (less than 20 seconds of samples).
+func (e progressEntry) rate() float64 {
+	if len(e.samples) < 2 {
+		return 0
+	}
+	first, last := e.samples[0], e.samples[len(e.samples)-1]
+	secs := last.at.Sub(first.at).Seconds()
+	if secs < 20 || last.done < first.done {
+		return 0
+	}
+	return float64(last.done-first.done) / secs
 }
 
 // runProgress is the progress of a running run for the pages.
@@ -73,7 +123,23 @@ type runProgress struct {
 	VM                 string
 	VMNumber, VMsTotal int
 	VMsFinished        []api.VMFinished
+	// Speed is the bytes per second over the last minutes and LeftH and
+	// LeftM the time left at that speed (runs that know their size, #75).
+	Speed        string
+	Left         bool
+	LeftH, LeftM int
+	// Backup is the time of the backup a copy run works on, First its
+	// first copy to that storage (everything is transferred), StalledMin
+	// the minutes without data moving while the agent answers (#75).
+	Backup     string
+	First      bool
+	StalledMin int
 }
+
+// copyStallAfter is how long a copy may move no data before the run page
+// and a notice point it out; it is not failed for that (slow storage may
+// pause and recover).
+const copyStallAfter = 30 * time.Minute
 
 // withProgress adds the reported progress to the running runs.
 func (s *Server) withProgress(ctx context.Context, runs []Run) []Run {
@@ -91,6 +157,15 @@ func (s *Server) withProgress(ctx context.Context, runs []Run) []Run {
 		if x.VM != "" {
 			p.VMNumber = min(x.VMsDone+1, x.VMsTotal)
 		}
+		if x.Backup != nil {
+			p.Backup = x.Backup.Local().Format("2006-01-02 15:04")
+		}
+		p.First = x.First
+		if runs[i].Kind == api.KindCopy && x.Stage == "copy" {
+			if d := s.clock().Sub(x.movedAt); d >= copyStallAfter {
+				p.StalledMin = int(d.Minutes())
+			}
+		}
 		if countsPacks(runs[i].Kind) {
 			p.Packs, p.PacksDone, p.PacksTotal = true, x.Done, x.Total
 		}
@@ -98,6 +173,13 @@ func (s *Server) withProgress(ctx context.Context, runs []Run) []Run {
 		case x.Total > 0:
 			p.Total = humanBytes(x.Total)
 			p.Percent = int(min(x.Done*100/x.Total, 100))
+			if r := x.rate(); r > 0 && !p.Packs {
+				p.Speed = humanBytes(uint64(r)) + "/s"
+				if x.Done < x.Total {
+					left := time.Duration(float64(x.Total-x.Done) / r * float64(time.Second))
+					p.Left, p.LeftH, p.LeftM = true, int(left.Hours()), int(left.Minutes())%60
+				}
+			}
 		case x.Files > 0 && runs[i].JobID != nil && (runs[i].Kind == api.KindBackup || runs[i].Kind == api.KindSystemBackup):
 			files, bytes := s.store.lastBackupSize(ctx, *runs[i].JobID, runs[i].ID)
 			p.FilesAll = files

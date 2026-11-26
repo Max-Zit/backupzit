@@ -247,8 +247,8 @@ func TestBlobWriterIdenticalToSaveBlob(t *testing.T) {
 							t.Fatalf("blob %d: got %+v, want %+v", i, got[i], want[i])
 						}
 					}
-					if r.Stats() != seq.Stats() {
-						t.Fatalf("stats %+v, want %+v", r.Stats(), seq.Stats())
+					if counts(r) != counts(seq) {
+						t.Fatalf("stats %+v, want %+v", counts(r), counts(seq))
 					}
 					for _, prefix := range []string{"data/", "index/"} {
 						a, b := seqBE.objects(prefix), be.objects(prefix)
@@ -295,8 +295,8 @@ func TestBlobWriterEncrypted(t *testing.T) {
 			t.Fatalf("blob %d reads back wrong (%v)", i, err)
 		}
 	}
-	if seq.Stats() != par.Stats() {
-		t.Fatalf("stats %+v, want %+v", par.Stats(), seq.Stats())
+	if counts(seq) != counts(par) {
+		t.Fatalf("stats %+v, want %+v", counts(par), counts(seq))
 	}
 	if len(seqBE.objects("data/")) != len(parBE.objects("data/")) {
 		t.Fatal("different pack count")
@@ -471,4 +471,12 @@ func BenchmarkBlobWriter(b *testing.B) {
 			})
 		}
 	}
+}
+
+// counts is a repository's write statistics without the upload time,
+// which differs from run to run.
+func counts(r *Repository) WriteStats {
+	st := r.Stats()
+	st.UploadBusy = 0
+	return st
 }

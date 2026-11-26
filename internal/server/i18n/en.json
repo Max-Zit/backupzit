@@ -1,8 +1,12 @@
 {
+  "%d VMs without a job": "%d VM without a job|%d VMs without a job",
   "%d changes wait for a second user's approval": "%d change waits for a second user's approval|%d changes wait for a second user's approval",
   "%d files": "%d file|%d files",
+  "%d restore points": "%d restore point|%d restore points",
   "From (email sender)": "From",
   "To (email recipients)": "To",
   "VMs (count)": "VMs",
+  "also holds %d other VMs: removed with the job's retention": "also holds %d other VM: removed with the job's retention|also holds %d other VMs: removed with the job's retention",
+  "backups of %d VMs belong to no job (restore points: %d): %s": "backups of %d VM belong to no job (restore points: %d): %s|backups of %d VMs belong to no job (restore points: %d): %s",
   "removing it failed %d times: %s": "removing it failed %d time: %s|removing it failed %d times: %s"
 }

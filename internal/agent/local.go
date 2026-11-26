@@ -145,7 +145,7 @@ func (a *Agent) runProgress() []api.RunProgress {
 		vm := ls.vms[id]
 		if r.Done > 0 || r.Total > 0 || r.Files > 0 || st.Stage != "" || vm != nil {
 			p := api.RunProgress{RunID: id, Done: r.Done, Total: r.Total, Files: r.Files, Scanned: r.Scanned,
-				Stage: st.Stage, StageDone: st.StageDone, StageTotal: st.StageTotal}
+				Stage: st.Stage, StageDone: st.StageDone, StageTotal: st.StageTotal, Backup: st.Backup, First: st.First}
 			if vm != nil {
 				p.VM, p.VMsDone, p.VMsTotal = vm.VM, vm.VMsDone, vm.VMsTotal
 				p.VMsFinished = append([]api.VMFinished(nil), vm.VMsFinished...)
@@ -171,6 +171,22 @@ func (a *Agent) progressStage(ctx context.Context, stage string, done, total uin
 		ls.stages = map[int64]api.RunProgress{}
 	}
 	ls.stages[id] = api.RunProgress{Stage: stage, StageDone: done, StageTotal: total}
+}
+
+// progressCopy reports the step of a copy run: the backup it works on
+// (number done of total, its time) and whether it is the first copy.
+func (a *Agent) progressCopy(ctx context.Context, stage string, done, total uint64, backup time.Time, first bool) {
+	ls := a.local()
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
+	if ls.stages == nil {
+		ls.stages = map[int64]api.RunProgress{}
+	}
+	p := api.RunProgress{Stage: stage, StageDone: done, StageTotal: total, First: first}
+	if !backup.IsZero() {
+		p.Backup = &backup
+	}
+	ls.stages[runIDOf(ctx)] = p
 }
 
 // ServeLocal answers the tray app until ctx ends.
