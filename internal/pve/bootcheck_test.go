@@ -55,6 +55,11 @@ func TestCheckArgv(t *testing.T) {
 	if a[0] != "powershell.exe" || !strings.Contains(a[len(a)-1], `-LiteralPath 'C:\it''s\x.txt'`) {
 		t.Errorf("windows file: %q", a)
 	}
+	// A19: typographic quotes end a PowerShell string too and are doubled.
+	a = checkArgv(Check{Kind: "service", Value: "x’; Remove-Item C:\\ -Recurse; ‘"}, true)
+	if !strings.Contains(a[len(a)-1], "-Name 'x’’; Remove-Item C:\\ -Recurse; ‘‘'") {
+		t.Errorf("windows service with typographic quotes: %q", a)
+	}
 	if a := checkArgv(Check{Kind: "command", Value: "sc query spooler"}, true); strings.Join(a, " ") != "cmd.exe /c sc query spooler" {
 		t.Errorf("windows command: %q", a)
 	}

@@ -111,8 +111,14 @@ func For(checks []Check, vmid int) []Check {
 	return out
 }
 
-// psQuote quotes s for a single-quoted PowerShell string.
-func psQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
+// psQuote quotes s for a single-quoted PowerShell string. PowerShell ends
+// such a string at any of five quote characters, the ASCII one and the
+// typographic ‘ ’ ‚ ‛, and each is escaped by doubling it (as hyperv's psq, A19):
+// with only the ASCII one doubled, a check value with a typographic quote
+// could run a command in the booted copy.
+func psQuote(s string) string { return "'" + psQuotes.Replace(s) + "'" }
+
+var psQuotes = strings.NewReplacer("'", "''", "‘", "‘‘", "’", "’’", "‚", "‚‚", "‛", "‛‛")
 
 // checkArgv is the program and arguments that perform check c in a guest
 // (windows: a Windows guest). No shell is used for service and file checks
@@ -229,5 +235,5 @@ func clipText(s string, n int) string {
 	if len(s) <= n {
 		return s
 	}
-	return s[:n] + "…"
+	return s[:n] + "â¦"
 }
