@@ -43,6 +43,7 @@ func TestChatNotifications(t *testing.T) {
 	old := http.DefaultTransport
 	http.DefaultTransport = hook.Client().Transport // trust the test certificate
 	defer func() { http.DefaultTransport = old }()
+	defer server.TrustChatTLS(hook.Client())()
 
 	add := func(v url.Values) string {
 		v.Set("action", "add")

@@ -42,7 +42,7 @@
 <ul>
   <li><b>Slack</b>: vytvořte pro kanál <i>incoming webhook</i> (nastavení aplikace Slack → Incoming Webhooks) a vložte jeho URL (<code>https://hooks.slack.com/services/…</code>).</li>
   <li><b>Microsoft Teams</b>: v kanálu přidejte workflow <i>Post to a channel when a webhook request is received</i> a vložte jeho URL. Zprávy přicházejí jako karty s tlačítkem, které otevře běh v konzoli.</li>
-  <li><b>Webhook</b>: libovolná URL, která přijímá JSON POST — systém tiketů, monitoring nebo nástroj pro automatizaci. S podpisovým tajemstvím nese každý požadavek <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, HMAC-SHA256 těla, takže příjemce může ověřit, že pochází z vaší konzole.</li>
+  <li><b>Webhook</b>: libovolná URL, která přijímá JSON POST — systém tiketů, monitoring nebo nástroj pro automatizaci. S podpisovým tajemstvím nese každý požadavek <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, HMAC-SHA256 těla, takže příjemce může ověřit, že pochází z vaší konzole. Přesměrování se nesledují (odpověď 3xx se počítá jako chyba) a linkové lokální adresy (169.254.x.x, např. metadatové služby cloudu, a fe80::) se odmítají; interní adresy fungují.</li>
 </ul>
 <p>JSON webhooku:</p>
 <pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",

@@ -42,7 +42,7 @@
 <ul>
   <li><b>Slack</b>: создайте для канала <i>incoming webhook</i> (настройки приложения Slack → Incoming Webhooks) и вставьте его URL (<code>https://hooks.slack.com/services/…</code>).</li>
   <li><b>Microsoft Teams</b>: в канале добавьте рабочий процесс <i>Post to a channel when a webhook request is received</i> и вставьте его URL. Сообщения приходят карточками с кнопкой, открывающей запуск в консоли.</li>
-  <li><b>Вебхук</b>: любой URL, принимающий JSON POST — система заявок, мониторинг или средство автоматизации. С секретом подписи каждый запрос несёт <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, HMAC-SHA256 тела, чтобы получатель мог проверить, что запрос пришёл от вашей консоли.</li>
+  <li><b>Вебхук</b>: любой URL, принимающий JSON POST — система заявок, мониторинг или средство автоматизации. С секретом подписи каждый запрос несёт <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, HMAC-SHA256 тела, чтобы получатель мог проверить, что запрос пришёл от вашей консоли. Перенаправления не выполняются (ответ 3xx считается ошибкой), а link-local-адреса (169.254.x.x, например службы метаданных облака, и fe80::) отклоняются; внутренние адреса работают.</li>
 </ul>
 <p>JSON вебхука:</p>
 <pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",

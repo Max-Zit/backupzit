@@ -42,7 +42,7 @@
 <ul>
   <li><b>Slack</b>: チャネル用の <i>incoming webhook</i> を作成し（Slack アプリの設定 → Incoming Webhooks）、その URL（<code>https://hooks.slack.com/services/…</code>）を貼り付けます。</li>
   <li><b>Microsoft Teams</b>: チャネルにワークフロー <i>Post to a channel when a webhook request is received</i> を追加し、その URL を貼り付けます。メッセージは、コンソールで実行を開くボタン付きのカードとして届きます。</li>
-  <li><b>Webhook</b>: JSON の POST を受け付ける任意の URL — チケット システム、監視、自動化ツールなど。署名シークレットを設定すると、各リクエストに本文の HMAC-SHA256 である <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code> が付き、受信側はコンソールから来たことを確認できます。</li>
+  <li><b>Webhook</b>: JSON の POST を受け付ける任意の URL — チケット システム、監視、自動化ツールなど。署名シークレットを設定すると、各リクエストに本文の HMAC-SHA256 である <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code> が付き、受信側はコンソールから来たことを確認できます。 リダイレクトはたどりません（3xx の応答はエラーとみなされます）。リンクローカル アドレス（クラウドのメタデータ サービスなどの 169.254.x.x と fe80::）は拒否されます。内部アドレスは使えます。</li>
 </ul>
 <p>Webhook の JSON:</p>
 <pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",

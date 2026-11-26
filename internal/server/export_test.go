@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/max-zit/backupzit/internal/api"
@@ -68,4 +69,14 @@ func (s *Store) AgentRepoURLs(ctx context.Context, agentID int64) []string {
 		out = append(out, r.URL)
 	}
 	return out
+}
+
+// TrustChatTLS makes the webhook client trust the test server's
+// certificate (as http.DefaultTransport did before A18); it returns a
+// function that restores it.
+func TrustChatTLS(c *http.Client) func() {
+	tr := chatClient.Transport.(*http.Transport)
+	old := tr.TLSClientConfig
+	tr.TLSClientConfig = c.Transport.(*http.Transport).TLSClientConfig.Clone()
+	return func() { tr.TLSClientConfig = old }
 }

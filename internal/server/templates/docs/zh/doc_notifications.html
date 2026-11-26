@@ -42,7 +42,7 @@
 <ul>
   <li><b>Slack</b>：为频道创建 <i>incoming webhook</i>（Slack 应用设置 → Incoming Webhooks），并粘贴其 URL（<code>https://hooks.slack.com/services/…</code>）。</li>
   <li><b>Microsoft Teams</b>：在频道中添加工作流 <i>Post to a channel when a webhook request is received</i>，并粘贴其 URL。消息以卡片形式到达，卡片上有一个按钮可在控制台中打开该运行。</li>
-  <li><b>Webhook</b>：任何接受 JSON POST 的 URL —— 工单系统、监控或自动化工具。配置签名密钥后，每个请求都带有 <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>，即请求体的 HMAC-SHA256，接收方可据此验证请求来自您的控制台。</li>
+  <li><b>Webhook</b>：任何接受 JSON POST 的 URL —— 工单系统、监控或自动化工具。配置签名密钥后，每个请求都带有 <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>，即请求体的 HMAC-SHA256，接收方可据此验证请求来自您的控制台。 不会跟随重定向（3xx 响应算作错误），并拒绝链路本地地址（169.254.x.x，例如云元数据服务，以及 fe80::）；内部地址可以使用。</li>
 </ul>
 <p>Webhook 的 JSON：</p>
 <pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",

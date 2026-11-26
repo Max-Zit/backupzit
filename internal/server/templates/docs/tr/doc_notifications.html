@@ -42,7 +42,7 @@
 <ul>
   <li><b>Slack</b>: kanal için bir <i>incoming webhook</i> oluşturun (Slack uygulama ayarları → Incoming Webhooks) ve URL'sini yapıştırın (<code>https://hooks.slack.com/services/…</code>).</li>
   <li><b>Microsoft Teams</b>: kanala <i>Post to a channel when a webhook request is received</i> iş akışını ekleyin ve URL'sini yapıştırın. Mesajlar, çalıştırmayı konsolda açan bir düğmeye sahip kartlar olarak gelir.</li>
-  <li><b>Webhook</b>: JSON POST kabul eden herhangi bir URL — bilet sistemi, izleme veya otomasyon aracı. İmzalama sırrıyla her istek <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code> başlığını, yani gövdenin HMAC-SHA256 değerini taşır; alıcı isteğin konsolunuzdan geldiğini doğrulayabilir.</li>
+  <li><b>Webhook</b>: JSON POST kabul eden herhangi bir URL — bilet sistemi, izleme veya otomasyon aracı. İmzalama sırrıyla her istek <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code> başlığını, yani gövdenin HMAC-SHA256 değerini taşır; alıcı isteğin konsolunuzdan geldiğini doğrulayabilir. Yönlendirmeler izlenmez (3xx yanıtı hata sayılır) ve bağlantı yerel adresleri (bulut meta veri hizmetleri gibi 169.254.x.x ve fe80::) reddedilir; iç adresler çalışır.</li>
 </ul>
 <p>Bir webhook'un JSON'u:</p>
 <pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",

@@ -42,7 +42,7 @@
 <ul>
   <li><b>Slack</b>: cree un <i>incoming webhook</i> para el canal (configuración de la app de Slack → Incoming Webhooks) y pegue su URL (<code>https://hooks.slack.com/services/…</code>).</li>
   <li><b>Microsoft Teams</b>: en el canal, añada el flujo <i>Post to a channel when a webhook request is received</i> y pegue su URL. Los mensajes llegan como tarjetas con un botón que abre la ejecución en la consola.</li>
-  <li><b>Webhook</b>: cualquier URL que acepte un POST JSON: un sistema de tickets, supervisión o herramienta de automatización. Con un secreto de firma, cada solicitud lleva <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, el HMAC-SHA256 del cuerpo, para que el receptor compruebe que viene de su consola.</li>
+  <li><b>Webhook</b>: cualquier URL que acepte un POST JSON: un sistema de tickets, supervisión o herramienta de automatización. Con un secreto de firma, cada solicitud lleva <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, el HMAC-SHA256 del cuerpo, para que el receptor compruebe que viene de su consola. No se siguen redirecciones (una respuesta 3xx cuenta como error) y se rechazan las direcciones de enlace local (169.254.x.x, como los servicios de metadatos de la nube, y fe80::); las direcciones internas funcionan.</li>
 </ul>
 <p>El JSON de un webhook:</p>
 <pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",

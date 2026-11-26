@@ -42,7 +42,7 @@
 <ul>
   <li><b>Slack</b>: napravite <i>incoming webhook</i> za kanal (podešavanja Slack aplikacije → Incoming Webhooks) i nalepite njegov URL (<code>https://hooks.slack.com/services/…</code>).</li>
   <li><b>Microsoft Teams</b>: u kanalu dodajte workflow <i>Post to a channel when a webhook request is received</i> i nalepite njegov URL. Poruke stižu kao kartice sa dugmetom koje otvara pokretanje u konzoli.</li>
-  <li><b>Webhook</b>: bilo koji URL koji prima JSON POST — sistem za tikete, nadzor ili alat za automatizaciju. Uz tajnu za potpisivanje, svaki zahtev nosi <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, HMAC-SHA256 tela zahteva, pa primalac može da proveri da dolazi sa vaše konzole.</li>
+  <li><b>Webhook</b>: bilo koji URL koji prima JSON POST — sistem za tikete, nadzor ili alat za automatizaciju. Uz tajnu za potpisivanje, svaki zahtev nosi <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, HMAC-SHA256 tela zahteva, pa primalac može da proveri da dolazi sa vaše konzole. Preusmerenja se ne prate (odgovor 3xx se računa kao greška), a link-local adrese (169.254.x.x, kao što su servisi metapodataka u oblaku, i fe80::) se odbijaju; interne adrese rade.</li>
 </ul>
 <p>JSON webhook-a:</p>
 <pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",

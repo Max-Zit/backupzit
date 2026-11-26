@@ -11,9 +11,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/max-zit/backupzit/internal/api"
@@ -107,7 +110,34 @@ type webhookEvent struct {
 	URL         string `json:"url,omitempty"`
 }
 
-var chatClient = &http.Client{Timeout: 20 * time.Second}
+// chatClient posts to Slack, Teams and webhooks (A18): it follows no
+// redirects (a webhook answers itself; a redirect could lead to an address
+// the settings never showed) and connects to no link-local address (cloud
+// metadata services at 169.254.169.254, fe80::/10). Private and loopback
+// addresses stay allowed: internal webhooks are common.
+var chatClient = &http.Client{
+	Timeout:       20 * time.Second,
+	CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	Transport: &http.Transport{
+		Proxy:               http.ProxyFromEnvironment,
+		DialContext:         (&net.Dialer{Timeout: 10 * time.Second, Control: refuseLinkLocal}).DialContext,
+		TLSHandshakeTimeout: 10 * time.Second,
+		ForceAttemptHTTP2:   true,
+	},
+}
+
+// refuseLinkLocal refuses connections to link-local addresses, checked on
+// the address actually dialled (after DNS), so a name cannot point there.
+func refuseLinkLocal(_, address string, _ syscall.RawConn) error {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return err
+	}
+	if ip, err := netip.ParseAddr(host); err == nil && (ip.Unmap().IsLinkLocalUnicast() || ip.Unmap().IsLinkLocalMulticast()) {
+		return fmt.Errorf("%s is a link-local address; webhooks cannot be sent there", host)
+	}
+	return nil
+}
 
 // sendChat posts a run result to a channel.
 func (n *Notifier) sendChat(ctx context.Context, l *language, c ChatChannel, r Run) error {
