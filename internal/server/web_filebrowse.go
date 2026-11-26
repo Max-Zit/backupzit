@@ -180,6 +180,10 @@ func (s *Server) handleFileBrowse(w http.ResponseWriter, r *http.Request, user s
 	dir := strings.Join(snapshotComps(r.URL.Query().Get("path")), "/")
 	win := s.runIsWindows(r.Context(), run)
 	data := map[string]any{"Run": run, "Path": dir, "Crumbs": fileCrumbs(snapshotComps(dir), win), "Windows": win, "M365": s.store.isM365Run(r.Context(), run), "Containers": containerFiles(run)}
+	// The folder above, for the ".." row (#76).
+	if comps := snapshotComps(dir); len(comps) > 0 {
+		data["Up"], data["Parent"] = true, strings.Join(comps[:len(comps)-1], "/")
+	}
 	pd := pageData{Title: fmt.Sprintf("Files of backup #%d", run.ID), Nav: "runs", User: user, Data: data}
 	repoR, sn, err := s.fileSnapshot(r.Context(), run)
 	if err == nil {

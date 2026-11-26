@@ -51,6 +51,7 @@
   <li><b>Scarica</b> — un file arriva così com'è, più file o cartelle come archivio ZIP, direttamente nel browser. I download vengono registrati nel log di audit.</li>
   <li><b>Ripristinali su un agente</b> — in una cartella o nella posizione originale, come un ripristino con <i>Solo questi percorsi</i>.</li>
 </ul>
+<p><b>Inizio del backup</b>, all'inizio del percorso, riporta al primo livello, e la riga <b>..</b> in cima all'elenco sale di una cartella; la navigazione dei file in un disco di VM funziona allo stesso modo.</p>
 <p>Un <b>link simbolico</b> a un file (ad es. <code>/etc/os-release</code>) viene scaricato come il file a cui punta, se quel file è nel backup; i link a cartelle vengono esclusi dagli archivi ZIP. Lo stesso vale per i file scaricati dai backup di macchine virtuali (ext4, XFS). Un ripristino su un agente ricrea i link come link.</p>
 <p>La console legge il backup dallo storage da sola, quindi la navigazione funziona per i backup su storage di rete (SFTP, S3, SMB, Azure, repository rafforzato); lo storage <a href="/docs/storage#agents-only">raggiungibile solo dagli agenti</a> viene letto tramite un agente che lo usa (agenti 0.61 e successivi). Per un disco locale o un disco USB di un agente, ripristinate con i percorsi. Gli utenti con un ruolo di ripristino possono sfogliare e scaricare.</p>
 

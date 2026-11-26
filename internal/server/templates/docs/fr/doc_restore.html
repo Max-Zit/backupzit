@@ -51,6 +51,7 @@
   <li><b>Télécharger</b> — un fichier arrive tel quel, plusieurs fichiers ou dossiers sous forme d'archive ZIP, directement dans le navigateur. Les téléchargements sont consignés dans le journal d'audit.</li>
   <li><b>Les restaurer sur un agent</b> — dans un dossier ou à l'emplacement d'origine, comme une restauration avec <i>Uniquement ces chemins</i>.</li>
 </ul>
+<p><b>Haut de la sauvegarde</b>, au début du chemin, ramène au premier niveau, et la ligne <b>..</b> en haut de la liste remonte d'un dossier ; la navigation dans les fichiers d'un disque de VM fonctionne de la même façon.</p>
 <p>Un <b>lien symbolique</b> vers un fichier (p. ex. <code>/etc/os-release</code>) est téléchargé comme le fichier vers lequel il pointe, si ce fichier est dans la sauvegarde ; les liens vers des dossiers sont omis des archives ZIP. Il en va de même pour les fichiers téléchargés depuis des sauvegardes de machines virtuelles (ext4, XFS). Une restauration sur un agent recrée les liens en tant que liens.</p>
 <p>La console lit elle-même la sauvegarde sur le stockage, le parcours fonctionne donc pour les sauvegardes sur un stockage réseau (SFTP, S3, SMB, Azure, dépôt renforcé) ; un stockage <a href="/docs/storage#agents-only">accessible aux agents uniquement</a> est lu par l’intermédiaire d’un agent qui l’utilise (agents 0.61 et plus récents). Pour un disque local ou un disque USB d’un agent, restaurez avec les chemins. Les utilisateurs ayant un rôle de restauration peuvent parcourir et télécharger.</p>
 

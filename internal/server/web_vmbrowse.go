@@ -169,6 +169,7 @@ func (s *Server) handleVMBrowse(w http.ResponseWriter, r *http.Request, user str
 		}
 	}
 	data := map[string]any{"Run": p.run, "VMID": p.vmid, "Path": p.dir, "Crumbs": vmCrumbs(p.dir)}
+	vmParent(data, p.dir)
 	// Proxmox guests are known by their ID, Hyper-V and VMware VMs by name only.
 	label := fmt.Sprintf("guest %d", p.vmid)
 	if d := vmDetails(p.run); d != nil {
@@ -199,6 +200,7 @@ func (s *Server) handleVMBrowse(w http.ResponseWriter, r *http.Request, user str
 				// start at the first browsable partition of this disk.
 				p.volume, p.dir = "", "/"
 				data["Path"], data["Crumbs"] = p.dir, vmCrumbs(p.dir)
+				vmParent(data, p.dir)
 				v, f, err = c.fs("")
 			}
 			data["Volume"] = v
@@ -390,4 +392,19 @@ func (s *Store) QueueVMFileRestore(ctx context.Context, backupRunID, agentID int
 		VALUES($1,$2,'vm-file-restore','manual',$3,$4,$5,$6,$7,$8) RETURNING id`,
 		agentID, b.JobID, b.RepoURL, b.TargetID, b.SnapshotID, o.Paths, o.Target, opts).Scan(&id)
 	return id, err
+}
+
+// vmParent sets the folder above dir for the ".." row (#76).
+func vmParent(data map[string]any, dir string) {
+	d := strings.Trim(dir, "/")
+	delete(data, "Up")
+	delete(data, "Parent")
+	if d == "" {
+		return
+	}
+	parent := "/"
+	if i := strings.LastIndex(d, "/"); i >= 0 {
+		parent = "/" + d[:i]
+	}
+	data["Up"], data["Parent"] = true, parent
 }

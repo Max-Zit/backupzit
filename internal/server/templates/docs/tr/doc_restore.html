@@ -51,6 +51,7 @@
   <li><b>İndir</b> — tek bir dosya olduğu gibi, birden fazla dosya veya klasör ZIP arşivi olarak doğrudan tarayıcıda iner. İndirmeler denetim günlüğüne kaydedilir.</li>
   <li><b>Bir aracıda geri yükle</b> — <i>Yalnızca bu yollar</i> ile yapılan bir geri yükleme gibi bir klasöre veya özgün konuma.</li>
 </ul>
+<p>Yolun başındaki <b>Yedeğin en üstü</b> ilk düzeye döner, listenin üstündeki <b>..</b> satırı bir klasör yukarı çıkar; bir VM diskindeki dosyalara göz atmak da aynı şekilde çalışır.</p>
 <p>Bir dosyaya işaret eden <b>sembolik bağlantı</b> (ör. <code>/etc/os-release</code>), işaret ettiği dosya yedekteyse o dosya olarak indirilir; klasörlere giden bağlantılar ZIP arşivlerine alınmaz. Aynısı sanal makine yedeklerinden (ext4, XFS) indirilen dosyalar için de geçerlidir. Bir aracıdaki geri yükleme bağlantıları bağlantı olarak yeniden oluşturur.</p>
 <p>Konsol yedeği depolamadan kendisi okur; bu yüzden göz atma, ağ depolamasındaki (SFTP, S3, SMB, Azure, sağlamlaştırılmış depo) yedeklerde çalışır; <a href="/docs/storage#agents-only">yalnızca aracıların erişebildiği</a> depolamayı onu kullanan bir aracı üzerinden okur (aracılar 0.61 ve daha yenisi). Bir aracının yerel diski veya USB diski için yollarla geri yükleyin. Geri yükleme rolüne sahip kullanıcılar göz atabilir ve indirebilir.</p>
 

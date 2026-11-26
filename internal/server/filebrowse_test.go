@@ -93,6 +93,13 @@ func TestFileBrowse(t *testing.T) {
 			t.Errorf("listing lacks %q", want)
 		}
 	}
+	// #76: a separate button to the top and a ".." row one folder up.
+	if !strings.Contains(page, fmt.Sprintf(`class="crumb-top" href="/runs/%d/files?path="`, runID)) || !strings.Contains(page, `title="one folder up"`) {
+		t.Error("no top button or up row")
+	}
+	if _, _, top := admin.do("GET", fmt.Sprintf("/runs/%d/files?path=", runID), nil); strings.Contains(top, `title="one folder up"`) {
+		t.Error("up row at the top of the backup")
+	}
 
 	download := func(sel ...string) (*http.Response, []byte) {
 		v := url.Values{"path": {docs}, "sel": sel}

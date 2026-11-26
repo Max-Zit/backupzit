@@ -51,6 +51,7 @@
   <li><b>Preuzmi</b> — jedan fajl stiže kakav jeste, više fajlova ili foldera kao ZIP arhiva, direktno u pregledaču. Preuzimanja se upisuju u audit log.</li>
   <li><b>Vrati ih na agenta</b> — u folder ili na originalnu lokaciju, kao vraćanje sa <i>Samo ove putanje</i>.</li>
 </ul>
+<p><b>Vrh bekapa</b> na početku putanje vraća na prvi nivo, a red <b>..</b> na vrhu liste jedan folder gore; pregled fajlova na disku VM-a radi isto.</p>
 <p><b>Simbolički link</b> ka fajlu (npr. <code>/etc/os-release</code>) preuzima se kao fajl na koji pokazuje, ako je taj fajl u bekapu; linkovi ka folderima se izostavljaju iz ZIP arhiva. Isto važi za fajlove preuzete iz bekapa virtuelnih mašina (ext4, XFS). Vraćanje na agenta ponovo pravi linkove kao linkove.</p>
 <p>Konzola sama čita bekap sa skladišta, pa pregled radi za bekape na mrežnom skladištu (SFTP, S3, SMB, Azure, ojačani repozitorijum); skladište <a href="/docs/storage#agents-only">dostupno samo agentima</a> čita preko agenta koji ga koristi (agenti 0.61 i noviji). Za lokalni disk ili USB disk agenta vratite po putanjama. Korisnici sa ulogom za vraćanje mogu da pregledaju i preuzimaju.</p>
 

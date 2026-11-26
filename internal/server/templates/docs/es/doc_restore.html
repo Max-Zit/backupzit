@@ -51,6 +51,7 @@
   <li><b>Descargar</b>: un archivo llega tal cual, varios archivos o carpetas como archivo ZIP, directamente en el navegador. Las descargas quedan en el registro de auditoría.</li>
   <li><b>Restaurarlos en un agente</b>: en una carpeta o en la ubicación original, como una restauración con <i>Solo estas rutas</i>.</li>
 </ul>
+<p><b>Inicio de la copia</b>, al principio de la ruta, vuelve al primer nivel, y la fila <b>..</b> arriba de la lista sube una carpeta; explorar archivos dentro de un disco de VM funciona igual.</p>
 <p>Un <b>enlace simbólico</b> a un archivo (p. ej. <code>/etc/os-release</code>) se descarga como el archivo al que apunta, si ese archivo está en la copia; los enlaces a carpetas se omiten en los archivos ZIP. Lo mismo vale para los archivos descargados de copias de máquinas virtuales (ext4, XFS). Una restauración en un agente vuelve a crear los enlaces como enlaces.</p>
 <p>La consola lee la copia del almacenamiento por sí misma, por lo que examinar funciona para copias en almacenamiento de red (SFTP, S3, SMB, Azure, repositorio reforzado); el almacenamiento <a href="/docs/storage#agents-only">accesible solo para agentes</a> lo lee a través de un agente que lo usa (agentes 0.61 o posteriores). Para un disco local o un disco USB de un agente, restaure con las rutas. Los usuarios con un rol de restauración pueden examinar y descargar.</p>
 

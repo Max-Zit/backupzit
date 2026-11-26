@@ -51,6 +51,7 @@
   <li><b>Downloaden</b> — één bestand komt zoals het is, meerdere bestanden of mappen als ZIP-archief, rechtstreeks in de browser. Downloads worden vastgelegd in het auditlogboek.</li>
   <li><b>Op een agent herstellen</b> — naar een map of naar de oorspronkelijke locatie, zoals een herstel met <i>Alleen deze paden</i>.</li>
 </ul>
+<p><b>Begin van de back-up</b> aan het begin van het pad gaat terug naar het eerste niveau, en de regel <b>..</b> bovenaan de lijst een map omhoog; bladeren door bestanden op een VM-schijf werkt op dezelfde manier.</p>
 <p>Een <b>symbolische koppeling</b> naar een bestand (bijv. <code>/etc/os-release</code>) wordt gedownload als het bestand waarnaar ze wijst, als dat bestand in de back-up zit; koppelingen naar mappen worden in ZIP-archieven weggelaten. Hetzelfde geldt voor bestanden die uit back-ups van virtuele machines worden gedownload (ext4, XFS). Een herstel op een agent maakt koppelingen opnieuw aan als koppelingen.</p>
 <p>De console leest de back-up zelf van de opslag, dus doorbladeren werkt voor back-ups op netwerkopslag (SFTP, S3, SMB, Azure, geharde repository); opslag die <a href="/docs/storage#agents-only">alleen voor agents bereikbaar</a> is, leest hij via een agent die die opslag gebruikt (agents 0.61 en nieuwer). Voor een lokale schijf of een USB-schijf van een agent zet u terug met de paden. Gebruikers met een herstelrol mogen doorbladeren en downloaden.</p>
 

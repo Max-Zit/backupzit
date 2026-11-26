@@ -51,6 +51,7 @@
   <li><b>Stáhnout</b> — jeden soubor přijde tak, jak je, více souborů nebo složek jako archiv ZIP, přímo v prohlížeči. Stahování se zaznamenává do protokolu auditu.</li>
   <li><b>Obnovit je na agentovi</b> — do složky nebo do původního umístění, jako obnova s <i>Jen tyto cesty</i>.</li>
 </ul>
+<p><b>Začátek zálohy</b> na začátku cesty vrací na první úroveň a řádek <b>..</b> nahoře v seznamu o složku výš; procházení souborů uvnitř disku VM funguje stejně.</p>
 <p><b>Symbolický odkaz</b> na soubor (např. <code>/etc/os-release</code>) se stáhne jako soubor, na který ukazuje, pokud je tento soubor v záloze; odkazy na složky se v archivech ZIP vynechávají. Totéž platí pro soubory stažené ze záloh virtuálních počítačů (ext4, XFS). Obnova na agentovi vytvoří odkazy znovu jako odkazy.</p>
 <p>Konzole čte zálohu z úložiště sama, takže procházení funguje pro zálohy na síťovém úložišti (SFTP, S3, SMB, Azure, zabezpečený repozitář); úložiště <a href="/docs/storage#agents-only">dostupné jen agentům</a> čte přes agenta, který ho používá (agenti 0.61 a novější). Pro místní nebo USB disk agenta obnovte zadáním cest. Uživatelé s rolí obnovy mohou procházet a stahovat.</p>
 

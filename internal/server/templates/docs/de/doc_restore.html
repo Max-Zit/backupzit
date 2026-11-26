@@ -51,6 +51,7 @@
   <li><b>Herunterladen</b> — eine Datei kommt unverändert, mehrere Dateien oder Ordner als ZIP-Archiv, direkt im Browser. Downloads werden im Audit-Protokoll festgehalten.</li>
   <li><b>Oder auf einem Agenten wiederherstellen</b> — in einen Ordner oder an den ursprünglichen Ort, wie eine Wiederherstellung mit <i>Nur diese Pfade</i>.</li>
 </ul>
+<p><b>Anfang der Sicherung</b> am Beginn des Pfads führt zur ersten Ebene zurück, die Zeile <b>..</b> oben in der Liste einen Ordner höher; das Durchsuchen von Dateien in einem VM-Datenträger funktioniert genauso.</p>
 <p>Ein <b>symbolischer Link</b> auf eine Datei (z. B. <code>/etc/os-release</code>) wird als die Datei heruntergeladen, auf die er zeigt, wenn diese in der Sicherung ist; Links auf Ordner werden in ZIP-Archiven ausgelassen. Dasselbe gilt für Dateien, die aus VM-Sicherungen heruntergeladen werden (ext4, XFS). Eine Wiederherstellung auf einem Agenten legt Links wieder als Links an.</p>
 <p>Die Konsole liest die Sicherung selbst vom Speicher, daher funktioniert das Durchsuchen für Sicherungen auf Netzwerkspeicher (SFTP, S3, SMB, Azure, gehärtetes Repository); Speicher, der <a href="/docs/storage#agents-only">nur für Agenten erreichbar</a> ist, liest sie über einen Agenten, der ihn verwendet (Agenten ab 0.61). Bei einem lokalen Datenträger oder einem USB-Datenträger eines Agenten stellen Sie mit den Pfaden wieder her. Benutzer mit einer Wiederherstellungsrolle dürfen durchsuchen und herunterladen.</p>
 

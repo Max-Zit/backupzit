@@ -24,10 +24,11 @@
 <input type="hidden" name="vmid" value="{{.Data.VMID}}"><input type="hidden" name="disk" value="{{.Data.Disk}}">
 <input type="hidden" name="vol" value="{{.Data.Volume.ID}}"><input type="hidden" name="path" value="{{.Data.Path}}">
 <div class="panel">
-  <div class="crumbs">{{range $i, $c := .Data.Crumbs}}{{if gt $i 1}} / {{end}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{$.Data.VMID}}&amp;disk={{$.Data.Disk}}&amp;vol={{$.Data.Volume.ID}}&amp;path={{$c.Path}}">{{$c.Name}}</a>{{end}}</div>
+  <div class="crumbs">{{range $i, $c := .Data.Crumbs}}{{if eq $i 0}}<a class="crumb-top" href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{$.Data.VMID}}&amp;disk={{$.Data.Disk}}&amp;vol={{$.Data.Volume.ID}}&amp;path=/">{{T "Top of the volume"}}</a>{{else}} / <a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{$.Data.VMID}}&amp;disk={{$.Data.Disk}}&amp;vol={{$.Data.Volume.ID}}&amp;path={{$c.Path}}">{{$c.Name}}</a>{{end}}{{end}}</div>
   {{if .Data.Entries}}
   <div class="table-wrap"><table class="files">
     <tr><th><input type="checkbox" data-checkall="sel" title="{{T "Select all"}}"></th><th>{{T "Name"}}</th><th>{{T "Size"}}</th><th>{{T "Modified"}}</th></tr>
+    {{if .Data.Up}}<tr><td></td><td><a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{$.Data.VMID}}&amp;disk={{$.Data.Disk}}&amp;vol={{$.Data.Volume.ID}}&amp;path={{.Data.Parent}}" title="{{T "one folder up"}}">📁 ..</a></td><td></td><td></td></tr>{{end}}
     {{range .Data.Entries}}
     <tr>
       <td><input type="checkbox" name="sel" value="{{.Path}}"></td>

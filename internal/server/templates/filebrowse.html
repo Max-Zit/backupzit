@@ -6,10 +6,11 @@
 <form method="post" action="/runs/{{.Data.Run.ID}}/files-download" class="stack" id="files">
 <input type="hidden" name="path" value="{{.Data.Path}}">
 <div class="panel">
-  <div class="crumbs">{{range $i, $c := .Data.Crumbs}}{{if gt $i 1}} {{if $.Data.Windows}}\{{else}}/{{end}} {{end}}<a href="/runs/{{$.Data.Run.ID}}/files?path={{$c.Path}}">{{$c.Name}}</a>{{end}}</div>
+  <div class="crumbs">{{range $i, $c := .Data.Crumbs}}{{if eq $i 0}}<a class="crumb-top" href="/runs/{{$.Data.Run.ID}}/files?path=">{{T "Top of the backup"}}</a>{{else}} {{if or (gt $i 1) (not $.Data.Windows)}}{{if $.Data.Windows}}\{{else}}/{{end}}{{end}} <a href="/runs/{{$.Data.Run.ID}}/files?path={{$c.Path}}">{{$c.Name}}</a>{{end}}{{end}}</div>
   {{if .Data.Entries}}
   <div class="table-wrap"><table class="files">
     <tr><th><input type="checkbox" data-checkall="sel" title="{{T "Select all"}}"></th><th>{{T "Name"}}</th><th>{{T "Size"}}</th><th>{{T "Modified"}}</th></tr>
+    {{if .Data.Up}}<tr><td></td><td><a href="/runs/{{$.Data.Run.ID}}/files?path={{.Data.Parent}}" title="{{T "one folder up"}}">📁 ..</a></td><td></td><td></td></tr>{{end}}
     {{range .Data.Entries}}
     <tr>
       <td><input type="checkbox" name="sel" value="{{.Path}}"></td>

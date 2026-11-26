@@ -51,6 +51,7 @@
   <li><b>Baixar</b> — um arquivo vem como está, vários arquivos ou pastas como arquivo ZIP, diretamente no navegador. Os downloads ficam registrados no log de auditoria.</li>
   <li><b>Restaurá-los num agente</b> — numa pasta ou no local original, como uma restauração com <i>Somente estes caminhos</i>.</li>
 </ul>
+<p><b>Início do backup</b>, no começo do caminho, volta ao primeiro nível, e a linha <b>..</b> no topo da lista sobe uma pasta; a navegação pelos arquivos de um disco de VM funciona da mesma forma.</p>
 <p>Um <b>link simbólico</b> para um arquivo (p. ex. <code>/etc/os-release</code>) é baixado como o arquivo para onde aponta, se esse arquivo estiver no backup; links para pastas são omitidos dos arquivos ZIP. O mesmo vale para arquivos baixados de backups de máquinas virtuais (ext4, XFS). Uma restauração num agente recria os links como links.</p>
 <p>O console lê o backup do armazenamento por conta própria, então a navegação funciona para backups em armazenamento de rede (SFTP, S3, SMB, Azure, repositório reforçado); o armazenamento <a href="/docs/storage#agents-only">acessível somente por agentes</a> é lido por meio de um agente que o usa (agentes 0.61 e mais recentes). Para um disco local ou um disco USB de um agente, restaure com os caminhos. Usuários com uma função de restauração podem navegar e baixar.</p>
 

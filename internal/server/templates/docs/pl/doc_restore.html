@@ -51,6 +51,7 @@
   <li><b>Pobierz</b> — jeden plik przychodzi bez zmian, kilka plików lub folderów jako archiwum ZIP, prosto w przeglądarce. Pobrania są zapisywane w dzienniku audytu.</li>
   <li><b>Przywróć je na agencie</b> — do folderu lub do pierwotnej lokalizacji, jak przywracanie z <i>Tylko te ścieżki</i>.</li>
 </ul>
+<p><b>Początek kopii</b> na początku ścieżki wraca do pierwszego poziomu, a wiersz <b>..</b> na górze listy przechodzi o folder wyżej; przeglądanie plików na dysku maszyny wirtualnej działa tak samo.</p>
 <p><b>Dowiązanie symboliczne</b> do pliku (np. <code>/etc/os-release</code>) jest pobierane jako plik, na który wskazuje, jeśli ten plik jest w kopii; dowiązania do folderów są pomijane w archiwach ZIP. To samo dotyczy plików pobieranych z kopii maszyn wirtualnych (ext4, XFS). Przywracanie na agencie odtwarza dowiązania jako dowiązania.</p>
 <p>Konsola sama odczytuje kopię z magazynu, więc przeglądanie działa dla kopii w magazynie sieciowym (SFTP, S3, SMB, Azure, wzmocnione repozytorium); magazyn <a href="/docs/storage#agents-only">dostępny tylko dla agentów</a> odczytuje przez agenta, który go używa (agenci 0.61 i nowsi). Dla dysku lokalnego lub dysku USB agenta przywróć z podaniem ścieżek. Użytkownicy z rolą przywracania mogą przeglądać i pobierać.</p>
 
