@@ -167,12 +167,12 @@ func (n *Notifier) sendChat(ctx context.Context, l *language, c ChatChannel, r R
 		body, _ = json.Marshal(map[string]any{"text": text})
 	case "teams":
 		color := map[string]string{api.StatusFailed: "Attention", api.StatusWarning: "Warning", api.StatusSuccess: "Good"}[r.Status]
-		items := []any{map[string]any{"type": "TextBlock", "text": title, "weight": "Bolder", "wrap": true, "color": color}}
+		items := []any{teamsText(title, true, color)}
 		if r.Message != "" {
-			items = append(items, map[string]any{"type": "TextBlock", "text": r.Message, "wrap": true})
+			items = append(items, teamsText(r.Message, false, ""))
 		}
 		if r.Anomaly != "" {
-			items = append(items, map[string]any{"type": "TextBlock", "text": l.T("Unusual backup:") + " " + l.T("%s — retention of the job is paused.", r.Anomaly), "wrap": true, "color": "Attention"})
+			items = append(items, teamsText(l.T("Unusual backup:")+" "+l.T("%s — retention of the job is paused.", r.Anomaly), false, "Attention"))
 		}
 		card := map[string]any{"type": "AdaptiveCard", "$schema": "http://adaptivecards.io/schemas/adaptive-card.json", "version": "1.4", "body": items}
 		if link != "" {
@@ -213,8 +213,7 @@ func (n *Notifier) sendChatText(ctx context.Context, l *language, c ChatChannel,
 		body, _ = json.Marshal(map[string]any{"text": msg})
 	case "teams":
 		card := map[string]any{"type": "AdaptiveCard", "$schema": "http://adaptivecards.io/schemas/adaptive-card.json", "version": "1.4",
-			"body": []any{map[string]any{"type": "TextBlock", "text": title, "weight": "Bolder", "wrap": true, "color": "Attention"},
-				map[string]any{"type": "TextBlock", "text": text, "wrap": true}}}
+			"body": []any{teamsText(title, true, "Attention"), teamsText(text, false, "")}}
 		if link != "" {
 			card["actions"] = []any{map[string]any{"type": "Action.OpenUrl", "title": l.T("Open in BackupZit"), "url": link}}
 		}
@@ -329,4 +328,19 @@ func (s *Server) handleSettingsChat(w http.ResponseWriter, r *http.Request, _ st
 		return
 	}
 	redirectMsg(w, r, back, "Settings saved.")
+}
+
+// teamsText is a block of plain text for a Teams card (B11, 0.62): a
+// RichTextBlock with one TextRun, which Teams shows as it is, while a
+// TextBlock reads markdown, so a job name or a message with [text](link)
+// became a link in the channel.
+func teamsText(text string, bold bool, color string) map[string]any {
+	run := map[string]any{"type": "TextRun", "text": text}
+	if bold {
+		run["weight"] = "Bolder"
+	}
+	if color != "" {
+		run["color"] = color
+	}
+	return map[string]any{"type": "RichTextBlock", "inlines": []any{run}}
 }

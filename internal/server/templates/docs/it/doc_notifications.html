@@ -41,7 +41,7 @@
 <p>In <a href="/settings/chat">Impostazioni → Chat e webhook</a> aggiungi quanti canali vuoi; ognuno sceglie se ricevere errori, avvisi e successi. I backup insoliti (possibile ransomware) contano come errori. <b>Invia test</b> verifica subito un canale.</p>
 <ul>
   <li><b>Slack</b>: crea un <i>incoming webhook</i> per il canale (impostazioni dell'app Slack → Incoming Webhooks) e incolla il suo URL (<code>https://hooks.slack.com/services/…</code>).</li>
-  <li><b>Microsoft Teams</b>: nel canale aggiungi il flusso di lavoro <i>Post to a channel when a webhook request is received</i> e incolla il suo URL. I messaggi arrivano come schede con un pulsante che apre l'esecuzione nella console.</li>
+  <li><b>Microsoft Teams</b>: nel canale aggiungi il flusso di lavoro <i>Post to a channel when a webhook request is received</i> e incolla il suo URL. I messaggi arrivano come schede con un pulsante che apre l'esecuzione nella console. Nomi e messaggi sono mostrati come testo semplice (dalla 0.62), così il nome di un job con un link in markdown non può diventare un link nel canale.</li>
   <li><b>Webhook</b>: qualsiasi URL che accetta un POST JSON — sistema di ticket, monitoraggio o strumento di automazione. Con un segreto di firma, ogni richiesta porta <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, l'HMAC-SHA256 del corpo, così il destinatario può verificare che provenga dalla tua console. I reindirizzamenti non vengono seguiti (una risposta 3xx conta come errore) e gli indirizzi link-local (169.254.x.x, come i servizi di metadati del cloud, e fe80::) vengono rifiutati; gli indirizzi interni funzionano.</li>
 </ul>
 <p>Il JSON di un webhook:</p>

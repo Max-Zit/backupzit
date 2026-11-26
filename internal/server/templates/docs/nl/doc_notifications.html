@@ -41,7 +41,7 @@
 <p>Onder <a href="/settings/chat">Instellingen → Chat en webhooks</a> voegt u zoveel kanalen toe als u wilt; elk kanaal kiest of het fouten, waarschuwingen en geslaagde runs ontvangt. Ongewone back-ups (mogelijk ransomware) tellen als fouten. <b>Test verzenden</b> controleert een kanaal direct.</p>
 <ul>
   <li><b>Slack</b>: maak een <i>incoming webhook</i> voor het kanaal (Slack-app-instellingen → Incoming Webhooks) en plak de URL (<code>https://hooks.slack.com/services/…</code>).</li>
-  <li><b>Microsoft Teams</b>: voeg in het kanaal de workflow <i>Post to a channel when a webhook request is received</i> toe en plak de URL. Berichten komen binnen als kaarten met een knop die de run in de console opent.</li>
+  <li><b>Microsoft Teams</b>: voeg in het kanaal de workflow <i>Post to a channel when a webhook request is received</i> toe en plak de URL. Berichten komen binnen als kaarten met een knop die de run in de console opent. Namen en meldingen worden als platte tekst getoond (sinds 0.62), zodat een taaknaam met een link in markdown in het kanaal geen link kan worden.</li>
   <li><b>Webhook</b>: elke URL die een JSON-POST accepteert — een ticketsysteem, monitoring of automatiseringstool. Met een ondertekeningsgeheim draagt elk verzoek <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, de HMAC-SHA256 van de body, zodat de ontvanger kan controleren dat het van uw console komt. Omleidingen worden niet gevolgd (een antwoord 3xx telt als fout) en link-local-adressen (169.254.x.x, zoals metadataservices van clouds, en fe80::) worden geweigerd; interne adressen werken.</li>
 </ul>
 <p>De JSON van een webhook:</p>

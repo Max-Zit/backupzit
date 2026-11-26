@@ -35,3 +35,20 @@ func TestChatClientLimits(t *testing.T) {
 		}
 	}
 }
+
+// B11: Teams cards carry text as TextRuns, which Teams does not read as
+// markdown, so a job name with [text](link) stays text.
+func TestTeamsTextNoMarkdown(t *testing.T) {
+	b := teamsText("[click](http://evil.example) **bold**", true, "Attention")
+	if b["type"] != "RichTextBlock" {
+		t.Fatalf("block %v", b)
+	}
+	runs, _ := b["inlines"].([]any)
+	if len(runs) != 1 {
+		t.Fatalf("inlines %v", runs)
+	}
+	run := runs[0].(map[string]any)
+	if run["type"] != "TextRun" || run["text"] != "[click](http://evil.example) **bold**" || run["weight"] != "Bolder" || run["color"] != "Attention" {
+		t.Errorf("run %v", run)
+	}
+}
