@@ -178,6 +178,9 @@ func (s *Store) queueVMwareParts(ctx context.Context, j Job, repoURL string, tar
 		return 0, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if err := lockJobRow(ctx, tx, j.ID); err != nil {
+		return 0, err
+	}
 	var first int64
 	for i, p := range parts {
 		excludes := p.excludes
@@ -402,6 +405,9 @@ func (s *Store) queueCopyParts(ctx context.Context, j Job, trigger, repo string,
 		return 0, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if err := lockJobRow(ctx, tx, j.ID); err != nil {
+		return 0, err
+	}
 	var first int64
 	for i, part := range parts {
 		var id int64

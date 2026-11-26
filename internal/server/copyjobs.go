@@ -37,8 +37,16 @@ func (s *Store) queueCopy(ctx context.Context, j Job, a Agent, dst Target, trigg
 	if parts := s.copyParts(ctx, src); parts != nil {
 		return s.queueCopyParts(ctx, j, trigger, repoURL(dst, da), dst.ID, st.ID, repoURL(st, da), parts)
 	}
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := lockJobRow(ctx, tx, j.ID); err != nil {
+		return 0, err
+	}
 	var id int64
-	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, source_target_id, source_repo_url)
+	err = tx.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, source_target_id, source_repo_url)
 		SELECT $1,$2,'copy',$3,$4,$5,$6,$7
 		WHERE NOT EXISTS (SELECT 1 FROM runs WHERE job_id=$2 AND kind='copy' AND status IN ('queued','running'))
 		RETURNING id`,
@@ -46,7 +54,20 @@ func (s *Store) queueCopy(ctx context.Context, j Job, a Agent, dst Target, trigg
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, ErrRunActive
 	}
-	return id, err
+	if err != nil {
+		return 0, err
+	}
+	return id, tx.Commit(ctx)
+}
+
+// lockJobRow locks the job's row until the transaction ends (A16): the
+// "no run queued or running yet" check and the insert of a new run are
+// then one step, so two starts at the same moment (schedule and button,
+// a chain and a copy after the backup) cannot both queue a run. Not a
+// unique index: split VMware runs queue several runs on purpose.
+func lockJobRow(ctx context.Context, tx pgx.Tx, jobID int64) error {
+	_, err := tx.Exec(ctx, `SELECT 1 FROM jobs WHERE id=$1 FOR UPDATE`, jobID)
+	return err
 }
 
 // QueueCopiesAfter queues the copy jobs that run after each backup of

@@ -804,8 +804,16 @@ func (s *Store) QueueBackup(ctx context.Context, jobID int64, trigger string) (i
 			return s.queueVMwareParts(ctx, j, repo, t.ID, trigger, parts)
 		}
 	}
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := lockJobRow(ctx, tx, j.ID); err != nil {
+		return 0, err
+	}
 	var id int64
-	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, paths, excludes, image_disk, image_partitions, vmware_host_id)
+	err = tx.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, paths, excludes, image_disk, image_partitions, vmware_host_id)
 		SELECT $1,$2,$8,$3,$4,$5,$6,$7,$9,$10,$11
 		WHERE NOT EXISTS (SELECT 1 FROM runs WHERE job_id=$2 AND kind IN ('backup','image-backup','vm-backup','system-backup','sql-backup','sql-log') AND status IN ('queued','running'))
 		RETURNING id`,
@@ -813,7 +821,10 @@ func (s *Store) QueueBackup(ctx context.Context, jobID int64, trigger string) (i
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, ErrRunActive
 	}
-	return id, err
+	if err != nil {
+		return 0, err
+	}
+	return id, tx.Commit(ctx)
 }
 
 // QueueRestore creates a restore run from a successful backup run.
