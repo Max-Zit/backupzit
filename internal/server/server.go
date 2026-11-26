@@ -56,6 +56,8 @@ type Server struct {
 	store      *Store
 	// dups finds agent enrollments used by two machines at once.
 	dups *dupTracker
+	// noJob caches the dashboard's VM backups without a job (#73).
+	noJob noJobCache
 	// deploys are agent installations started from the console.
 	deploys    *deployer
 	deployOnce sync.Once
@@ -485,6 +487,8 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET /targets/{id}/test", s.ui(PermStorage, s.handleTargetTestPage))
 	mux.HandleFunc("POST /targets/{id}/test", s.ui(PermStorage, s.handleTargetTest))
 	mux.HandleFunc("POST /targets/{id}/agents-only", s.ui(PermStorage, s.handleTargetAgentsOnly))
+	mux.HandleFunc("GET /targets/{id}/vms", s.ui(PermView, s.handleTargetVMs))
+	mux.HandleFunc("POST /targets/{id}/vms/delete", s.ui(PermStorage, s.handleTargetVMsDelete))
 	mux.HandleFunc("GET /targets/{id}/scan", s.ui(PermStorage, s.handleTargetScan))
 	mux.HandleFunc("POST /targets/{id}/scan", s.ui(PermStorage, s.handleTargetScanStart))
 	mux.HandleFunc("POST /targets/{id}/import", s.ui(PermStorage, s.handleTargetImport))

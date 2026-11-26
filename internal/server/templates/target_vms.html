@@ -1,0 +1,36 @@
+{{define "content"}}
+{{$t := .Data.Target}}
+<h1>{{T "VM backups on %v" $t.Name}}</h1>
+<div class="panel">
+  <p>{{T "Every virtual machine and container with restore points on this storage, also those whose job is gone or no longer selects them."}}{{if .Data.NoJob}} <span class="badge warning"><i></i>{{T "%d VMs without a job" .Data.NoJob}}</span>{{end}}</p>
+  <p class="muted small">{{T "A restore point that holds only this VM can be deleted here. One that also holds other VMs of the same run stays until the job's retention removes it, so the history of the other VMs is not touched."}} <a href="/docs/storage#vms">{{T "More"}}</a></p>
+  {{if not .Data.Deletable}}<p class="muted small">{{T "The console cannot delete backups on this storage itself (a disk of an agent's computer, SSH key sign-in or reachable by agents only); the job's retention removes them."}}</p>{{end}}
+  {{if not .Data.VMs}}<p class="muted">{{T "No VM backups on this storage."}}</p>{{end}}
+  <p><a href="/targets">{{T "Back to storage"}}</a></p>
+</div>
+{{range .Data.VMs}}
+{{$vm := .}}
+<details class="panel">
+  <summary><b>{{.Name}}</b> <span class="muted">{{.Type}} {{.VMID}} · {{.Hostname}}</span>{{if .NoJob}} <span class="badge warning" title="{{T "No existing job backs up this VM any more: its job was deleted or no longer selects it."}}"><i></i>{{T "no job"}}</span>{{end}} · {{T "%d restore points" (len .Points)}} · {{ts .Oldest}} – {{ts .Newest}}</summary>
+  <form method="post" action="/targets/{{$t.ID}}/vms/delete" data-confirm="{{T "Delete the ticked restore points of %v? They cannot be restored afterwards." .Name}}">
+    <input type="hidden" name="vm" value="{{.Name}}">
+    <div class="table-wrap"><table>
+      <tr><th></th><th>{{T "Time"}}</th><th>{{T "Job"}}</th><th>{{T "Size"}}</th><th></th></tr>
+      {{range .Points}}
+      <tr>
+        <td>{{if and $.Data.Deletable ($.Me.Can "storage") (eq .Others 0)}}<input type="checkbox" name="run" value="{{.RunID}}" aria-label="{{ts .Time}}">{{end}}</td>
+        <td><a href="/runs/{{.RunID}}">{{ts .Time}}</a>{{if .Copy}} <span class="badge muted-badge">{{T "copy"}}</span>{{end}}</td>
+        <td>{{.JobName}}</td>
+        <td>{{bytes .Stored}}</td>
+        <td class="muted small">{{if .Others}}{{T "also holds %d other VMs: removed with the job's retention" .Others}}{{end}}</td>
+      </tr>
+      {{end}}
+    </table></div>
+    {{if and $.Data.Deletable ($.Me.Can "storage") $vm.Deletable}}
+    {{template "reauth" $.Me}}
+    <div class="actions mt"><button class="danger">{{T "Delete the ticked restore points"}}</button></div>
+    {{end}}
+  </form>
+</details>
+{{end}}
+{{end}}

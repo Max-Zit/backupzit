@@ -197,6 +197,7 @@ func (s *Server) attention(ctx context.Context, now time.Time, l *language) []At
 	}
 	agents, _ := s.store.ListAgents(ctx)
 	out = append(out, s.clusterVMAttention(ctx, l, agents, now)...)
+	out = append(out, s.noJobAttention(ctx, l, now)...)
 	if bare := unprotectedAgents(agents, jobs, now); len(bare) > 0 {
 		var names []string
 		for _, a := range bare {

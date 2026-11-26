@@ -32,33 +32,34 @@ type approvalAction struct {
 }
 
 var approvalActions = map[string]approvalAction{
-	"job.delete":       {"Delete backup job", PermJobs},
-	"job.retention":    {"Shorten retention", PermJobs},
-	"job.update":       {"Change backup job so that it protects less", PermJobs},
-	"job.release_hold": {"Resume retention after a suspicious backup", PermJobs},
-	"agent.delete":     {"Remove agent", PermAgents},
-	"vmware.delete":    {"Remove ESXi host", PermAgents},
-	"storage.delete":   {"Remove storage target", PermStorage},
-	"user.delete":      {"Delete user", PermUsers},
-	"four_eyes.off":    {"Turn off four-eyes approval", PermSettings},
-	"user.create":      {"Create a user who can approve", PermUsers},
-	"user.role":        {"Give a user more rights", PermUsers},
-	"user.password":    {"Reset the password of a user who can approve", PermUsers},
-	"user.2fa_reset":   {"Reset the two-factor sign-in of a user who can approve", PermUsers},
-	"settings.ldap":    {"Change LDAP sign-in", PermSettings},
-	"settings.sso":     {"Change single sign-on", PermSettings},
-	"job.disable":      {"Disable backup job", PermJobs},
-	"group.delete":     {"Delete backup job for several agents", PermJobs},
-	"group.disable":    {"Disable backup job for several agents", PermJobs},
-	"group.update":     {"Change backup job for several agents so that it protects less", PermJobs},
-	"repair.forget":    {"Repair and remove the backups that need the lost data", PermJobs},
+	"job.delete":        {"Delete backup job", PermJobs},
+	"job.retention":     {"Shorten retention", PermJobs},
+	"job.update":        {"Change backup job so that it protects less", PermJobs},
+	"job.release_hold":  {"Resume retention after a suspicious backup", PermJobs},
+	"agent.delete":      {"Remove agent", PermAgents},
+	"vmware.delete":     {"Remove ESXi host", PermAgents},
+	"storage.delete":    {"Remove storage target", PermStorage},
+	"user.delete":       {"Delete user", PermUsers},
+	"four_eyes.off":     {"Turn off four-eyes approval", PermSettings},
+	"user.create":       {"Create a user who can approve", PermUsers},
+	"user.role":         {"Give a user more rights", PermUsers},
+	"user.password":     {"Reset the password of a user who can approve", PermUsers},
+	"user.2fa_reset":    {"Reset the two-factor sign-in of a user who can approve", PermUsers},
+	"settings.ldap":     {"Change LDAP sign-in", PermSettings},
+	"settings.sso":      {"Change single sign-on", PermSettings},
+	"job.disable":       {"Disable backup job", PermJobs},
+	"group.delete":      {"Delete backup job for several agents", PermJobs},
+	"group.disable":     {"Disable backup job for several agents", PermJobs},
+	"group.update":      {"Change backup job for several agents so that it protects less", PermJobs},
+	"repair.forget":     {"Repair and remove the backups that need the lost data", PermJobs},
+	"storage.vm_delete": {"Delete restore points of a VM", PermStorage},
 }
 
 // Approval is a change waiting for (or decided by) a second user.
 // DeletesBackups reports whether carrying out the request deletes backups
 // (the approver then confirms their identity, like the requester).
 func (a Approval) DeletesBackups() bool {
-	if a.Action == "repair.forget" {
+	if a.Action == "repair.forget" || a.Action == "storage.vm_delete" {
 		return true
 	}
 	if a.Action != "agent.delete" {
@@ -277,6 +278,8 @@ func (s *Server) executeApproval(ctx context.Context, a Approval) error {
 		return s.store.DeleteTarget(ctx, id)
 	case "repair.forget":
 		return s.executeRepoRepairForget(ctx, id)
+	case "storage.vm_delete":
+		return s.executeVMDelete(ctx, a, "")
 	case "user.delete":
 		u, err := s.store.GetUser(ctx, id)
 		if err != nil {
