@@ -91,7 +91,7 @@ func (s *Server) diagAgents(ctx context.Context, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	c := csv.NewWriter(w)
+	c := newSafeCSV(w)
 	_ = c.Write([]string{"id", "hostname", "os", "arch", "version", "online", "last_seen", "enrolled", "recovery", "local_ips"})
 	for _, a := range agents {
 		seen := ""
@@ -116,7 +116,7 @@ func (s *Server) diagJobs(ctx context.Context, w io.Writer) error {
 			targets[t.ID] = t.Kind
 		}
 	}
-	c := csv.NewWriter(w)
+	c := newSafeCSV(w)
 	_ = c.Write([]string{"id", "name", "kind", "agent", "target", "target_kind", "enabled", "schedule", "time_limit_h", "speed_limit_mbps", "retention_hold"})
 	for _, j := range jobs {
 		_ = c.Write([]string{fmt.Sprint(j.ID), j.Name, j.Kind, j.Hostname, j.TargetName, targets[j.TargetID], fmt.Sprint(j.Enabled), j.Schedule,
@@ -138,7 +138,7 @@ func (s *Server) diagProblems(ctx context.Context, w io.Writer) error {
 		return err
 	}
 	defer rows.Close()
-	c := csv.NewWriter(w)
+	c := newSafeCSV(w)
 	_ = c.Write([]string{"run", "kind", "status", "agent", "job", "queued", "started", "finished", "message", "errors"})
 	ts := func(t *time.Time) string {
 		if t == nil {
@@ -168,11 +168,27 @@ func (s *Server) diagAudit(ctx context.Context, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	c := csv.NewWriter(w)
+	c := newSafeCSV(w)
 	_ = c.Write([]string{"id", "time", "user", "action", "detail", "address"})
 	for _, e := range entries {
 		_ = c.Write([]string{fmt.Sprint(e.ID), e.At.Format(time.RFC3339), e.Username, e.Action, e.Detail, e.Remote})
 	}
 	c.Flush()
 	return c.Error()
+}
+
+// safeCSV writes CSV rows with every field through csvSafe: the audit log
+// holds the user name typed at a failed sign-in, which anyone can choose,
+// and other fields come from agents (host names, messages); a field that
+// starts with = + - @ must not run as a formula in a spreadsheet.
+type safeCSV struct{ *csv.Writer }
+
+func newSafeCSV(w io.Writer) safeCSV { return safeCSV{csv.NewWriter(w)} }
+
+func (c safeCSV) Write(rec []string) error {
+	out := make([]string, len(rec))
+	for i, f := range rec {
+		out[i] = csvSafe(f)
+	}
+	return c.Writer.Write(out)
 }
