@@ -46,8 +46,8 @@ type Server struct {
 	// X-Forwarded-For while no reverse proxy is set (A20, unix seconds);
 	// proxyLogged when that was last logged.
 	proxySeen, proxyLogged atomic.Int64
-	seen  seenURL // the address users open the console with (ConsoleURL)
-	store *Store
+	seen                   seenURL // the address users open the console with (ConsoleURL)
+	store                  *Store
 	// dups finds agent enrollments used by two machines at once.
 	dups *dupTracker
 	// deploys are agent installations started from the console.

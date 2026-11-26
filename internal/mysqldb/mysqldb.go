@@ -40,7 +40,7 @@ type Server struct {
 	BinBase string // log_bin_basename
 	// BinlogFormat is @@binlog_format (ROW, MIXED, STATEMENT; "" when unknown).
 	BinlogFormat string
-	tool    map[string]string
+	tool         map[string]string
 }
 
 func pick(names ...string) string {
