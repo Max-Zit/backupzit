@@ -1103,6 +1103,7 @@
   "Request rejected; nothing was changed.": "Richiesta rifiutata; nulla è stato modificato.",
   "Requested": "Richiesto",
   "Requested by": "Richiesto da",
+  "Requests reach the console through a reverse proxy on this machine (from 127.0.0.1 with X-Forwarded-For), but no reverse proxy is set: brute-force protection and the web access limits see every browser as this machine. Enter 127.0.0.1 and ::1 under Reverse proxies.": "Le richieste raggiungono la console tramite un reverse proxy su questa macchina (da 127.0.0.1 con X-Forwarded-For), ma non è impostato alcun reverse proxy: la protezione dalla forza bruta e i limiti di accesso web vedono ogni browser come questa macchina. Inserite 127.0.0.1 e ::1 in Reverse proxy.",
   "Require a second user's approval for destructive changes": "Richiedi l’approvazione di un secondo utente per le modifiche distruttive",
   "Require application-consistent checkpoints": "Richiedi checkpoint coerenti con le applicazioni",
   "Required for administrators": "Obbligatorio per gli amministratori",

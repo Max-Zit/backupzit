@@ -1103,6 +1103,7 @@
   "Request rejected; nothing was changed.": "Zahtev je odbijen; ništa nije promenjeno.",
   "Requested": "Zatraženo",
   "Requested by": "Zatražio",
+  "Requests reach the console through a reverse proxy on this machine (from 127.0.0.1 with X-Forwarded-For), but no reverse proxy is set: brute-force protection and the web access limits see every browser as this machine. Enter 127.0.0.1 and ::1 under Reverse proxies.": "Zahtevi stižu do konzole preko reverse proxy-ja na ovoj mašini (sa 127.0.0.1 uz X-Forwarded-For), ali nijedan reverse proxy nije podešen: zaštita od pogađanja lozinki i ograničenja web pristupa vide svaki pregledač kao ovu mašinu. Unesite 127.0.0.1 i ::1 pod Reverse proxy serveri.",
   "Require a second user's approval for destructive changes": "Zahtevaj odobrenje drugog korisnika za destruktivne promene",
   "Require application-consistent checkpoints": "Zahtevaj application-consistent checkpoint-e",
   "Required for administrators": "Obavezno za administratore",

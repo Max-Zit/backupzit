@@ -42,7 +42,7 @@ server_id = 1
 log_bin = /var/log/mysql/mysql-bin
 binlog_format = ROW
 expire_logs_days = 7</pre>
-<p>(cree la carpeta del registro, con la cuenta mysql como propietaria). Las copias de registros guardan entonces cada registro binario cerrado. Mantenga la caducidad propia del servidor más larga que el intervalo de las copias de registros; un hueco se notifica, y las restauraciones no pueden cruzarlo.</p>
+<p>(cree la carpeta del registro, con la cuenta mysql como propietaria). Las copias de registros guardan entonces cada registro binario cerrado. Mantenga la caducidad propia del servidor más larga que el intervalo de las copias de registros; un hueco se notifica, y las restauraciones no pueden cruzarlo. Con otro <code>binlog_format</code> (MIXED o STATEMENT) las copias completas terminan con una advertencia: las restauraciones a un momento concreto vuelven a ejecutar sentencias, lo que puede dar un resultado distinto al del servidor original.</p>
 <ul>
   <li><b>Restaurar una base de datos</b>: su volcado se carga en una base nueva (o sustituye a una existente). <b>En un momento concreto</b> o <b>la más reciente</b>, los cambios de esa base registrados en los registros binarios tras el volcado se reproducen hasta ese momento, también cuando la base recibe un nombre nuevo. La reproducción no se escribe en el registro binario del servidor.</li>
   <li>Los usuarios y privilegios (la base del sistema <code>mysql</code>) no forman parte de los volcados.</li>

@@ -143,6 +143,7 @@
         <textarea name="trusted_proxies" rows="3" placeholder="10.0.0.5">{{join .TrustedProxies "\n"}}</textarea>
       </label>
     </div>
+    {{if $.Data.ProxyHint}}<p class="callout warn">{{T "Requests reach the console through a reverse proxy on this machine (from 127.0.0.1 with X-Forwarded-For), but no reverse proxy is set: brute-force protection and the web access limits see every browser as this machine. Enter 127.0.0.1 and ::1 under Reverse proxies."}}</p>{{end}}
     <label class="check"><input type="checkbox" name="notify" {{if .Notify}}checked{{end}}> {{T "Email the administrators when an address is blocked"}} <small>{{T "uses the"}} <a href="/settings/email">{{T "email settings"}}</a></small></label>
     <div><button>{{T "Save protection settings"}}</button></div>
   </form>

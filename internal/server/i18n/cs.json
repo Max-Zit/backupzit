@@ -1103,6 +1103,7 @@
   "Request rejected; nothing was changed.": "Žádost zamítnuta; nic nebylo změněno.",
   "Requested": "Vyžádáno",
   "Requested by": "Vyžádal",
+  "Requests reach the console through a reverse proxy on this machine (from 127.0.0.1 with X-Forwarded-For), but no reverse proxy is set: brute-force protection and the web access limits see every browser as this machine. Enter 127.0.0.1 and ::1 under Reverse proxies.": "Požadavky přicházejí do konzole přes reverzní proxy na tomto počítači (z 127.0.0.1 s X-Forwarded-For), ale žádná reverzní proxy není nastavena: ochrana proti hrubé síle a omezení webového přístupu vidí každý prohlížeč jako tento počítač. Zadejte 127.0.0.1 a ::1 do pole Reverzní proxy.",
   "Require a second user's approval for destructive changes": "Vyžadovat schválení druhým uživatelem u destruktivních změn",
   "Require application-consistent checkpoints": "Vyžadovat aplikačně konzistentní kontrolní body",
   "Required for administrators": "Povinné pro správce",

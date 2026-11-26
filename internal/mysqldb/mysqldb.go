@@ -38,6 +38,8 @@ type Server struct {
 	MariaDB bool
 	LogBin  bool
 	BinBase string // log_bin_basename
+	// BinlogFormat is @@binlog_format (ROW, MIXED, STATEMENT; "" when unknown).
+	BinlogFormat string
 	tool    map[string]string
 }
 
@@ -89,6 +91,11 @@ func Open(ctx context.Context) (*Server, error) {
 	}
 	s.Version, s.LogBin, s.BinBase = f[0], f[1] == "1", f[2]
 	s.MariaDB = strings.Contains(strings.ToLower(s.Version), "mariadb")
+	// Separately and without failing: a server without the variable still
+	// backs up.
+	if f, err := s.Query(ctx, "SELECT @@binlog_format"); err == nil {
+		s.BinlogFormat = strings.ToUpper(strings.TrimSpace(f))
+	}
 	return s, nil
 }
 
@@ -242,6 +249,9 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 		meta.Kind = "full"
 		if o.PITR && !s.LogBin {
 			problems = append(problems, "point-in-time recovery is not possible: the binary log is off (add log_bin and server_id to the server configuration and restart it)")
+		} else if o.PITR && s.BinlogFormat != "" && s.BinlogFormat != "ROW" {
+			// A20: a warning only; the backup is complete.
+			problems = append(problems, "the binary log format is "+s.BinlogFormat+": point-in-time restores replay statements, which can give a different result than on the original server; set binlog_format=ROW")
 		}
 		dbs, err := s.Databases(ctx)
 		if err != nil {

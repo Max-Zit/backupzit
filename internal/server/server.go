@@ -42,6 +42,10 @@ const sessionCookie = "bz_session"
 
 // Server is the management console.
 type Server struct {
+	// proxySeen is when a request from this machine last carried
+	// X-Forwarded-For while no reverse proxy is set (A20, unix seconds);
+	// proxyLogged when that was last logged.
+	proxySeen, proxyLogged atomic.Int64
 	seen  seenURL // the address users open the console with (ConsoleURL)
 	store *Store
 	// dups finds agent enrollments used by two machines at once.

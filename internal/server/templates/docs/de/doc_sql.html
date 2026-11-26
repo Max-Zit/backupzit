@@ -42,7 +42,7 @@ server_id = 1
 log_bin = /var/log/mysql/mysql-bin
 binlog_format = ROW
 expire_logs_days = 7</pre>
-<p>(legen Sie den Ordner für das Log an, mit dem Konto mysql als Besitzer). Die Log-Sicherungen speichern dann jedes geschlossene Binärlog. Halten Sie die eigene Ablaufzeit des Servers länger als das Intervall der Log-Sicherungen; eine Lücke wird gemeldet, und Wiederherstellungen können sie nicht überbrücken.</p>
+<p>(legen Sie den Ordner für das Log an, mit dem Konto mysql als Besitzer). Die Log-Sicherungen speichern dann jedes geschlossene Binärlog. Halten Sie die eigene Ablaufzeit des Servers länger als das Intervall der Log-Sicherungen; eine Lücke wird gemeldet, und Wiederherstellungen können sie nicht überbrücken. Mit einem anderen <code>binlog_format</code> (MIXED oder STATEMENT) enden die Vollsicherungen mit einer Warnung: Wiederherstellungen zu einem Zeitpunkt spielen Anweisungen erneut ab, was ein anderes Ergebnis als auf dem ursprünglichen Server ergeben kann.</p>
 <ul>
   <li><b>Eine Datenbank wiederherstellen</b>: Ihr Dump wird in eine neue Datenbank geladen (oder ersetzt eine vorhandene). <b>Zu einem Zeitpunkt</b> oder <b>neuester Stand</b>: Die nach dem Dump in den Binärlogs aufgezeichneten Änderungen dieser Datenbank werden bis zu diesem Zeitpunkt eingespielt — auch wenn die Datenbank einen neuen Namen erhält. Das Einspielen wird nicht in das Binärlog des Servers geschrieben.</li>
   <li>Benutzer und Rechte (die Systemdatenbank <code>mysql</code>) sind nicht Teil der Dumps.</li>

@@ -1103,6 +1103,7 @@
   "Request rejected; nothing was changed.": "リクエストを却下しました。何も変更されていません。",
   "Requested": "リクエスト日時",
   "Requested by": "リクエスト者",
+  "Requests reach the console through a reverse proxy on this machine (from 127.0.0.1 with X-Forwarded-For), but no reverse proxy is set: brute-force protection and the web access limits see every browser as this machine. Enter 127.0.0.1 and ::1 under Reverse proxies.": "要求はこのマシン上のリバース プロキシ経由でコンソールに届いています（127.0.0.1 から X-Forwarded-For 付き）が、リバース プロキシが設定されていません。そのため総当たり攻撃対策と Web アクセスの制限は、すべてのブラウザーをこのマシンとみなします。[リバースプロキシ] に 127.0.0.1 と ::1 を入力してください。",
   "Require a second user's approval for destructive changes": "破壊的な変更には別のユーザーの承認を必須にする",
   "Require application-consistent checkpoints": "アプリケーション整合性のあるチェックポイントを必須にする",
   "Required for administrators": "管理者は必須",

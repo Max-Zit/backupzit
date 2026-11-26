@@ -1103,6 +1103,7 @@
   "Request rejected; nothing was changed.": "Запрос отклонён; ничего не изменено.",
   "Requested": "Запрошено",
   "Requested by": "Запросил",
+  "Requests reach the console through a reverse proxy on this machine (from 127.0.0.1 with X-Forwarded-For), but no reverse proxy is set: brute-force protection and the web access limits see every browser as this machine. Enter 127.0.0.1 and ::1 under Reverse proxies.": "Запросы приходят в консоль через обратный прокси на этой машине (с 127.0.0.1 с X-Forwarded-For), но обратный прокси не указан: защита от подбора паролей и ограничения веб-доступа видят каждый браузер как эту машину. Укажите 127.0.0.1 и ::1 в поле «Обратные прокси».",
   "Require a second user's approval for destructive changes": "Требовать подтверждения второго пользователя для разрушительных изменений",
   "Require application-consistent checkpoints": "Требовать контрольные точки, согласованные с приложениями",
   "Required for administrators": "Обязательно для администраторов",

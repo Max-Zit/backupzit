@@ -1103,6 +1103,7 @@
   "Request rejected; nothing was changed.": "Aanvraag afgewezen; er is niets gewijzigd.",
   "Requested": "Aangevraagd",
   "Requested by": "Aangevraagd door",
+  "Requests reach the console through a reverse proxy on this machine (from 127.0.0.1 with X-Forwarded-For), but no reverse proxy is set: brute-force protection and the web access limits see every browser as this machine. Enter 127.0.0.1 and ::1 under Reverse proxies.": "Verzoeken bereiken de console via een reverse proxy op deze machine (vanaf 127.0.0.1 met X-Forwarded-For), maar er is geen reverse proxy ingesteld: de bescherming tegen brute force en de webtoegangslimieten zien elke browser als deze machine. Vul 127.0.0.1 en ::1 in bij Reverse proxy's.",
   "Require a second user's approval for destructive changes": "Goedkeuring door een tweede gebruiker vereisen voor destructieve wijzigingen",
   "Require application-consistent checkpoints": "Toepassingsconsistente controlepunten vereisen",
   "Required for administrators": "Verplicht voor beheerders",

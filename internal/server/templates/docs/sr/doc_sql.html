@@ -42,7 +42,7 @@ server_id = 1
 log_bin = /var/log/mysql/mysql-bin
 binlog_format = ROW
 expire_logs_days = 7</pre>
-<p>(napravite folder za log, sa nalogom mysql kao vlasnikom). Bekapi logova zatim čuvaju svaki zatvoreni binarni log. Neka sopstveni rok brisanja servera bude duži od intervala bekapa logova; praznina se prijavljuje, a vraćanja ne mogu da je pređu.</p>
+<p>(napravite folder za log, sa nalogom mysql kao vlasnikom). Bekapi logova zatim čuvaju svaki zatvoreni binarni log. Neka sopstveni rok brisanja servera bude duži od intervala bekapa logova; praznina se prijavljuje, a vraćanja ne mogu da je pređu. Sa drugim <code>binlog_format</code> (MIXED ili STATEMENT) puni bekapi se završavaju upozorenjem: vraćanje na trenutak u vremenu ponovo izvršava naredbe, što može dati drugačiji rezultat nego na originalnom serveru.</p>
 <ul>
   <li><b>Vraćanje baze</b>: njen dump se učitava u novu bazu (ili zamenjuje postojeću). <b>U određenom trenutku</b> ili <b>najnovije</b>, izmene te baze zabeležene u binarnim logovima posle dump-a ponavljaju se do tog trenutka — i kada baza dobije novo ime. Ponavljanje se ne upisuje u binarni log servera.</li>
   <li>Korisnici i prava (sistemska baza <code>mysql</code>) nisu deo dump-ova.</li>

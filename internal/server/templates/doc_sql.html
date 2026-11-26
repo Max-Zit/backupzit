@@ -42,7 +42,7 @@ server_id = 1
 log_bin = /var/log/mysql/mysql-bin
 binlog_format = ROW
 expire_logs_days = 7</pre>
-<p>(create the folder for the log, owned by the mysql account). The log backups then store each closed binary log. Keep the server's own expiry longer than the log backup interval; a gap is reported, and restores cannot cross it.</p>
+<p>(create the folder for the log, owned by the mysql account). The log backups then store each closed binary log. Keep the server's own expiry longer than the log backup interval; a gap is reported, and restores cannot cross it. With another <code>binlog_format</code> (MIXED or STATEMENT) the full backups end with a warning: point-in-time restores replay statements, which can give a different result than on the original server.</p>
 <ul>
   <li><b>Restore a database</b>: its dump is loaded into a new database (or replaces an existing one). <b>At a point in time</b> or <b>latest</b>, the changes of that database recorded in the binary logs after the dump are replayed up to that time — also when the database gets a new name. The replay is not written to the server's binary log.</li>
   <li>Users and privileges (the <code>mysql</code> system database) are not part of the dumps.</li>

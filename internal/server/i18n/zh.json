@@ -1103,6 +1103,7 @@
   "Request rejected; nothing was changed.": "请求已拒绝；未做任何更改。",
   "Requested": "请求时间",
   "Requested by": "请求者",
+  "Requests reach the console through a reverse proxy on this machine (from 127.0.0.1 with X-Forwarded-For), but no reverse proxy is set: brute-force protection and the web access limits see every browser as this machine. Enter 127.0.0.1 and ::1 under Reverse proxies.": "请求通过本机上的反向代理到达控制台（来自 127.0.0.1，带有 X-Forwarded-For），但未设置任何反向代理：暴力破解防护和 Web 访问限制会把每个浏览器都视为本机。请在“反向代理”下输入 127.0.0.1 和 ::1。",
   "Require a second user's approval for destructive changes": "破坏性更改需要第二位用户批准",
   "Require application-consistent checkpoints": "要求应用程序一致的检查点",
   "Required for administrators": "管理员必须启用",

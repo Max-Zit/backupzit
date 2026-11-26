@@ -42,7 +42,7 @@ server_id = 1
 log_bin = /var/log/mysql/mysql-bin
 binlog_format = ROW
 expire_logs_days = 7</pre>
-<p>(vytvořte složku pro protokol s vlastníkem mysql). Zálohy protokolů pak ukládají každý uzavřený binární protokol. Vlastní dobu vypršení na serveru držte delší než interval záloh protokolů; mezera se ohlásí a obnovy ji nemohou překročit.</p>
+<p>(vytvořte složku pro protokol s vlastníkem mysql). Zálohy protokolů pak ukládají každý uzavřený binární protokol. Vlastní dobu vypršení na serveru držte delší než interval záloh protokolů; mezera se ohlásí a obnovy ji nemohou překročit. S jiným <code>binlog_format</code> (MIXED nebo STATEMENT) skončí úplné zálohy s varováním: obnova k určitému okamžiku přehrává příkazy, což může dát jiný výsledek než na původním serveru.</p>
 <ul>
   <li><b>Obnovit databázi</b>: její dump se načte do nové databáze (nebo nahradí existující). <b>K určitému okamžiku</b> nebo <b>nejnovější</b>: změny této databáze zaznamenané v binárních protokolech po dumpu se přehrají do tohoto okamžiku — i když databáze dostane nový název. Přehrávání se nezapisuje do binárního protokolu serveru.</li>
   <li>Uživatelé a oprávnění (systémová databáze <code>mysql</code>) nejsou součástí dumpů.</li>

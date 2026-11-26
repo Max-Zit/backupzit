@@ -42,7 +42,7 @@ server_id = 1
 log_bin = /var/log/mysql/mysql-bin
 binlog_format = ROW
 expire_logs_days = 7</pre>
-<p>(utwórz folder na dziennik, z kontem mysql jako właścicielem). Kopie dzienników zapisują wtedy każdy zamknięty dziennik binarny. Utrzymuj własny czas wygasania serwera dłuższy niż odstęp kopii dzienników; luka jest zgłaszana, a przywracanie nie może jej przeskoczyć.</p>
+<p>(utwórz folder na dziennik, z kontem mysql jako właścicielem). Kopie dzienników zapisują wtedy każdy zamknięty dziennik binarny. Utrzymuj własny czas wygasania serwera dłuższy niż odstęp kopii dzienników; luka jest zgłaszana, a przywracanie nie może jej przeskoczyć. Przy innym <code>binlog_format</code> (MIXED lub STATEMENT) pełne kopie kończą się ostrzeżeniem: przywracanie do punktu w czasie odtwarza instrukcje, co może dać inny wynik niż na oryginalnym serwerze.</p>
 <ul>
   <li><b>Przywróć bazę danych</b>: jej zrzut jest ładowany do nowej bazy (lub zastępuje istniejącą). <b>Na określoną chwilę</b> lub <b>najnowszy stan</b>: zmiany tej bazy zapisane w dziennikach binarnych po zrzucie są odtwarzane do tej chwili — także gdy baza dostaje nową nazwę. Odtwarzanie nie jest zapisywane w dzienniku binarnym serwera.</li>
   <li>Użytkownicy i uprawnienia (systemowa baza <code>mysql</code>) nie są częścią zrzutów.</li>

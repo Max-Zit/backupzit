@@ -1103,6 +1103,7 @@
   "Request rejected; nothing was changed.": "Talep reddedildi; hiçbir şey değiştirilmedi.",
   "Requested": "Talep edildi",
   "Requested by": "Talep eden",
+  "Requests reach the console through a reverse proxy on this machine (from 127.0.0.1 with X-Forwarded-For), but no reverse proxy is set: brute-force protection and the web access limits see every browser as this machine. Enter 127.0.0.1 and ::1 under Reverse proxies.": "İstekler konsola bu makinedeki bir ters vekil sunucu üzerinden ulaşıyor (127.0.0.1'den X-Forwarded-For ile), ancak hiçbir ters vekil sunucu ayarlanmamış: kaba kuvvet koruması ve web erişim sınırları her tarayıcıyı bu makine olarak görür. Ters vekil sunucular alanına 127.0.0.1 ve ::1 girin.",
   "Require a second user's approval for destructive changes": "Yıkıcı değişiklikler için ikinci bir kullanıcının onayını iste",
   "Require application-consistent checkpoints": "Uygulamayla tutarlı denetim noktaları zorunlu olsun",
   "Required for administrators": "Yöneticiler için zorunlu",

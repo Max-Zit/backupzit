@@ -92,6 +92,9 @@ func (s *Server) limitAccess(h http.Handler, main bool) http.Handler {
 			return
 		}
 		ip := s.guard.ClientIP(r)
+		if loopback(ip) && r.Header.Get("X-Forwarded-For") != "" {
+			s.noteUnsetProxy(r)
+		}
 		if !loopback(ip) {
 			a := s.webAccess(r.Context())
 			if (main && a.AgentPortOnly && s.webPortActive()) || (len(a.Allow) > 0 && !inPrefixes(ip, a.Allow)) {
@@ -152,4 +155,29 @@ func (s *Server) onMainPort(r *http.Request) bool {
 // (the appliance's setup menu, for a lock-out).
 func (s *Store) ResetWebAccess(ctx context.Context) error {
 	return s.SetSetting(ctx, settingWebAccess, WebAccess{})
+}
+
+// noteUnsetProxy remembers a request from this machine that names another
+// client in X-Forwarded-For although no reverse proxy is set: a proxy on
+// the console server itself (nginx, Caddy) makes every browser look like
+// 127.0.0.1, so the brute-force protection counts them all as one
+// address and the web access limits do not apply (A20). A warning only,
+// logged at most once an hour and shown under Settings → Sign-in &
+// security.
+func (s *Server) noteUnsetProxy(r *http.Request) {
+	if len(s.guard.settings(r.Context()).TrustedProxies) > 0 {
+		return
+	}
+	now := time.Now().Unix()
+	s.proxySeen.Store(now)
+	if last := s.proxyLogged.Load(); now-last >= 3600 && s.proxyLogged.CompareAndSwap(last, now) {
+		s.log.Warn("requests come through a reverse proxy on this machine (X-Forwarded-For), but no reverse proxy is set under Settings → Sign-in & security: brute-force protection and web access limits see every client as this machine")
+	}
+}
+
+// unsetProxyHint tells the settings page to show the warning of
+// noteUnsetProxy (seen within a day, still no proxy set).
+func (s *Server) unsetProxyHint(ctx context.Context) bool {
+	seen := s.proxySeen.Load()
+	return seen > 0 && time.Now().Unix()-seen < 86400 && len(s.guard.settings(ctx).TrustedProxies) == 0
 }

@@ -42,7 +42,7 @@ server_id = 1
 log_bin = /var/log/mysql/mysql-bin
 binlog_format = ROW
 expire_logs_days = 7</pre>
-<p>(günlük için sahibi mysql hesabı olan klasörü oluşturun). Günlük yedekleri bundan sonra kapanan her ikili günlüğü saklar. Sunucunun kendi sona erme süresini günlük yedekleme aralığından uzun tutun; bir boşluk bildirilir ve geri yüklemeler onu aşamaz.</p>
+<p>(günlük için sahibi mysql hesabı olan klasörü oluşturun). Günlük yedekleri bundan sonra kapanan her ikili günlüğü saklar. Sunucunun kendi sona erme süresini günlük yedekleme aralığından uzun tutun; bir boşluk bildirilir ve geri yüklemeler onu aşamaz. Başka bir <code>binlog_format</code> (MIXED veya STATEMENT) ile tam yedekler bir uyarıyla biter: belirli bir ana geri yükleme deyimleri yeniden çalıştırır ve bu, özgün sunucudakinden farklı bir sonuç verebilir.</p>
 <ul>
   <li><b>Bir veritabanını geri yükle</b>: dökümü yeni bir veritabanına yüklenir (veya mevcut birinin yerini alır). <b>Belirli bir zamana</b> veya <b>en son</b> haline: dökümden sonra ikili günlüklere kaydedilen o veritabanının değişiklikleri o zamana kadar yeniden oynatılır — veritabanı yeni bir ad aldığında da. Yeniden oynatma sunucunun ikili günlüğüne yazılmaz.</li>
   <li>Kullanıcılar ve yetkiler (<code>mysql</code> sistem veritabanı) dökümlere dahil değildir.</li>

@@ -42,7 +42,7 @@ server_id = 1
 log_bin = /var/log/mysql/mysql-bin
 binlog_format = ROW
 expire_logs_days = 7</pre>
-<p>(créez le dossier du journal, avec le compte mysql comme propriétaire). Les sauvegardes de journaux stockent ensuite chaque journal binaire fermé. Gardez la durée d'expiration propre au serveur plus longue que l'intervalle des sauvegardes de journaux ; un trou est signalé, et les restaurations ne peuvent pas le franchir.</p>
+<p>(créez le dossier du journal, avec le compte mysql comme propriétaire). Les sauvegardes de journaux stockent ensuite chaque journal binaire fermé. Gardez la durée d'expiration propre au serveur plus longue que l'intervalle des sauvegardes de journaux ; un trou est signalé, et les restaurations ne peuvent pas le franchir. Avec un autre <code>binlog_format</code> (MIXED ou STATEMENT), les sauvegardes complètes se terminent par un avertissement : les restaurations à un instant donné rejouent des instructions, ce qui peut donner un autre résultat que sur le serveur d'origine.</p>
 <ul>
   <li><b>Restaurer une base de données</b> : son dump est chargé dans une nouvelle base (ou remplace une base existante). <b>À un instant précis</b> ou <b>le plus récent</b> : les modifications de cette base enregistrées dans les journaux binaires après le dump sont rejouées jusqu'à cet instant — y compris quand la base reçoit un nouveau nom. Le rejeu n'est pas écrit dans le journal binaire du serveur.</li>
   <li>Les utilisateurs et privilèges (la base système <code>mysql</code>) ne font pas partie des dumps.</li>

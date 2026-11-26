@@ -42,7 +42,7 @@ server_id = 1
 log_bin = /var/log/mysql/mysql-bin
 binlog_format = ROW
 expire_logs_days = 7</pre>
-<p>(crea la cartella per il log, con l'account mysql come proprietario). I backup dei log salvano poi ogni log binario chiuso. Mantieni la scadenza propria del server più lunga dell'intervallo dei backup dei log; un buco viene segnalato e i ripristini non possono superarlo.</p>
+<p>(crea la cartella per il log, con l'account mysql come proprietario). I backup dei log salvano poi ogni log binario chiuso. Mantieni la scadenza propria del server più lunga dell'intervallo dei backup dei log; un buco viene segnalato e i ripristini non possono superarlo. Con un altro <code>binlog_format</code> (MIXED o STATEMENT) i backup completi terminano con un avviso: i ripristini a un momento preciso rieseguono le istruzioni, il che può dare un risultato diverso da quello del server originale.</p>
 <ul>
   <li><b>Ripristina un database</b>: il suo dump viene caricato in un nuovo database (o ne sostituisce uno esistente). <b>A un momento preciso</b> o <b>il più recente</b>, le modifiche di quel database registrate nei log binari dopo il dump vengono riapplicate fino a quel momento — anche quando il database riceve un nuovo nome. La riapplicazione non viene scritta nel log binario del server.</li>
   <li>Utenti e privilegi (il database di sistema <code>mysql</code>) non fanno parte dei dump.</li>

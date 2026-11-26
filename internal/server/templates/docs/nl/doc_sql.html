@@ -42,7 +42,7 @@ server_id = 1
 log_bin = /var/log/mysql/mysql-bin
 binlog_format = ROW
 expire_logs_days = 7</pre>
-<p>(maak de map voor het logboek aan, met het account mysql als eigenaar). De logback-ups slaan daarna elk gesloten binair logboek op. Houd de eigen vervaltermijn van de server langer dan het interval van de logback-ups; een gat wordt gemeld en herstel kan het niet overbruggen.</p>
+<p>(maak de map voor het logboek aan, met het account mysql als eigenaar). De logback-ups slaan daarna elk gesloten binair logboek op. Houd de eigen vervaltermijn van de server langer dan het interval van de logback-ups; een gat wordt gemeld en herstel kan het niet overbruggen. Met een ander <code>binlog_format</code> (MIXED of STATEMENT) eindigen de volledige back-ups met een waarschuwing: herstel naar een tijdstip speelt statements opnieuw af, wat een ander resultaat kan geven dan op de oorspronkelijke server.</p>
 <ul>
   <li><b>Een database herstellen</b>: de dump wordt in een nieuwe database geladen (of vervangt een bestaande). <b>Naar een tijdstip</b> of <b>nieuwste</b>: de wijzigingen van die database die na de dump in de binaire logboeken zijn vastgelegd, worden tot dat tijdstip afgespeeld — ook als de database een nieuwe naam krijgt. Het afspelen wordt niet in het binaire logboek van de server geschreven.</li>
   <li>Gebruikers en rechten (de systeemdatabase <code>mysql</code>) maken geen deel uit van de dumps.</li>
