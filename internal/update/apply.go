@@ -306,12 +306,26 @@ func copyRegular(src, dst string) error {
 		return err
 	}
 	defer in.Close()
+	// The file opened must be the one checked above: not swapped for a
+	// link or a device in between (A17).
+	opened, err := in.Stat()
+	if err != nil {
+		return err
+	}
+	if !opened.Mode().IsRegular() || !os.SameFile(fi, opened) {
+		return fmt.Errorf("%s changed while it was being copied", src)
+	}
 	tmp := dst + ".tmp"
 	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) // #nosec G304 -- files of our own update or package directory
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(out, in); err != nil {
+	// At most the size it had: a file that keeps growing must not fill the disk.
+	n, err := io.Copy(out, io.LimitReader(in, opened.Size()))
+	if err == nil && n != opened.Size() {
+		err = fmt.Errorf("%s: copied %d of %d bytes", src, n, opened.Size())
+	}
+	if err != nil {
 		_ = out.Close()
 		_ = os.Remove(tmp)
 		return err
