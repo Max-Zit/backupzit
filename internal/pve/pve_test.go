@@ -137,10 +137,20 @@ func TestBootTestConfig(t *testing.T) {
 	if !hasGuestAgent("agent: 1\nname: x\n") || !hasGuestAgent("agent: enabled=1,fstrim_cloned_disks=1\n") || hasGuestAgent("agent: 0\n") || hasGuestAgent("name: x\n[snap]\nagent: 1\n") {
 		t.Error("hasGuestAgent wrong")
 	}
-	got := isolateConfig("name: x\nonboot: 1\nnet0: virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0\nnet1: e1000=AA:BB:CC:DD:EE:00,bridge=vmbr1,link_down=1\n")
+	got, left := isolateConfig("name: x\nonboot: 1\nnet0: virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0\nnet1: e1000=AA:BB:CC:DD:EE:00,bridge=vmbr1,link_down=1\n")
 	want := "name: x\nnet0: virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0,link_down=1\nnet1: e1000=AA:BB:CC:DD:EE:00,bridge=vmbr1,link_down=1\n"
-	if got != want {
-		t.Errorf("isolateConfig:\n%s", got)
+	if got != want || len(left) != 0 {
+		t.Errorf("isolateConfig:\n%s %v", got, left)
+	}
+	// A9: settings that reach outside the VM are left out (also in
+	// snapshot sections); a serial port that is a socket stays.
+	got, left = isolateConfig("name: x\nhookscript: local:snippets/hook.pl\nargs: -netdev user,id=n9 -device e1000,netdev=n9\n" +
+		"hostpci0: 0000:01:00.0,pcie=1\nusb0: host=1234:5678\nserial0: socket\nserial1: /dev/ttyS0\nparallel0: /dev/parport0\n" +
+		"virtiofs0: share1\nnet0: virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0\n[snap1]\nargs: -foo\nhostpci0: 0000:02:00.0\n")
+	want = "name: x\nserial0: socket\nnet0: virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0,link_down=1\n[snap1]\n"
+	wantLeft := "hookscript,args,hostpci0,usb0,serial1,parallel0,virtiofs0"
+	if got != want || strings.Join(left, ",") != wantLeft {
+		t.Errorf("isolateConfig with host settings:\n%s\nleft out %v", got, left)
 	}
 }
 

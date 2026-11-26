@@ -2197,6 +2197,7 @@
   "smtp.office365.com": "smtp.office365.com",
   "so it appears here.": "，使其显示在这里。",
   "ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub": "ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub",
+  "started without (isolation):": "启动时未包含（隔离）：",
   "starts in seconds from a datastore the host's Linux proxy agent serves over NFS; then finish (copy the disks to a datastore, with a short shutdown) or discard it on the run page": "从主机的 Linux 代理通过 NFS 提供的数据存储在数秒内启动；然后在运行页面完成（将磁盘复制到数据存储，需短暂关机）或丢弃",
   "starts in seconds from a datastore the host's Linux proxy agent serves over NFS; then finish (move it to a datastore: with Storage vMotion on vCenter, with a short shutdown on a single host) or discard it on the run page": "从主机的 Linux 代理通过 NFS 提供的数据存储在数秒内启动；随后在运行页面上完成（迁移到数据存储：vCenter 上使用 Storage vMotion，单台主机上需短暂关机）或丢弃",
   "still has the generated initial password — change it under Account": "仍在使用生成的初始密码 — 请在“账户”中更改",

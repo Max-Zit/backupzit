@@ -2197,6 +2197,7 @@
   "smtp.office365.com": "smtp.office365.com",
   "so it appears here.": ", damit er hier erscheint.",
   "ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub": "ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub",
+  "started without (isolation):": "gestartet ohne (Isolation):",
   "starts in seconds from a datastore the host's Linux proxy agent serves over NFS; then finish (copy the disks to a datastore, with a short shutdown) or discard it on the run page": "startet in Sekunden aus einem Datenspeicher, den der Linux-Proxy-Agent des Hosts über NFS bereitstellt; danach auf der Ausführungsseite abschließen (Datenträger mit kurzer Abschaltung in einen Datenspeicher kopieren) oder verwerfen",
   "starts in seconds from a datastore the host's Linux proxy agent serves over NFS; then finish (move it to a datastore: with Storage vMotion on vCenter, with a short shutdown on a single host) or discard it on the run page": "startet in Sekunden von einem Datastore, den der Linux-Proxy-Agent des Hosts per NFS bereitstellt; danach auf der Laufseite abschließen (auf einen Datastore verschieben: mit Storage vMotion bei vCenter, mit kurzem Herunterfahren auf einem einzelnen Host) oder verwerfen",
   "still has the generated initial password — change it under Account": "hat noch das erzeugte Anfangspasswort — ändern Sie es unter Konto",

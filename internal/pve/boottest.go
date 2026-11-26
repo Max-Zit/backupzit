@@ -25,6 +25,9 @@ type BootResult struct {
 	Snapshot string        `json:"snapshot,omitempty"`
 	Checks   []CheckResult `json:"checks,omitempty"`
 	Passed   bool          `json:"passed,omitempty"`
+	// LeftOut are the settings the isolated copy was started without
+	// (hookscript, args, passed-through devices, …, 0.62).
+	LeftOut []string `json:"left_out,omitempty"`
 }
 
 // BootTest starts a VM of a backup as an isolated instant VM (network cards
@@ -51,6 +54,7 @@ func BootTest(ctx context.Context, sn *repo.Snapshot, vmid int, timeout time.Dur
 		return res
 	}
 	defer InstantDiscard(context.Background(), ir.VMID)
+	res.LeftOut = ir.LeftOut
 	if !ir.Started {
 		res.Error = "the VM did not start: " + strings.Join(ir.Notes, "; ")
 		return res
@@ -107,14 +111,32 @@ func hasGuestAgent(conf string) bool {
 	return agentOn.MatchString(conf)
 }
 
-// isolateConfig disconnects the network cards and drops autostart, for
-// VMs that must not reach the network (boot tests).
-func isolateConfig(conf string) string {
+// isolatedDropRe are the settings an isolated VM leaves out: a hook script
+// runs on the host, raw QEMU arguments can add network devices, and passed
+// through PCI or USB devices, host shares (virtiofs) and serial or
+// parallel ports of the host reach outside the VM.
+var isolatedDropRe = regexp.MustCompile(`^(hookscript|args|hostpci\d+|usb\d+|virtiofs\d+)$`)
+
+var hostPortRe = regexp.MustCompile(`^(serial|parallel)\d+$`)
+
+// isolateConfig disconnects the network cards and drops autostart and the
+// settings that reach outside the VM (isolatedDropRe, serial and parallel
+// ports on host devices), for VMs that must not reach the network (boot
+// tests). It returns the keys it left out (each once).
+func isolateConfig(conf string) (string, []string) {
 	var b strings.Builder
+	var dropped []string
+	seen := map[string]bool{}
 	for _, l := range strings.SplitAfter(conf, "\n") {
 		k, v, ok := strings.Cut(strings.TrimRight(l, "\n"), ":")
 		switch {
 		case ok && k == "onboot":
+			continue
+		case ok && (isolatedDropRe.MatchString(k) || hostPortRe.MatchString(k) && strings.HasPrefix(strings.TrimSpace(v), "/dev/")):
+			if !seen[k] {
+				seen[k] = true
+				dropped = append(dropped, k)
+			}
 			continue
 		case ok && qemuNetRe.MatchString(k):
 			v = strings.TrimSpace(v)
@@ -125,5 +147,5 @@ func isolateConfig(conf string) string {
 		}
 		b.WriteString(l)
 	}
-	return b.String()
+	return b.String(), dropped
 }

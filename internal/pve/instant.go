@@ -176,7 +176,12 @@ func InstantStart(ctx context.Context, sn *repo.Snapshot, opts InstantOptions) (
 	conf = "description: BackupZit instant recovery from backup " + sn.ID.Short() + " of " + sn.Time.Local().Format("2006-01-02 15:04") +
 		". Finish (move the disks to their storage) or discard it in the BackupZit console.\n" + stripDescription(conf)
 	if opts.Isolated {
-		conf = isolateConfig(conf)
+		var left []string
+		conf, left = isolateConfig(conf)
+		res.LeftOut = left
+		if len(left) > 0 {
+			res.Notes = append(res.Notes, "isolated: left out "+strings.Join(left, ", "))
+		}
 	}
 	cfgFile := filepath.Join(ConfigDir, "nodes", inv.Node, "qemu-server", strconv.Itoa(target)+".conf")
 	if err := os.WriteFile(cfgFile, []byte(conf), 0o640); err != nil { // #nosec G306 -- Proxmox guest configuration, 0640 as Proxmox writes it

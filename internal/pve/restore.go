@@ -54,6 +54,8 @@ type RestoreResult struct {
 	// the original guest still exists.
 	NewMACs bool     `json:"new_macs,omitempty"`
 	Notes   []string `json:"notes,omitempty"`
+	// LeftOut are the settings an isolated VM was started without (A9).
+	LeftOut []string `json:"left_out,omitempty"`
 }
 
 // FindGuest returns a guest of a snapshot.

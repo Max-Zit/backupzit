@@ -2197,6 +2197,7 @@
   "smtp.office365.com": "smtp.office365.com",
   "so it appears here.": "から起動すると、ここに表示されます。",
   "ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub": "ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub",
+  "started without (isolation):": "除外して起動（分離）:",
   "starts in seconds from a datastore the host's Linux proxy agent serves over NFS; then finish (copy the disks to a datastore, with a short shutdown) or discard it on the run page": "ホストの Linux プロキシエージェントが NFS で提供するデータストアから数秒で起動します。その後、実行ページで完了（短時間停止してディスクをデータストアにコピー）または破棄します",
   "starts in seconds from a datastore the host's Linux proxy agent serves over NFS; then finish (move it to a datastore: with Storage vMotion on vCenter, with a short shutdown on a single host) or discard it on the run page": "ホストの Linux プロキシ エージェントが NFS で提供するデータストアから数秒で起動します。その後、実行ページで完了（データストアへの移動: vCenter では Storage vMotion、単独ホストでは短いシャットダウン）または破棄します",
   "still has the generated initial password — change it under Account": "生成された初期パスワードのままです — アカウントで変更してください",
