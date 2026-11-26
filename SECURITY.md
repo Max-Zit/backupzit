@@ -13,6 +13,12 @@ Please report security problems privately, not in a public issue:
 
 We confirm reports within a few working days, fix confirmed problems in a new release and credit the reporter in the release notes unless they prefer otherwise.
 
+## What to know when you set it up
+
+- **The console controls the agents.** Whoever controls the console — an administrator account or the console server itself — can run backups, restores that overwrite files and the commands of jobs as root or SYSTEM on every agent. Protect it like other systems with that reach: two-factor sign-in, four-eyes approval, web access only from the administrators' network, and the console server patched and not shared with other services.
+- **Machines on one storage target share it.** Agents that back up to the same target use its credentials and its recovery key, so root or SYSTEM on one of them can read the other machines' backups there and, without immutable storage, delete them. Use immutable storage (the hardened repository or S3 Object Lock), so a compromised machine cannot delete backups, and separate targets with their own account and key for machines that must not trust each other.
+- **A suspicious backup pauses more than retention.** When a backup looks like ransomware or mass deletion, the job removes no older backups, copy jobs after each backup and replication do not start, and copy jobs remove no older copies until someone has checked the machine.
+
 ## How releases are protected
 
 - Every release is signed with the BackupZit release key; consoles verify the signature and checksums before installing an update. Agents download updates only from their console over the pinned connection. Since 0.56 they install an update only if the installer is in the list of agent installers signed with the release key (checked with the key built into the agent) and is newer than the agent; a changed installer on the console is refused. Older agents check only the SHA-256 checksum the console gives.
