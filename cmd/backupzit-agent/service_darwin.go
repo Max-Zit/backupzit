@@ -31,7 +31,7 @@ type launchdService struct {
 }
 
 // platformService replaces the library's install and control on macOS.
-func platformService(s service.Service, args []string) service.Service {
+func platformService(s service.Service, args []string, _ *program) service.Service {
 	return &launchdService{Service: s, args: args}
 }
 

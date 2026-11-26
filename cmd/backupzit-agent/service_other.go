@@ -9,4 +9,4 @@ import "github.com/kardianos/service"
 const installNeedsEnrollment = true
 
 // platformService: kardianos/service installs and controls the service.
-func platformService(s service.Service, _ []string) service.Service { return s }
+func platformService(s service.Service, _ []string, _ *program) service.Service { return s }

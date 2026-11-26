@@ -27,17 +27,20 @@ const preshutdownTimeout = 3 * time.Minute
 // a running backup was cut off without a word to the console. The
 // pre-shutdown notice comes before that, while the network still works,
 // so the agent stops the run, unlocks the repository and reports.
-func platformService(s service.Service, _ []string) service.Service {
-	return &winService{Service: s}
+func platformService(s service.Service, _ []string, p *program) service.Service {
+	return &winService{Service: s, p: p}
 }
 
-type winService struct{ service.Service }
+type winService struct {
+	service.Service
+	p *program // the program the handler starts and stops
+}
 
 func (w *winService) Run() error {
-	if is, err := svc.IsWindowsService(); err != nil || !is || serviceProgram == nil {
+	if is, err := svc.IsWindowsService(); err != nil || !is || w.p == nil {
 		return w.Service.Run() // in the foreground
 	}
-	return svc.Run(serviceName, &winHandler{s: w, p: serviceProgram})
+	return svc.Run(serviceName, &winHandler{s: w, p: w.p})
 }
 
 type winHandler struct {
