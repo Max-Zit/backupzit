@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -138,5 +139,46 @@ func TestReadAheadFailedRead(t *testing.T) {
 	ra2.Close()
 	if n := sh2.active.Load(); n != 0 {
 		t.Errorf("%d reads still running after a cancel", n)
+	}
+}
+
+// Close right after the first Get, before all readers may have started:
+// every reader still ends and Close returns (a reader that looked at the
+// queue only after Close cleared it waited forever, #71 CI). One thread
+// and a backend without delay make a late reader likely.
+func TestReadAheadCloseRightAway(t *testing.T) {
+	ctx := context.Background()
+	local, err := backend.OpenLocal(filepath.Join(t.TempDir(), "repo"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := repo.Init(ctx, local)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	ids := make([]repo.ID, 8)
+	for i := range ids {
+		if ids[i], _, err = r.SaveBlob(ctx, repo.DataBlob, []byte(fmt.Sprintf("block %d", i))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := r.Flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for range 200 {
+			ra := r.ReadAhead(ctx, ids, func(int) bool { return true })
+			_, _ = ra.Get(0)
+			ra.Close()
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		t.Fatal("ReadAhead.Close hangs")
 	}
 }

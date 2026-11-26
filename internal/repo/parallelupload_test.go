@@ -302,7 +302,9 @@ func TestShareUploadsInBackground(t *testing.T) {
 		}
 		done <- r.Flush(ctx)
 	}()
+	drained := make(chan struct{})
 	go func() {
+		defer close(drained)
 		for range be.started {
 		}
 	}()
@@ -310,6 +312,8 @@ func TestShareUploadsInBackground(t *testing.T) {
 	if err := <-done; err != nil {
 		t.Fatal(err)
 	}
+	close(be.started) // no upload is left to start
+	<-drained
 	if got := be.maxSeen.Load(); got < 1 || got > 2 {
 		t.Errorf("%d uploads at once on a share, want 1–2", got)
 	}
