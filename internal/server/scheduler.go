@@ -107,10 +107,15 @@ func (s *Scheduler) Tick(ctx context.Context, now time.Time) {
 	if err := s.store.pruneAgentLogs(ctx); err != nil {
 		s.log.Error("prune agent logs", "err", err)
 	}
-	if n, err := s.store.expireWindowRuns(ctx, now); err != nil {
+	if ids, err := s.store.expireWindowRuns(ctx, now); err != nil {
 		s.log.Error("expire runs outside their backup window", "err", err)
-	} else if n > 0 {
-		s.log.Warn("runs not started within their backup window were cancelled", "count", n)
+	} else if len(ids) > 0 {
+		s.log.Warn("runs not started within their backup window were cancelled", "count", len(ids))
+		for _, id := range ids {
+			if err := s.store.noteScheduleMiss(ctx, id, missWindow, now); err != nil {
+				s.log.Error("note a missed backup window", "job", id, "err", err)
+			}
+		}
 	}
 	if names, err := s.store.RemoveStaleRecoveryAgents(ctx, now); err != nil {
 		s.log.Error("remove old recovery agents", "err", err)
@@ -153,6 +158,9 @@ func (s *Scheduler) Tick(ctx context.Context, now time.Time) {
 		switch {
 		case errors.Is(err, ErrRunActive):
 			s.log.Warn("skipping scheduled backup, previous run still active", "job", j.Name)
+			if err := s.store.noteScheduleMiss(ctx, j.ID, missSkipped, now); err != nil {
+				s.log.Error("note a skipped schedule", "job", j.ID, "err", err)
+			}
 		case err != nil:
 			s.log.Error("queue scheduled backup", "job", j.ID, "err", err)
 		default:

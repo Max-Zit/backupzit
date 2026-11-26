@@ -275,6 +275,7 @@ func (n *Notifier) Pass(ctx context.Context, now time.Time) {
 	n.runAlerts(ctx, l, e, n.store.chatSettings(ctx))
 	n.rpoAlerts(ctx, l, e, n.store.chatSettings(ctx), now)
 	n.leftoverAlerts(ctx, l, e, n.store.chatSettings(ctx), now)
+	n.scheduleMissAlerts(ctx, l, e, n.store.chatSettings(ctx))
 	if e.Enabled {
 		n.scheduledReports(ctx, l, e, now)
 	}

@@ -52,6 +52,6 @@
  "bytes_read": 12884901888, "bytes_stored": 1073741824, "snapshot": "9f3c2a1b",
  "url": "https://backup.example/runs/412"}</pre>
 <p><code>duration_s</code> 是运行耗时（秒）。对于备份，<code>files</code> 和 <code>bytes</code> 是被备份数据的大小，<code>bytes_read</code> 是读取的量，<code>bytes_stored</code> 是上传到存储的量；<code>snapshot</code> 是新备份的 ID。</p>
-<p>错过恢复点目标的作业会发送 <code>{"event": "rpo.missed", "job_id", "job", "agent", "rpo_hours", "last_good_backup", "url"}</code>；空字段（例如 <code>suspicious</code>，或不属于任何作业的运行的作业字段）会被省略。Slack 和 Teams 的 URL 必须使用 https://。每次运行只发送一次消息，即使关闭了电子邮件也会发送。出错的通道（URL 错误、服务不可用）会记录在控制台日志中，不会耽误其他通道。Webhook URL 加密存储。</p>
+<p>错过恢复点目标的作业会发送 <code>{"event": "rpo.missed", "job_id", "job", "agent", "rpo_hours", "last_good_backup", "url"}</code>；空字段（例如 <code>suspicious</code>，或不属于任何作业的运行的作业字段）会被省略。Slack 和 Teams 的 URL 必须使用 https://。每次运行只发送一次消息，即使关闭了电子邮件也会发送。出错的通道（URL 错误、服务不可用）会记录在控制台日志中，不会耽误其他通道。Webhook URL 加密存储。 因作业的上一次运行仍在进行而被跳过的计划备份，或未在作业备份窗口内启动的备份，每个作业只发送一次通知（随失败通知发送的邮件，以及带有 <code>"job_id", "job", "agent", "count", "since"</code> 的 <code>{"event": "schedule.skipped"}</code> 或 <code>"schedule.window_missed"</code>），下一次通知只会在作业期间成功备份之后才发送。</p>
 {{template "docpager" .}}
 </article></div>{{end}}

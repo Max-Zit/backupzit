@@ -166,12 +166,18 @@ const windowClosedTmpl = `(r.trigger IN ('schedule','after-job','after-backup') 
 // expireWindowRuns cancels scheduled and chained runs that could not start
 // within their job's backup window (queued over a minute ago, window closed
 // now), so they do not start during working hours.
-func (s *Store) expireWindowRuns(ctx context.Context, now time.Time) (int64, error) {
-	ct, err := s.db.Exec(ctx, `UPDATE runs r SET status='cancelled', finished_at=now(), notified=true,
+func (s *Store) expireWindowRuns(ctx context.Context, now time.Time) ([]int64, error) {
+	rows, err := s.db.Query(ctx, `UPDATE runs r SET status='cancelled', finished_at=now(), notified=true,
 		message=format('Not started: the backup window %s:00–%s:00 closed', lpad(COALESCE(j.options->>'window_from','0'),2,'0'), lpad(COALESCE(j.options->>'window_to','0'),2,'0'))
-		FROM jobs j WHERE j.id=r.job_id AND r.status='queued' AND r.queued_at < $2 AND `+windowClosed(1),
+		FROM jobs j WHERE j.id=r.job_id AND r.status='queued' AND r.queued_at < $2 AND `+windowClosed(1)+`
+		RETURNING r.job_id`,
 		now.Hour(), now.Add(-time.Minute))
-	return ct.RowsAffected(), err
+	if err != nil {
+		return nil, err
+	}
+	// The runs' own notices stay off (notified): one notice per job goes
+	// out instead (scheduleMissAlerts, B2).
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
 }
 
 // windowClosed is windowClosedTmpl with the hour as parameter $n.
