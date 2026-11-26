@@ -20,7 +20,7 @@
   <li>the number of files suddenly dropped by a third or more,</li>
   <li>a sudden jump in the amount of new data (also for disk images, Linux systems and VMs).</li>
 </ul>
-<p>Then BackupZit sends an alert email (with failure notifications on), shows the backup on the dashboard as <i>suspicious backups to review</i>, and <b>pauses the job's retention</b>: no older backup is deleted, so the last clean backups stay restorable even if the damaged backups keep coming. After checking the machine, click <i>Reviewed — resume retention</i> on the job page. Copies wait as well: until then, copy jobs that run after each backup and replication do not start, and copy jobs with their own schedule copy without removing older copies, so damaged backups cannot push the clean copies out of the other storage either.</p>
+<p>Then BackupZit sends an alert email (with failure notifications on), shows the backup on the dashboard as <i>suspicious backups to review</i>, and <b>pauses the job's retention</b>: no older backup is deleted, so the last clean backups stay restorable even if the damaged backups keep coming. After checking the machine, click <i>Reviewed — resume retention</i> on the job page. Copies wait as well: until then, copy jobs that run after each backup and replication do not start, and copy jobs with their own schedule copy without removing older copies, so damaged backups cannot push the clean copies out of the other storage either. Since 0.62 the agent runs the same check before it applies the job's retention, so the suspicious backup itself removes no older backup either (its run says <i>Retention skipped</i>); agents before 0.62 may still remove the oldest backup in that one run.</p>
 
 <h2>Immutable S3 with Object Lock</h2>
 <ol>

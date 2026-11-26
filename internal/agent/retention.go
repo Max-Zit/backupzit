@@ -2,10 +2,12 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/max-zit/backupzit/internal/anomaly"
 	"github.com/max-zit/backupzit/internal/api"
 	"github.com/max-zit/backupzit/internal/backend"
 	"github.com/max-zit/backupzit/internal/repo"
@@ -136,6 +138,20 @@ func humanSize(b uint64) string {
 func (a *Agent) withRetention(ctx context.Context, r *repo.Repository, run api.Run, res api.RunResult) api.RunResult {
 	if res.Status == api.StatusFailed {
 		return res
+	}
+	// A backup that looks like ransomware or mass deletion removes no older
+	// backup (B5): the console flags it after the run, too late to stop the
+	// retention of this very run. Locks are still extended, for every
+	// backup of the job.
+	if run.Retention != nil && len(run.RecentStats) >= anomaly.MinHistory && anomaly.Checked(run.Kind) {
+		var cur repo.SnapshotStats
+		if json.Unmarshal(res.Stats, &cur) == nil {
+			if reasons := anomaly.Detect(run.Kind, cur, run.RecentStats); len(reasons) > 0 {
+				a.log.Warn("suspicious backup: retention skipped", "run", run.ID, "why", strings.Join(reasons, "; "))
+				run.Retention = nil
+				res.Message = strings.TrimSpace(strings.TrimSuffix(res.Message, ".") + ". Retention skipped: this backup looks suspicious (" + strings.Join(reasons, "; ") + ")")
+			}
+		}
 	}
 	if err := a.keepImmutable(ctx, r, run, res.SnapshotID); err != nil {
 		a.log.Warn("extend immutability", "run", run.ID, "err", err)

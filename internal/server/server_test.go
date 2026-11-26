@@ -1545,9 +1545,31 @@ func TestRansomwareDetection(t *testing.T) {
 		rng.Read(b)
 		os.WriteFile(filepath.Join(src, fmt.Sprintf("doc%03d.txt", i)), b, 0o644)
 	}
+	cleanBefore := 0
+	if runs, _ := e.store.ListRuns(ctx, server.RunFilter{JobID: jobID}); len(runs) > 0 {
+		for _, x := range runs {
+			if !x.Expired && x.Kind == api.KindBackup {
+				cleanBefore++
+			}
+		}
+	}
 	r := backup()
 	if r.Anomaly == "" {
 		t.Fatal("encrypted files not detected")
+	}
+	// B5: the suspicious run itself removed no older backup.
+	if !strings.Contains(r.Message, "Retention skipped: this backup looks suspicious") {
+		t.Errorf("the suspicious run applied its retention: %q", r.Message)
+	}
+	cleanAfter := 0
+	runs0, _ := e.store.ListRuns(ctx, server.RunFilter{JobID: jobID})
+	for _, x := range runs0 {
+		if !x.Expired && x.Kind == api.KindBackup && x.ID != r.ID {
+			cleanAfter++
+		}
+	}
+	if cleanAfter != cleanBefore {
+		t.Errorf("clean backups before the suspicious run: %d, after: %d", cleanBefore, cleanAfter)
 	}
 	t.Log(r.Anomaly)
 	if j, _ := e.store.GetJob(ctx, jobID); !j.RetentionHold {

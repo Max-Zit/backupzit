@@ -259,6 +259,11 @@ type Run struct {
 	// KeepSnapshots are never removed by retention or by a repair: VMs run from them
 	// (instant recovery).
 	KeepSnapshots []string `json:"keep_snapshots,omitempty"`
+	// RecentStats are the statistics of the job's last clean backups (newest
+	// first, 0.62): the agent compares the new backup with them before it
+	// applies Retention and skips retention when the backup looks like
+	// ransomware or mass deletion (anomaly.Detect, B5).
+	RecentStats []repo.SnapshotStats `json:"recent_stats,omitempty"`
 	// Part: a VMware backup split over several proxies (0.55) tags its
 	// snapshot with Part; retention (and a copy) deals with that part only,
 	// and every policy applies to each part on its own.

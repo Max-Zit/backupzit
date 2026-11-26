@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/max-zit/backupzit/internal/anomaly"
 	"github.com/max-zit/backupzit/internal/api"
 	"github.com/max-zit/backupzit/internal/imaging"
 	"github.com/max-zit/backupzit/internal/update"
@@ -449,6 +450,13 @@ func (s *Server) addRetention(ctx context.Context, run *Run, ar *api.Run) {
 			ar.KeepSnapshots = keep
 		} else {
 			ar.Retention = nil
+		}
+		// The agent compares the new backup with these before it applies
+		// the retention (B5): a suspicious backup removes nothing.
+		if ar.Retention != nil && anomaly.Checked(run.Kind) {
+			if hist, err := s.store.recentStats(ctx, j.ID, run.ID, run.Kind, run.Part); err == nil && len(hist) >= anomaly.MinHistory {
+				ar.RecentStats = hist
+			}
 		}
 	}
 }
