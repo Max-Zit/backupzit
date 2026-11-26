@@ -5,7 +5,7 @@
 <h2>Tokeni</h2>
 <p>Napravite token u <a href="/account#tokens">Moj nalog → API tokeni</a>. Dajte mu najnižu ulogu koja je dovoljna — <b>Posmatrač</b> za nadzor, <b>Operater vraćanja</b> da bi mogao i da pokreće bekape i testove vraćanja. Token se prikazuje jednom; šaljite ga u svakom zahtevu:</p>
 <pre>Authorization: Bearer bzt_...</pre>
-<p>Tokeni mogu da isteknu, može da ih opozove vlasnik ili administrator (<a href="/users">Korisnici</a>), i prestaju da rade kada se vlasnik onemogući. Radnje urađene tokenom pojavljuju se u dnevniku revizije sa imenom tokena. Nova lozinka koju postavi administrator opoziva i tokene vlasnika.</p>
+<p>Tokeni mogu da isteknu, može da ih opozove vlasnik ili administrator (<a href="/users">Korisnici</a>), i prestaju da rade kada se vlasnik onemogući. Radnje urađene tokenom pojavljuju se u dnevniku revizije sa imenom tokena. Nova lozinka koju postavi administrator opoziva i tokene vlasnika. Pravljenje tokena traži vašu lozinku ili dvofaktorski kod (korisnici jedinstvene prijave: prijava pre manje od 10 minuta), kao i pravljenje korisnika. Tokeni LDAP korisnika i korisnika jedinstvene prijave moraju da isteknu u roku od 365 dana, jer se ti nalozi ne proveravaju u direktorijumu kada se token koristi.</p>
 
 <h2>Krajnje tačke</h2>
 <p>Svi odgovori su JSON. Osnovni URL: <code>https://&lt;konzola&gt;:8443</code>.</p>

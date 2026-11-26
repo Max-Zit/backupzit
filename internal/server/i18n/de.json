@@ -1826,6 +1826,7 @@
   "date of the backup": "Datum der Sicherung",
   "days": "Tagen",
   "days; 0 = never": "Tage; 0 = nie",
+  "days; at most 365 for directory and single sign-on accounts": "Tage; höchstens 365 für Verzeichnis- und Single-Sign-on-Konten",
   "deb package": "deb-Paket",
   "default": "Standard",
   "default instance": "Standardinstanz",

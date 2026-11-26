@@ -1826,6 +1826,7 @@
   "date of the backup": "datum bekapa",
   "days": "dana",
   "days; 0 = never": "dana; 0 = nikad",
+  "days; at most 365 for directory and single sign-on accounts": "dana; najviše 365 za naloge iz direktorijuma i jedinstvene prijave",
   "deb package": "deb paket",
   "default": "podrazumevano",
   "default instance": "podrazumevana instanca",

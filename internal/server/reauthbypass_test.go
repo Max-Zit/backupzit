@@ -81,7 +81,7 @@ func TestReauthCannotBeBypassedWithASession(t *testing.T) {
 	}
 
 	// M-21: an administrator's password reset revokes the API tokens.
-	code, _, body := ana.do("POST", "/account/tokens", url.Values{"name": {"tool"}, "role": {"viewer"}, "days": {"30"}})
+	code, _, body := ana.do("POST", "/account/tokens", url.Values{"name": {"tool"}, "role": {"viewer"}, "days": {"30"}, "reauth_password": {ana.pw}})
 	m := regexp.MustCompile(`<pre id="newtok">(bzt_[A-Za-z0-9_-]+)</pre>`).FindStringSubmatch(body)
 	if code != 200 || m == nil {
 		t.Fatalf("create token: %d", code)

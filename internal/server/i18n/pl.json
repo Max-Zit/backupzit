@@ -1826,6 +1826,7 @@
   "date of the backup": "data kopii",
   "days": "dni",
   "days; 0 = never": "dni; 0 = nigdy",
+  "days; at most 365 for directory and single sign-on accounts": "dni; najwyżej 365 dla kont katalogowych i logowania jednokrotnego",
   "deb package": "pakiet deb",
   "default": "domyślna",
   "default instance": "instancja domyślna",

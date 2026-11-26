@@ -1826,6 +1826,7 @@
   "date of the backup": "备份日期",
   "days": "天后",
   "days; 0 = never": "天；0 = 永不",
+  "days; at most 365 for directory and single sign-on accounts": "天；目录账户和单点登录账户最多 365 天",
   "deb package": "deb 软件包",
   "default": "默认",
   "default instance": "默认实例",

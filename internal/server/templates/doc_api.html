@@ -5,7 +5,7 @@
 <h2>Tokens</h2>
 <p>Create a token under <a href="/account#tokens">My account → API tokens</a>. Give it the lowest role that is enough — <b>Viewer</b> for monitoring, <b>Restore operator</b> to also start backups and restore tests. The token is shown once; send it in every request:</p>
 <pre>Authorization: Bearer bzt_...</pre>
-<p>Tokens can expire, can be revoked by their owner or an administrator (<a href="/users">Users</a>), and stop working when the owner is disabled. Actions done with a token appear in the audit log with the token's name. A new password set by an administrator also revokes the owner's tokens.</p>
+<p>Tokens can expire, can be revoked by their owner or an administrator (<a href="/users">Users</a>), and stop working when the owner is disabled. Actions done with a token appear in the audit log with the token's name. A new password set by an administrator also revokes the owner's tokens. Creating a token asks for your password or two-factor code (single sign-on users: a sign-in less than 10 minutes ago), as creating a user does. Tokens of LDAP and single sign-on users must expire within 365 days, because these accounts are not checked against the directory when a token is used.</p>
 
 <h2>Endpoints</h2>
 <p>All responses are JSON. Base URL: <code>https://&lt;console&gt;:8443</code>.</p>

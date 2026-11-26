@@ -37,6 +37,10 @@ func (t APIToken) Expired() bool { return t.ExpiresAt != nil && time.Now().After
 
 var roleRank = map[string]int{"viewer": 1, "restore": 2, "operator": 3, "admin": 4}
 
+// maxDirectoryTokenDays is the longest expiry of an API token of an LDAP or
+// single sign-on user.
+const maxDirectoryTokenDays = 365
+
 func (s *Store) CreateAPIToken(ctx context.Context, owner User, name, role string, days int) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" || len(name) > 100 {
@@ -50,6 +54,11 @@ func (s *Store) CreateAPIToken(ctx context.Context, owner User, name, role strin
 	}
 	if days < 0 || days > 3650 {
 		return "", errors.New("expiry must be 0 (never) to 3650 days")
+	}
+	if (owner.Source == "ldap" || owner.Source == "sso") && (days == 0 || days > maxDirectoryTokenDays) {
+		// Directory and single sign-on accounts are not checked against
+		// the directory when a token is used: the token must end by itself.
+		return "", fmt.Errorf("tokens of directory (LDAP) and single sign-on users must expire within %d days", maxDirectoryTokenDays)
 	}
 	var exp *time.Time
 	if days > 0 {
@@ -427,6 +436,12 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 
 func (s *Server) handleTokenCreate(w http.ResponseWriter, r *http.Request, user string) {
 	me := currentUser(r)
+	// A lasting token is like a new sign-in: a stolen session must not
+	// mint one (same confirmation as creating a user).
+	if err := s.confirmAdmin(r); err != nil {
+		redirectErr(w, r, "/account#tokens", err)
+		return
+	}
 	days, _ := strconv.Atoi(r.FormValue("days"))
 	tok, err := s.store.CreateAPIToken(r.Context(), *me, r.FormValue("name"), r.FormValue("role"), days)
 	if err != nil {

@@ -1826,6 +1826,7 @@
   "date of the backup": "バックアップの日付",
   "days": "日後",
   "days; 0 = never": "日。0 = 無期限",
+  "days; at most 365 for directory and single sign-on accounts": "日。ディレクトリ アカウントとシングル サインオン アカウントは最大 365",
   "deb package": "deb パッケージ",
   "default": "既定",
   "default instance": "既定のインスタンス",

@@ -1826,6 +1826,7 @@
   "date of the backup": "yedeğin tarihi",
   "days": "gün",
   "days; 0 = never": "gün; 0 = asla",
+  "days; at most 365 for directory and single sign-on accounts": "gün; dizin ve çoklu oturum açma hesapları için en fazla 365",
   "deb package": "deb paketi",
   "default": "varsayılan",
   "default instance": "varsayılan örnek",

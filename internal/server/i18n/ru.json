@@ -1826,6 +1826,7 @@
   "date of the backup": "дата копии",
   "days": "дн.",
   "days; 0 = never": "дней; 0 = никогда",
+  "days; at most 365 for directory and single sign-on accounts": "дней; не более 365 для учётных записей каталога и единого входа",
   "deb package": "пакет deb",
   "default": "по умолчанию",
   "default instance": "экземпляр по умолчанию",

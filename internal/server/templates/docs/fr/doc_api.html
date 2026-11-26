@@ -5,7 +5,7 @@
 <h2>Jetons</h2>
 <p>Créez un jeton dans <a href="/account#tokens">Mon compte → Jetons API</a>. Donnez-lui le rôle le plus bas qui suffit — <b>Lecteur</b> pour la supervision, <b>Opérateur de restauration</b> pour aussi lancer des sauvegardes et des tests de restauration. Le jeton n'est affiché qu'une fois ; envoyez-le dans chaque requête :</p>
 <pre>Authorization: Bearer bzt_...</pre>
-<p>Les jetons peuvent expirer, être révoqués par leur propriétaire ou un administrateur (<a href="/users">Utilisateurs</a>) et cessent de fonctionner lorsque le propriétaire est désactivé. Les actions effectuées avec un jeton apparaissent dans le journal d'audit avec le nom du jeton. Un nouveau mot de passe défini par un administrateur révoque aussi les jetons du propriétaire.</p>
+<p>Les jetons peuvent expirer, être révoqués par leur propriétaire ou un administrateur (<a href="/users">Utilisateurs</a>) et cessent de fonctionner lorsque le propriétaire est désactivé. Les actions effectuées avec un jeton apparaissent dans le journal d'audit avec le nom du jeton. Un nouveau mot de passe défini par un administrateur révoque aussi les jetons du propriétaire. La création d'un jeton demande votre mot de passe ou votre code à deux facteurs (utilisateurs d'authentification unique : une connexion datant de moins de 10 minutes), comme la création d'un utilisateur. Les jetons des utilisateurs LDAP et d'authentification unique doivent expirer dans les 365 jours, car ces comptes ne sont pas vérifiés dans l'annuaire lors de l'utilisation d'un jeton.</p>
 
 <h2>Points de terminaison</h2>
 <p>Toutes les réponses sont en JSON. URL de base : <code>https://&lt;console&gt;:8443</code>.</p>

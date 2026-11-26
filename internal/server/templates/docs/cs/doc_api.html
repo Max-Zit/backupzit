@@ -5,7 +5,7 @@
 <h2>Tokeny</h2>
 <p>Token vytvoříte v <a href="/account#tokens">Můj účet → Tokeny API</a>. Dejte mu nejnižší roli, která stačí — <b>Čtenář</b> pro monitoring, <b>Operátor obnovy</b>, aby mohl také spouštět zálohy a testy obnovy. Token se zobrazí jen jednou; posílejte ho v každém požadavku:</p>
 <pre>Authorization: Bearer bzt_...</pre>
-<p>Tokeny mohou vypršet, může je odvolat vlastník nebo správce (<a href="/users">Uživatelé</a>) a přestanou fungovat, když je vlastník zakázán. Akce provedené tokenem se objeví v protokolu auditu s názvem tokenu. Nové heslo nastavené administrátorem zruší také tokeny vlastníka.</p>
+<p>Tokeny mohou vypršet, může je odvolat vlastník nebo správce (<a href="/users">Uživatelé</a>) a přestanou fungovat, když je vlastník zakázán. Akce provedené tokenem se objeví v protokolu auditu s názvem tokenu. Nové heslo nastavené administrátorem zruší také tokeny vlastníka. Vytvoření tokenu vyžaduje vaše heslo nebo dvoufázový kód (uživatelé jednotného přihlášení: přihlášení před méně než 10 minutami), stejně jako vytvoření uživatele. Tokeny uživatelů LDAP a jednotného přihlášení musí vypršet do 365 dnů, protože tyto účty se při použití tokenu neověřují v adresáři.</p>
 
 <h2>Koncové body</h2>
 <p>Všechny odpovědi jsou v JSON. Základní URL: <code>https://&lt;konzole&gt;:8443</code>.</p>

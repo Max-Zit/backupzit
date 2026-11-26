@@ -66,7 +66,9 @@
           <select name="role">{{range .Data.TokenRoles}}<option value="{{.Key}}" {{if eq .Key "viewer"}}selected{{end}}>{{T .Name}}</option>{{end}}</select>
         </label>
       </div>
-      <label>{{T "Expires after"}} <small>{{T "days; 0 = never"}}</small><input type="number" name="days" min="0" max="3650" value="365"></label>
+      {{if or (eq $.Me.Source "ldap") (eq $.Me.Source "sso")}}<label>{{T "Expires after"}} <small>{{T "days; at most 365 for directory and single sign-on accounts"}}</small><input type="number" name="days" min="1" max="365" value="365" required></label>
+      {{else}}<label>{{T "Expires after"}} <small>{{T "days; 0 = never"}}</small><input type="number" name="days" min="0" max="3650" value="365"></label>{{end}}
+      {{template "reauth_admin" $.Me}}
       <div><button>{{T "Create token"}}</button></div>
     </form>
   </details>

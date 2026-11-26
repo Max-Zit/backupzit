@@ -1063,6 +1063,7 @@ type client struct {
 	t   *testing.T
 	c   *http.Client
 	url string
+	pw  string // password of the last login, for confirmations (reauth_password)
 }
 
 func newClient(t *testing.T, e *env) *client {
@@ -1093,6 +1094,7 @@ func (c *client) do(method, p string, form url.Values) (int, string, string) {
 }
 
 func (c *client) login(user, pw string) bool {
+	c.pw = pw
 	_, loc, _ := c.do("POST", "/login", url.Values{"username": {user}, "password": {pw}})
 	return loc == "/"
 }
@@ -1601,7 +1603,7 @@ func TestRESTAPI(t *testing.T) {
 	jobID, _ := e.store.CreateJob(ctx, server.Job{AgentID: agents[0].ID, TargetID: tid, Name: "docs", Paths: []string{src}, Enabled: true})
 
 	newToken := func(c *client, role string) string {
-		code, _, body := c.do("POST", "/account/tokens", url.Values{"name": {"tool " + role}, "role": {role}, "days": {"30"}})
+		code, _, body := c.do("POST", "/account/tokens", url.Values{"name": {"tool " + role}, "role": {role}, "days": {"30"}, "reauth_password": {c.pw}})
 		m := regexp.MustCompile(`<pre id="newtok">(bzt_[A-Za-z0-9_-]+)</pre>`).FindStringSubmatch(body)
 		if code != 200 || m == nil {
 			t.Fatalf("create %s token: %d", role, code)
@@ -1631,8 +1633,25 @@ func TestRESTAPI(t *testing.T) {
 	mon := newClient(t, e)
 	mon.login("mon", "correct-horse-9")
 	viewTok := newToken(mon, "viewer")
-	if code, _, _ := mon.do("POST", "/account/tokens", url.Values{"name": {"x"}, "role": {"admin"}}); code == 200 {
+	if code, _, _ := mon.do("POST", "/account/tokens", url.Values{"name": {"x"}, "role": {"admin"}, "reauth_password": {mon.pw}}); code == 200 {
 		t.Error("viewer created an admin token")
+	}
+	// A3: no token without the confirmation (stolen session).
+	if _, _, body := mon.do("POST", "/account/tokens", url.Values{"name": {"y"}, "role": {"viewer"}, "days": {"30"}}); strings.Contains(body, `id="newtok"`) {
+		t.Error("token created without confirming the password")
+	}
+	// A4: tokens of LDAP and SSO users expire within 365 days.
+	for _, src := range []string{"ldap", "sso"} {
+		u := server.User{ID: 1, Username: "dir", Role: "viewer", Source: src}
+		if _, err := e.store.CreateAPIToken(ctx, u, "t", "viewer", 0); err == nil {
+			t.Errorf("%s token without expiry accepted", src)
+		}
+		if _, err := e.store.CreateAPIToken(ctx, u, "t", "viewer", 400); err == nil {
+			t.Errorf("%s token for 400 days accepted", src)
+		}
+		if _, err := e.store.CreateAPIToken(ctx, u, "t", "viewer", 365); err != nil {
+			t.Errorf("%s token for 365 days: %v", src, err)
+		}
 	}
 
 	if code, _, _ := call("", "GET", "/api/v1/status"); code != 401 {

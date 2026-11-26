@@ -1826,6 +1826,7 @@
   "date of the backup": "datum van de back-up",
   "days": "dagen",
   "days; 0 = never": "dagen; 0 = nooit",
+  "days; at most 365 for directory and single sign-on accounts": "dagen; hoogstens 365 voor directory- en single-sign-on-accounts",
   "deb package": "deb-pakket",
   "default": "standaard",
   "default instance": "standaardinstantie",

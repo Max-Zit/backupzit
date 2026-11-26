@@ -336,7 +336,7 @@ func TestTargetReachableByAgentsOnly(t *testing.T) {
 // apiCallAs calls the REST API with a new token of the signed-in user c.
 func apiCallAs(t *testing.T, e *env, c *client, method, p string) (int, string) {
 	t.Helper()
-	_, _, body := c.do("POST", "/account/tokens", url.Values{"name": {"test"}, "role": {"viewer"}, "days": {"1"}})
+	_, _, body := c.do("POST", "/account/tokens", url.Values{"name": {"test"}, "role": {"viewer"}, "days": {"1"}, "reauth_password": {c.pw}})
 	m := regexp.MustCompile(`<pre id="newtok">(bzt_[A-Za-z0-9_-]+)</pre>`).FindStringSubmatch(body)
 	if m == nil {
 		t.Fatal("no API token")

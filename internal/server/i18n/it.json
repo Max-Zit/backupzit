@@ -1826,6 +1826,7 @@
   "date of the backup": "data del backup",
   "days": "giorni",
   "days; 0 = never": "giorni; 0 = mai",
+  "days; at most 365 for directory and single sign-on accounts": "giorni; al massimo 365 per gli account di directory e single sign-on",
   "deb package": "pacchetto deb",
   "default": "predefinita",
   "default instance": "istanza predefinita",

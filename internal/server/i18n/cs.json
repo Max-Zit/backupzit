@@ -1826,6 +1826,7 @@
   "date of the backup": "datum zálohy",
   "days": "dní",
   "days; 0 = never": "dní; 0 = nikdy",
+  "days; at most 365 for directory and single sign-on accounts": "dnů; nejvýše 365 pro účty z adresáře a jednotného přihlášení",
   "deb package": "balíček deb",
   "default": "výchozí",
   "default instance": "výchozí instance",

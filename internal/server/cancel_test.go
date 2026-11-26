@@ -196,7 +196,7 @@ func TestCancelRuns(t *testing.T) {
 // apiToken creates an API token with a role for the signed-in client.
 func apiToken(t *testing.T, c *client, role string) string {
 	t.Helper()
-	code, _, body := c.do("POST", "/account/tokens", url.Values{"name": {"tool " + role}, "role": {role}, "days": {"30"}})
+	code, _, body := c.do("POST", "/account/tokens", url.Values{"name": {"tool " + role}, "role": {role}, "days": {"30"}, "reauth_password": {c.pw}})
 	m := regexp.MustCompile(`<pre id="newtok">(bzt_[A-Za-z0-9_-]+)</pre>`).FindStringSubmatch(body)
 	if code != 200 || m == nil {
 		t.Fatalf("create %s token: %d", role, code)
