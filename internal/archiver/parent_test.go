@@ -66,3 +66,37 @@ func TestRunWithLostParentTree(t *testing.T) {
 		}
 	}
 }
+
+// A11: an unreadable snapshot file (the parent cannot be looked up) does
+// not stop the backup: it runs without a parent and warns.
+func TestRunWithUnreadableSnapshotFile(t *testing.T) {
+	ctx := context.Background()
+	be, err := backend.OpenLocal(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := repo.Init(ctx, be)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := t.TempDir()
+	if err := os.WriteFile(filepath.Join(src, "a.txt"), []byte("data"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	opts := Options{Paths: []string{src}, Hostname: "h", Version: "test"}
+	if _, err := Run(ctx, r, opts); err != nil {
+		t.Fatal(err)
+	}
+	if err := be.Save(ctx, "snapshots/"+strings.Repeat("ab", 32), []byte("not a snapshot")); err != nil {
+		t.Fatal(err)
+	}
+	var warns []string
+	opts.Warn = func(msg string) { warns = append(warns, msg) }
+	sn, err := Run(ctx, r, opts)
+	if err != nil {
+		t.Fatalf("backup with an unreadable snapshot file: %v", err)
+	}
+	if sn.Parent != nil || sn.Stats.FilesNew != 1 || len(warns) != 1 || !strings.Contains(warns[0], "all files were read again") {
+		t.Errorf("parent %v, stats %+v, warnings %q", sn.Parent, sn.Stats, warns)
+	}
+}

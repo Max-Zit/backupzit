@@ -732,6 +732,7 @@ func (a *Agent) backupPaths(ctx context.Context, run api.Run, paths []string, us
 		return failed(err)
 	}
 	defer lock.Unlock()
+	var warns []string
 	sn, err := archiver.Run(ctx, r, archiver.Options{
 		Paths:    paths,
 		Excludes: run.Excludes,
@@ -739,6 +740,10 @@ func (a *Agent) backupPaths(ctx context.Context, run api.Run, paths []string, us
 		Tags:     []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)},
 		VSS:      useVSS,
 		Progress: func(_ string, s *repo.SnapshotStats) { a.progressScanned(ctx, s.BytesRead, 0, s.Files, s.Bytes) },
+		Warn: func(msg string) {
+			a.log.Warn("backup", "run", run.ID, "msg", msg)
+			warns = append(warns, msg)
+		},
 	})
 	if err != nil {
 		return failed(err)
@@ -764,6 +769,10 @@ func (a *Agent) backupPaths(ctx context.Context, run api.Run, paths []string, us
 			res.Status = api.StatusWarning
 			res.Message = strings.TrimSpace(w + " " + res.Message)
 		}
+	}
+	if len(warns) > 0 {
+		res.Status = api.StatusWarning
+		res.Message = strings.TrimSpace(strings.Join(warns, ". ") + ". " + res.Message)
 	}
 	res.Message = strings.TrimSpace(res.Message + " " + note)
 	_ = lock.Unlock() // retention needs an exclusive lock

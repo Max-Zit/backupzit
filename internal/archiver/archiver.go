@@ -38,6 +38,9 @@ type Options struct {
 	Excludes []string
 	// Progress, if set, is called for each file processed.
 	Progress func(path string, s *repo.SnapshotStats)
+	// Warn, if set, gets problems that do not stop the backup and are not
+	// about one file (the previous backup could not be read).
+	Warn func(msg string)
 	// VSS reads the sources from Volume Shadow Copy snapshots (Windows)
 	// or from an APFS local snapshot of the data volume (macOS). If a
 	// snapshot cannot be created the volume is read live and a warning is
@@ -159,7 +162,16 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 	if opts.Parent == nil && !opts.NoParent {
 		p, err := findParent(ctx, r, opts.Hostname, abs, opts.Tags)
 		if err != nil {
-			return nil, err
+			if ctx.Err() != nil {
+				return nil, err
+			}
+			// One unreadable snapshot file must not stop every file backup
+			// (A11): without a parent all files are read again, the data is
+			// still deduplicated. Prune, check and repair stay strict.
+			if opts.Warn != nil {
+				opts.Warn("The previous backups could not be listed (" + err.Error() + "); all files were read again")
+			}
+			p = nil
 		}
 		opts.Parent = p
 	}
