@@ -68,6 +68,7 @@
   <li><b>Daily</b> — the newest backup of each of the last N days that have backups.</li>
   <li><b>Weekly</b> — the newest backup of each of the last N weeks.</li>
   <li><b>Monthly</b> — the newest backup of each of the last N months.</li>
+  <li><b>Yearly</b> — the newest backup of each of the last N years that have backups, e.g. 10 for ten years of history with ten backups (also in copy jobs). It needs agents 0.62 or newer: an older agent gets no retention at all for such a job, so it removes nothing until it is updated, and the job page says so.</li>
 </ul>
 <p>Example: 3 recent, 7 daily, 4 weekly, 6 monthly keeps about half a year of history with ~20 restore points. After each successful run, snapshots no longer selected are removed (shown as <i>expired</i> in Activity) and data that is no longer used by any snapshot is deleted from the storage. Packs that still hold some used data are rewritten with only that data, several at a time on object storage; a pack that cannot be read even after the retries stays as it is, the run ends with a warning and the next run tries again. If retention cannot run at all (the repository could not be listed or locked), the run ends with a warning as well (0.58). All zeros keeps everything.</p>
 <div class="callout"><p>Thanks to deduplication, long retention is cheap: unchanged data is stored only once no matter how many snapshots reference it.</p></div>

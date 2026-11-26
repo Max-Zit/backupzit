@@ -7,8 +7,9 @@
         <label>{{T "Daily"}} <input type="number" name="keep_daily" min="0" max="999" value="{{.J.Retention.KeepDaily}}"></label>
         <label>{{T "Weekly"}} <input type="number" name="keep_weekly" min="0" max="999" value="{{.J.Retention.KeepWeekly}}"></label>
         <label>{{T "Monthly"}} <input type="number" name="keep_monthly" min="0" max="999" value="{{.J.Retention.KeepMonthly}}"></label>
+        <label>{{T "Yearly"}} <input type="number" name="keep_yearly" min="0" max="999" value="{{.J.Retention.KeepYearly}}"></label>
       </div>
-      <small class="muted">{{T "A backup is kept if any rule selects it, e.g. 7 daily keeps the newest backup of each of the last 7 days. Older backups are removed after each run and their space is freed. All zeros keeps everything."}}</small>
+      <small class="muted">{{T "A backup is kept if any rule selects it, e.g. 7 daily keeps the newest backup of each of the last 7 days that have a backup (days without one do not count), 10 yearly the newest of each of the last 10 years. Older backups are removed after each run and their space is freed. All zeros keeps everything."}}</small>
     </fieldset>
     <fieldset class="sched">
       <legend>{{T "Schedule"}}</legend>

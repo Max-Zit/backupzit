@@ -422,6 +422,7 @@ func retentionFromForm(r *http.Request) repo.RetentionPolicy {
 		KeepDaily:   atoiDefault(r.FormValue("keep_daily")),
 		KeepWeekly:  atoiDefault(r.FormValue("keep_weekly")),
 		KeepMonthly: atoiDefault(r.FormValue("keep_monthly")),
+		KeepYearly:  atoiDefault(r.FormValue("keep_yearly")),
 	}
 }
 

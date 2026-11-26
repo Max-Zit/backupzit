@@ -68,6 +68,7 @@
   <li><b>Diário</b> — o backup mais recente de cada um dos últimos N dias com backups.</li>
   <li><b>Semanal</b> — o backup mais recente de cada uma das últimas N semanas.</li>
   <li><b>Mensal</b> — o backup mais recente de cada um dos últimos N meses.</li>
+  <li><b>Anual</b> — o backup mais recente de cada um dos últimos N anos com backups, ex.: 10 para dez anos de histórico com dez backups (também em cópias de backup). Precisa de agentes 0.62 ou mais novos: um agente anterior não recebe nenhuma retenção para essa tarefa, então não remove nada até ser atualizado, e a página da tarefa avisa.</li>
 </ul>
 <p>Exemplo: 3 recentes, 7 diários, 4 semanais, 6 mensais mantêm cerca de meio ano de histórico com ~20 pontos de restauração. Após cada execução bem-sucedida, os snapshots que já não são selecionados são removidos (aparecem como <i>expirado</i> em Atividade) e os dados que nenhum snapshot usa são apagados do armazenamento. Os packs que ainda contêm dados em uso são regravados só com esses dados, vários de cada vez no armazenamento de objetos; um pack que não pode ser lido nem depois das novas tentativas fica como está, a execução termina com um aviso e a execução seguinte tenta de novo. Se a retenção não puder ser executada de forma alguma (não foi possível listar ou bloquear o repositório), a execução também termina com um aviso (0.58). Tudo a zero mantém tudo.</p>
 <div class="callout"><p>Graças à desduplicação, uma retenção longa é barata: dados inalterados são guardados só uma vez, por mais snapshots que os referenciem.</p></div>

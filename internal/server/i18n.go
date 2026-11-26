@@ -223,6 +223,7 @@ func retentionText(l *language, p repo.RetentionPolicy) string {
 	add(p.KeepDaily, "%d daily")
 	add(p.KeepWeekly, "%d weekly")
 	add(p.KeepMonthly, "%d monthly")
+	add(p.KeepYearly, "%d yearly")
 	list := s[len(s)-1]
 	if len(s) > 1 {
 		list = l.T("%s and %s", strings.Join(s[:len(s)-1], ", "), list)

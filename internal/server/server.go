@@ -1279,6 +1279,12 @@ func (s *Server) handleJob(w http.ResponseWriter, r *http.Request, user string) 
 			data["ProtectedSQL"] = d
 		}
 	}
+	// The yearly rule waits for the agent of the job to be updated (#77).
+	if j.Retention.KeepYearly > 0 {
+		if a, err := s.store.GetAgent(r.Context(), j.AgentID); err == nil && agentOlder(a, minYearlyAgent) {
+			data["YearlyOldAgent"] = a
+		}
+	}
 	s.render(w, r, "job", pageData{Title: j.Name, Nav: "jobs", User: user, Data: data})
 }
 

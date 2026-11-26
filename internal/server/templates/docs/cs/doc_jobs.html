@@ -68,6 +68,7 @@
   <li><b>Denně</b> — nejnovější záloha z každého z posledních N dní, kdy zálohy byly.</li>
   <li><b>Týdně</b> — nejnovější záloha z každého z posledních N týdnů.</li>
   <li><b>Měsíčně</b> — nejnovější záloha z každého z posledních N měsíců.</li>
+  <li><b>Ročně</b> — nejnovější záloha z každého z posledních N let, kdy záloha vznikla, např. 10 pro deset let historie s deseti zálohami (i v kopiích záloh). Potřebuje agenty 0.62 nebo novější: starší agent u takové úlohy nedostane žádné uchovávání, takže do aktualizace nic neodstraní, a stránka úlohy to uvede.</li>
 </ul>
 <p>Příklad: 3 nejnovější, 7 denních, 4 týdenní a 6 měsíčních uchová zhruba půl roku historie s ~20 body obnovy. Po každém úspěšném běhu se snímky, které už nic nevybírá, odstraní (v Aktivitě zobrazeny jako <i>vypršelo</i>) a data, která už žádný snímek nepoužívá, se z úložiště smažou. Balíky, které ještě obsahují část používaných dat, se přepíšou jen s těmito daty, u objektového úložiště několik najednou; balík, který nejde přečíst ani po opakovaných pokusech, zůstane, jak je, běh skončí s varováním a příští běh to zkusí znovu. Pokud uchovávání nemůže proběhnout vůbec (úložiště se nepodařilo vypsat nebo zamknout), skončí běh také s varováním (0.58). Samé nuly uchovají vše.</p>
 <div class="callout"><p>Díky deduplikaci je dlouhé uchovávání levné: nezměněná data se uloží jen jednou, bez ohledu na to, kolik snímků na ně odkazuje.</p></div>

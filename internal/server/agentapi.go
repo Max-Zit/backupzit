@@ -444,6 +444,16 @@ func (s *Server) addRetention(ctx context.Context, run *Run, ar *api.Run) {
 	}
 	if !j.Retention.Empty() {
 		p := j.Retention
+		if p.KeepYearly > 0 {
+			// An agent before 0.62 does not know the yearly rule and would
+			// apply the others alone, removing exactly the yearly backups
+			// (#77): it gets no policy, so it removes nothing until it is
+			// updated. The job page says so.
+			if a, err := s.store.GetAgent(ctx, run.AgentID); err != nil || agentOlder(a, minYearlyAgent) {
+				s.log.Warn("retention not applied: the yearly rule needs a newer agent", "job", j.ID, "agent", run.AgentID)
+				return
+			}
+		}
 		ar.Retention = &p
 		// VMs running from a backup (instant recovery) need it.
 		if keep, err := s.store.instantSnapshots(ctx); err == nil {
@@ -484,3 +494,7 @@ const minNoQuiesceVersion = "0.58.0"
 // minExcludeDisksVersion is the first agent that honours VMExcludeDisks;
 // older ones would silently back up the excluded disks.
 const minExcludeDisksVersion = "0.49.0"
+
+// minYearlyAgent is the first agent version that applies the yearly
+// retention rule (#77).
+const minYearlyAgent = "0.62.0"
