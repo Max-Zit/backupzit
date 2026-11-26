@@ -80,3 +80,24 @@ func TrustChatTLS(c *http.Client) func() {
 	tr.TLSClientConfig = c.Transport.(*http.Transport).TLSClientConfig.Clone()
 	return func() { tr.TLSClientConfig = old }
 }
+
+// UseLDAPLookup replaces the directory check of API tokens (B8); it returns
+// a function that restores it.
+func UseLDAPLookup(f func(username string) (string, error)) func() {
+	old := ldapLookup
+	ldapLookup = func(_ context.Context, _ LDAPSettings, u string) (string, error) { return f(u) }
+	return func() { ldapLookup = old }
+}
+
+// ForgetLDAPTokenChecks empties the cache of directory checks.
+func (s *Server) ForgetLDAPTokenChecks() {
+	s.ldapTokens.mu.Lock()
+	s.ldapTokens.m = nil
+	s.ldapTokens.mu.Unlock()
+}
+
+// Directory answers for UseLDAPLookup.
+var (
+	ErrLDAPNoAccount = errBadLogin
+	ErrLDAPNoRole    = errNoRole
+)

@@ -50,8 +50,10 @@ type Server struct {
 	// identity (B3).
 	pending     *pendingStore
 	pendingOnce sync.Once
-	seen        seenURL // the address users open the console with (ConsoleURL)
-	store       *Store
+	// ldapTokens caches the directory checks of API tokens (B8).
+	ldapTokens ldapTokenCache
+	seen       seenURL // the address users open the console with (ConsoleURL)
+	store      *Store
 	// dups finds agent enrollments used by two machines at once.
 	dups *dupTracker
 	// deploys are agent installations started from the console.

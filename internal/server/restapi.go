@@ -159,6 +159,18 @@ func (s *Server) api(perm Perm, h apiHandler) http.HandlerFunc {
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing, invalid or expired API token"})
 			return
 		}
+		if u.Source == "ldap" {
+			// Not a sign-in: the directory decides whether the account
+			// still exists and which role it has now (B8).
+			role, err := s.checkLDAPToken(r.Context(), u.Username)
+			if err != nil {
+				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": err.Error()})
+				return
+			}
+			if roleRank[role] < roleRank[u.Role] {
+				u.Role = role
+			}
+		}
 		if !u.Can(string(perm)) {
 			writeJSON(w, http.StatusForbidden, map[string]string{"error": "the token's role does not allow this"})
 			return
