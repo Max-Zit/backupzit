@@ -16,7 +16,8 @@ func TestParseNASShare(t *testing.T) {
 			t.Errorf("%s: %+v %v", raw, got, err)
 		}
 	}
-	for _, bad := range []string{"smb://nas01", "nfs://nas01/", "ftp://nas01/x", "nas01/data"} {
+	for _, bad := range []string{"smb://nas01", "nfs://nas01/", "ftp://nas01/x", "nas01/data",
+		"smb://nas01/data/../../etc", "smb://nas01/data/%2e%2e/x", "smb://nas01/./data", "nfs://nas01/volume1/../etc", `smb://nas01/data\..\x`} { // A12
 		if _, err := parseNASShare(bad); err == nil {
 			t.Errorf("%s accepted", bad)
 		}
@@ -34,5 +35,14 @@ func TestNASPaths(t *testing.T) {
 	}
 	if _, err := nasPaths(root, []string{"../etc"}); err == nil {
 		t.Error("path outside the share accepted")
+	}
+}
+
+func TestBelowMount(t *testing.T) {
+	m := filepath.FromSlash("/mnt/nas")
+	for p, want := range map[string]bool{"/mnt/nas": true, "/mnt/nas/a/b": true, "/mnt/nasx": false, "/mnt": false, "/etc": false} {
+		if got := belowMount(filepath.FromSlash(p), m); got != want {
+			t.Errorf("belowMount(%s) = %v", p, got)
+		}
 	}
 }

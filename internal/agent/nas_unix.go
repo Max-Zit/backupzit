@@ -76,6 +76,10 @@ func mountNAS(ctx context.Context, s nasShare, cred *api.NASShare, writable bool
 	root := dir
 	if s.Sub != "" {
 		root = filepath.Join(dir, filepath.FromSlash(s.Sub))
+		if !belowMount(root, dir) {
+			unmount()
+			return "", nil, errors.New("the folder " + s.Sub + " is not below the share")
+		}
 		if _, err := os.Stat(root); err != nil {
 			unmount()
 			return "", nil, errors.New("the folder " + s.Sub + " does not exist on the share")

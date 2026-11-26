@@ -31,6 +31,13 @@ func parseNASShare(raw string) (nasShare, error) {
 		return nasShare{}, errors.New("invalid share address")
 	}
 	p := strings.Trim(u.Path, "/")
+	// "." and ".." would leave the share or the export: the mount root
+	// must stay below it (A12).
+	for _, part := range strings.Split(strings.ReplaceAll(p, `\`, "/"), "/") {
+		if part == "." || part == ".." {
+			return nasShare{}, fmt.Errorf("invalid share address: %q is not allowed in the path", part)
+		}
+	}
 	switch u.Scheme {
 	case "smb":
 		share, sub, _ := strings.Cut(p, "/")
@@ -106,4 +113,10 @@ func nasHint(err error) string {
 		return "this machine cannot mount the share — install cifs-utils (SMB) or nfs-common / nfs-utils (NFS)"
 	}
 	return ""
+}
+
+// belowMount tells whether root is the mount point or a folder below it.
+func belowMount(root, mount string) bool {
+	rel, err := filepath.Rel(mount, root)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }

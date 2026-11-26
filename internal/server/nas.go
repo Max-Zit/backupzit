@@ -29,6 +29,11 @@ func checkNASShare(raw string) error {
 	if strings.Trim(u.Path, "/") == "" {
 		return errors.New("the share name or export path is missing, e.g. smb://nas01/data")
 	}
+	for _, part := range strings.Split(strings.ReplaceAll(u.Path, `\`, "/"), "/") {
+		if part == "." || part == ".." {
+			return errors.New(`"." and ".." are not allowed in the share address`)
+		}
+	}
 	switch u.Scheme {
 	case "smb", "nfs":
 	default:
