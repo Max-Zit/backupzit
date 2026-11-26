@@ -279,6 +279,9 @@ type Agent struct {
 }
 
 func New(cfg *Config, log *slog.Logger, version string) *Agent {
+	if log != nil {
+		repo.SetLockLog(func(msg string, kv ...any) { log.Warn(msg, kv...) })
+	}
 	return &Agent{client: NewClient(cfg), log: log, version: version, VSS: readsSnapshots, instance: newInstanceID()}
 }
 

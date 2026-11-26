@@ -382,6 +382,11 @@ func (r *Repository) Prune(ctx context.Context, opts PruneOptions) (*PruneStats,
 	if err := r.Flush(ctx); err != nil {
 		return nil, err
 	}
+	// Nothing is deleted once the exclusive lock was lost: a backup may
+	// have started meanwhile and rely on the packs about to go.
+	if err := r.lockErr(); err != nil {
+		return nil, err
+	}
 	// Index files are named by their content, so a new file can have the
 	// same name as an old one; those must not be deleted below.
 	written := map[string]bool{}

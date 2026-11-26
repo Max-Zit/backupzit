@@ -63,6 +63,9 @@ type Repository struct {
 	// unreadablePacks are packs that no readable index file lists and whose
 	// header could not be used (see recoverIndex).
 	unreadablePacks map[ID]string
+	// locks are the repository locks held through this value (lockErr).
+	locksMu sync.Mutex
+	locks   map[*Lock]bool
 
 	enc *zstd.Encoder
 	// encLevel is the level of enc (zero means zstd.SpeedDefault); a
@@ -747,6 +750,11 @@ func (r *Repository) saveJSONFile(ctx context.Context, dir string, v any) (ID, e
 
 // SaveSnapshot stores a snapshot. Call Flush first.
 func (r *Repository) SaveSnapshot(ctx context.Context, sn *Snapshot) (ID, error) {
+	// A snapshot saved after the lock was lost may reference data that a
+	// concurrent prune has removed meanwhile.
+	if err := r.lockErr(); err != nil {
+		return ID{}, err
+	}
 	id, err := r.saveJSONFile(ctx, "snapshots", sn)
 	if err == nil {
 		sn.ID = id

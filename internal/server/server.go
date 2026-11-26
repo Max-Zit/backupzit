@@ -109,6 +109,9 @@ type Server struct {
 func New(store *Store, log *slog.Logger) (*Server, error) {
 	s := &Server{store: store, log: log, PollInterval: 30, Version: "dev", cache: newRepoCache(), clock: time.Now, dups: newDupTracker()}
 	s.cache.relay = s.relayOpen
+	if log != nil {
+		repo.SetLockLog(func(msg string, kv ...any) { log.Warn(msg, kv...) })
+	}
 	s.guard = newLoginGuard(store, func() time.Time { return s.clock() })
 	s.guard.onBlock = s.notifyBlock
 	if err := s.loadTemplates(); err != nil {
