@@ -62,6 +62,7 @@
 <table>
   <tr><th>Alteração</th><th>Quem pode aprovar</th></tr>
   <tr><td>Excluir ou desativar uma tarefa de backup, encurtar a retenção de uma tarefa (qualquer regra menor que antes, ou regras onde antes tudo era mantido), retomar a retenção após um backup suspeito, um reparo que também remove os backups que precisam de dados perdidos</td><td>Usuários que podem gerenciar tarefas</td></tr>
+  <tr><td>Editar uma tarefa, ou uma tarefa para vários agentes, de forma que proteja menos: um agendamento que roda menos (depois de outra tarefa ou manualmente), uma pasta, VM, banco de dados ou usuário removidos, "tudo" substituído por uma seleção, mais exclusões. Só essas configurações aguardam e a solicitação as nomeia; o resto da edição é salvo na hora. Uma solicitação não é executada se a tarefa mudou de novo nesse meio-tempo</td><td>Usuários que podem gerenciar tarefas</td></tr>
   <tr><td>Remover um agente ou um host ESXi</td><td>Usuários que podem gerenciar agentes</td></tr>
   <tr><td>Remover um destino de armazenamento</td><td>Usuários que podem gerenciar armazenamento</td></tr>
   <tr><td>Excluir um usuário; criar um usuário que pode aprovar (Administrador ou Operador de backup); dar a um usuário uma função com mais direitos, ou reativar esse usuário; redefinir a senha ou os dois fatores desse usuário</td><td>Administradores</td></tr>

@@ -16,7 +16,7 @@
     <tbody>
     {{range .}}
     <tr>
-      <td class="strong">{{T .Title}}{{if eq .Action "job.retention"}}<br><span class="muted small">{{retention .Policy}}</span>{{end}}</td>
+      <td class="strong">{{T .Title}}{{if eq .Action "job.retention"}}<br><span class="muted small">{{retention .Policy}}</span>{{end}}{{if eq .Action "job.update"}}{{with .JobChange}}<ul class="small muted">{{range .Reasons}}<li>{{if .Value}}{{T .Format .Value}}{{else}}{{T .Format}}{{end}}</li>{{end}}{{if .ShorterRetention}}<li>{{T "Shorter retention:"}} {{retention .After.Retention}}</li>{{end}}</ul>{{end}}{{end}}{{if eq .Action "group.update"}}{{with .GroupUpdate.Reasons}}<ul class="small muted">{{range .}}<li>{{if .Value}}{{T .Format .Value}}{{else}}{{T .Format}}{{end}}</li>{{end}}</ul>{{end}}{{end}}</td>
       <td>{{.ObjectName}}</td>
       <td>{{.RequestedBy}}</td>
       <td>{{ts .RequestedAt}} <span class="muted small">({{ago .RequestedAt}})</span></td>

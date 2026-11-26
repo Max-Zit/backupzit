@@ -462,12 +462,13 @@ func (s *Server) handleJobEdit(w http.ResponseWriter, r *http.Request, _ string)
 	case JobVM:
 		j.Paths, j.Excludes = vmFormSelection(r)
 	}
-	// With four-eyes approval a shorter retention waits for a second user;
-	// the other changes are saved now.
-	wanted := j.Retention
-	held := s.store.fourEyes(r.Context()) && shorterRetention(old.Retention, wanted)
-	if held {
-		j.Retention = old.Retention
+	// With four-eyes approval the settings that weaken the job (a shorter
+	// retention, a schedule that runs less, fewer sources, more excludes)
+	// wait for a second user; the other changes are saved now (B1).
+	var change jobChange
+	held := false
+	if s.store.fourEyes(r.Context()) {
+		change, held = holdWeakened(old, &j)
 	}
 	note, err := s.m365Precheck(r.Context(), requestLanguage(r), j)
 	if err != nil {
@@ -479,7 +480,7 @@ func (s *Server) handleJobEdit(w http.ResponseWriter, r *http.Request, _ string)
 		return
 	}
 	s.audit(r, "job.update", "#%d %s%s", id, j.Name, commandsAudit(old.Options, j.Options))
-	if held && s.needsApproval(w, r, back, "job.retention", id, j.Name, wanted) {
+	if held && s.needsApproval(w, r, back, "job.update", id, j.Name, change) {
 		return
 	}
 	redirectMsg(w, r, back, joinNote(requestLanguage(r), "Job saved.", note))

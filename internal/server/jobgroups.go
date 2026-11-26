@@ -522,10 +522,18 @@ func (s *Server) handleGroupEdit(w http.ResponseWriter, r *http.Request, _ strin
 		return
 	}
 	// With four-eyes approval, an edit that stops backing up agents or
-	// shortens the retention waits for a second user as a whole.
-	if s.store.fourEyes(r.Context()) && (shorterRetention(old.Retention, g.Retention) || s.store.groupDrops(r.Context(), old, g)) {
-		if s.needsApproval(w, r, back, "group.update", old.ID, old.Name, g) {
-			return
+	// weakens the job (shorter retention, a schedule that runs less, fewer
+	// folders, more excludes, B1) waits for a second user as a whole.
+	if s.store.fourEyes(r.Context()) {
+		held, reasons := weakens(old.Kind, groupProtect(old), groupProtect(g))
+		drops := s.store.groupDrops(r.Context(), old, g)
+		if drops {
+			reasons = append(reasons, weakenReason{Format: "Agents are no longer backed up"})
+		}
+		if len(held) > 0 || drops {
+			if s.needsApproval(w, r, back, "group.update", old.ID, old.Name, groupUpdate{Group: g, Before: groupFingerprint(old), Reasons: reasons}) {
+				return
+			}
 		}
 	}
 	if err := s.store.UpdateJobGroup(r.Context(), g); err != nil {

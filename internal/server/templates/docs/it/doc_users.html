@@ -62,6 +62,7 @@
 <table>
   <tr><th>Modifica</th><th>Chi può approvare</th></tr>
   <tr><td>Eliminare o disattivare un job di backup, accorciare la conservazione di un job (qualsiasi regola più bassa di prima, o regole dove prima si conservava tutto), riprendere la conservazione dopo un backup sospetto, una riparazione che rimuove anche i backup che hanno bisogno di dati persi</td><td>Utenti che possono gestire i job</td></tr>
+  <tr><td>Modifica di un job, o di un job per più agenti, in modo che protegga meno: una pianificazione che gira meno (dopo un altro job o a mano), una cartella, VM, database o utente rimossi, «tutto» sostituito da una selezione, più esclusioni. Solo queste impostazioni attendono e la richiesta le nomina; il resto della modifica viene salvato subito. Una richiesta non viene eseguita se il job è stato modificato di nuovo nel frattempo</td><td>Utenti che possono gestire i job</td></tr>
   <tr><td>Rimuovere un agente o un host ESXi</td><td>Utenti che possono gestire gli agenti</td></tr>
   <tr><td>Rimuovere una destinazione di archiviazione</td><td>Utenti che possono gestire l'archiviazione</td></tr>
   <tr><td>Eliminare un utente; creare un utente che può approvare (Amministratore o Operatore di backup); dare a un utente un ruolo con più diritti, o riattivare un tale utente; reimpostare la password o i due fattori di un tale utente</td><td>Amministratori</td></tr>

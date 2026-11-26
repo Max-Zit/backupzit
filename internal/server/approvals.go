@@ -34,6 +34,7 @@ type approvalAction struct {
 var approvalActions = map[string]approvalAction{
 	"job.delete":       {"Delete backup job", PermJobs},
 	"job.retention":    {"Shorten retention", PermJobs},
+	"job.update":       {"Change backup job so that it protects less", PermJobs},
 	"job.release_hold": {"Resume retention after a suspicious backup", PermJobs},
 	"agent.delete":     {"Remove agent", PermAgents},
 	"vmware.delete":    {"Remove ESXi host", PermAgents},
@@ -49,7 +50,7 @@ var approvalActions = map[string]approvalAction{
 	"job.disable":      {"Disable backup job", PermJobs},
 	"group.delete":     {"Delete backup job for several agents", PermJobs},
 	"group.disable":    {"Disable backup job for several agents", PermJobs},
-	"group.update":     {"Change backup job for several agents (fewer agents or shorter retention)", PermJobs},
+	"group.update":     {"Change backup job for several agents so that it protects less", PermJobs},
 	"repair.forget":    {"Repair and remove the backups that need the lost data", PermJobs},
 }
 
@@ -235,6 +236,12 @@ func (s *Server) executeApproval(ctx context.Context, a Approval) error {
 		}
 		j.Retention = p
 		return s.store.UpdateJob(ctx, j)
+	case "job.update":
+		var c jobChange
+		if err := json.Unmarshal(a.Payload, &c); err != nil {
+			return err
+		}
+		return s.store.applyJobChange(ctx, id, c)
 	case "job.release_hold":
 		return s.store.releaseRetentionHold(ctx, id)
 	case "group.delete":
@@ -242,9 +249,20 @@ func (s *Server) executeApproval(ctx context.Context, a Approval) error {
 	case "group.disable":
 		return s.store.SetJobGroupEnabled(ctx, id, false)
 	case "group.update":
-		var g JobGroup
-		if err := json.Unmarshal(a.Payload, &g); err != nil {
+		var c groupUpdate
+		if err := json.Unmarshal(a.Payload, &c); err != nil {
 			return err
+		}
+		g := c.Group
+		if c.Before == "" {
+			// A request from before 0.62: the payload is the group itself.
+			if err := json.Unmarshal(a.Payload, &g); err != nil {
+				return err
+			}
+		} else if cur, err := s.store.GetJobGroup(ctx, id); err != nil {
+			return err
+		} else if groupFingerprint(cur) != c.Before {
+			return errJobChangedMeanwhile
 		}
 		g.ID = id
 		if err := s.store.UpdateJobGroup(ctx, g); err != nil {
