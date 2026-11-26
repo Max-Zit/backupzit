@@ -20,6 +20,7 @@
   </dl>
 </div>
 {{end}}
+{{range .Data.ClusterVMWarnings}}<p><span class="badge warning"><i></i>{{T "warning"}}</span> {{.}}</p>{{end}}
 <div class="panel">
   <h2>{{T "Agents"}} <small class="muted">{{len .Data.Rows}} · {{T "last run OK"}} {{.Data.OK}}{{if .Data.Failed}} · <span class="bad">{{T "failed"}} {{.Data.Failed}}</span>{{end}}</small></h2>
   {{if .Data.Rows}}<div class="table-wrap"><table>

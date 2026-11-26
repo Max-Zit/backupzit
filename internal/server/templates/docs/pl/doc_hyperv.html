@@ -92,6 +92,7 @@
 </ol>
 <p>Strona zadania pokazuje każdy węzeł z ostatnim wynikiem; <i>Run backup now on all agents</i> uruchamia wszystkie. Węzeł, na którym w tej chwili nie działa żadna maszyna zadania, zgłasza <i>None of the job's VMs runs on this node now</i> — to sukces.</p>
 <p>Zadania maszyn wirtualnych utworzone wcześniej dla pojedynczych węzłów: wyłącz je lub usuń po pierwszej kopii zadania klastra, inaczej maszyny klastra będą kopiowane dwa razy; ich kopie pozostają w magazynie. Maszyny spoza klastra (należą do jednego węzła) nie wchodzą do zadania klastra; kopiuj je zadaniem tego węzła.</p>
+<p id="cluster-missing-vms">Jeśli zadanie wybiera poszczególne maszyny wirtualne, pulpit i strona zadania odróżniają brakujące maszyny od tych, których stanu nie można zweryfikować. Maszyna jest brakująca, gdy nie występuje w aktualnym inwentarzu żadnego z uczestniczących węzłów. Każdy węzeł musi być online, a inwentarz musi mieć mniej niż 20 minut. Podczas długich kopii zapasowych inwentaryzacje mogą się dezaktualizować. Węzeł, który przestał zgłaszać przynależność do klastra, nie może być uwzględniony w kontroli. Kontrola dotyczy tylko znanych uczestniczących węzłów i nie sprawdza punktów przywracania.</p>
 <h3>Jak to działa</h3>
 <ul>
   <li>Każdy węzeł kopiuje maszyny klastra, które w danej chwili na nim działają, wszystkie do <b>jednego repozytorium klastra</b> w magazynie.</li>

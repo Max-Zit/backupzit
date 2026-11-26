@@ -195,7 +195,10 @@ func (s *Server) attention(ctx context.Context, now time.Time, l *language) []At
 	if s.InitialPasswordInUse() {
 		out = append(out, Attention{"warning", "admin", l.T("still has the generated initial password — change it under Account"), "/account", ""})
 	}
-	agents, _ := s.store.ListAgents(ctx)
+	agents, agentErr := s.store.ListAgents(ctx)
+	if groups, err := s.store.ListJobGroups(ctx); err == nil && agentErr == nil {
+		out = append(out, missingClusterVMAttention(l, groups, agents, now)...)
+	}
 	if bare := unprotectedAgents(agents, jobs, now); len(bare) > 0 {
 		var names []string
 		for _, a := range bare {

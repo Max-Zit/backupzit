@@ -92,6 +92,7 @@
 </ol>
 <p>Stranica posla prikazuje svaki čvor sa poslednjim rezultatom; <i>Run backup now on all agents</i> pokreće sve. Čvor na kom u tom trenutku ne radi nijedan VM posla javlja <i>None of the job's VMs runs on this node now</i>, što je uspeh.</p>
 <p>VM poslovi ranije napravljeni za pojedinačne čvorove: isključite ih ili obrišite posle prvog backup-a posla klastera, inače se klasterski VM-ovi backup-uju dva puta; njihovi backup-i ostaju na storage-u. VM-ovi koji nisu u klasteru (pripadaju jednom čvoru) nisu deo posla klastera; backup-ujte ih poslom tog čvora.</p>
+<p id="cluster-missing-vms">Ako posao bira pojedinačne VM-ove, pregled i stranica posla razlikuju nedostajuće VM-ove od onih čije stanje nije moguće proveriti. VM nedostaje ako ga ne prijavljuje nijedan aktuelni inventar čvorova koji učestvuju. Svaki čvor mora biti na mreži, a inventar mlađi od 20 minuta. Tokom dugih rezervnih kopiranja inventari mogu zastareti. Čvor čije članstvo u klasteru više nije prijavljeno ne može biti uključen u proveru. Provera obuhvata samo poznate čvorove koji učestvuju i ne proverava tačke vraćanja.</p>
 <h3>Kako radi</h3>
 <ul>
   <li>Svaki čvor backup-uje klasterske VM-ove koji u tom trenutku rade na njemu, sve u <b>jedan repozitorijum klastera</b> na storage-u.</li>

@@ -92,6 +92,7 @@
 </ol>
 <p>Stránka úlohy ukazuje každý uzel s posledním výsledkem; <i>Run backup now on all agents</i> spustí všechny. Uzel, na kterém v tu chvíli neběží žádný počítač úlohy, hlásí <i>None of the job's VMs runs on this node now</i> — to je úspěch.</p>
 <p>Úlohy virtuálních počítačů vytvořené dříve pro jednotlivé uzly: po první záloze úlohy clusteru je vypněte nebo smažte, jinak se počítače clusteru zálohují dvakrát; jejich zálohy zůstávají na úložišti. Počítače mimo cluster (patří jednomu uzlu) do úlohy clusteru nepatří; zálohujte je úlohou toho uzlu.</p>
+<p id="cluster-missing-vms">Pokud úloha vybírá jednotlivé VM, přehled a stránka úlohy rozlišují chybějící VM od VM, jejichž stav nelze ověřit. Chybějící VM musí být nepřítomna v aktuálních inventářích všech zúčastněných uzlů. Uzel musí být online a jeho inventář mladší než 20 minut. Během dlouhých záloh mohou inventáře zastarat. Uzel, který již nehlásí členství v clusteru, nelze do kontroly zahrnout. Kontrola se týká pouze známých zúčastněných uzlů a neověřuje body obnovení.</p>
 <h3>Jak to funguje</h3>
 <ul>
   <li>Každý uzel zálohuje počítače clusteru, které na něm právě běží, všechny do <b>jednoho repozitáře clusteru</b> na úložišti.</li>

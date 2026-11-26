@@ -92,6 +92,7 @@
 </ol>
 <p>La pagina del job mostra ogni nodo con il suo ultimo risultato; <i>Run backup now on all agents</i> li avvia tutti. Un nodo che in quel momento non esegue nessuna VM del job segnala <i>None of the job's VMs runs on this node now</i>: è un successo.</p>
 <p>Job di VM creati prima per singoli nodi: disattivali o eliminali dopo il primo backup del job del cluster, altrimenti le VM del cluster vengono salvate due volte; i loro backup restano sullo storage. Le VM fuori dal cluster (appartengono a un nodo) non fanno parte del job del cluster; salvale con un job di quel nodo.</p>
+<p id="cluster-missing-vms">Se un’attività seleziona singole VM, il pannello e la pagina dell’attività distinguono le VM mancanti da quelle il cui stato non è verificabile. Una VM è mancante se non compare negli inventari aggiornati di tutti i nodi partecipanti. Ogni nodo deve essere online e l’inventario deve risalire a meno di 20 minuti prima. Gli inventari possono diventare obsoleti durante i backup lunghi. Un nodo la cui appartenenza al cluster non viene più segnalata non può essere incluso nel controllo. Il controllo riguarda solo i nodi partecipanti conosciuti e non verifica i punti di ripristino.</p>
 <h3>Come funziona</h3>
 <ul>
   <li>Ogni nodo salva le VM del cluster che sta eseguendo in quel momento, tutte in <b>un unico repository del cluster</b> sullo storage.</li>

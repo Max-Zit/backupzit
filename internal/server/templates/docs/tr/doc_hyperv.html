@@ -92,6 +92,7 @@
 </ol>
 <p>İşin sayfası her düğümü son sonucuyla gösterir; <i>Run backup now on all agents</i> hepsini başlatır. O anda işin hiçbir VM'sini çalıştırmayan düğüm <i>None of the job's VMs runs on this node now</i> bildirir; bu bir başarıdır.</p>
 <p>Daha önce tek düğümler için oluşturulmuş VM işleri: küme işinin ilk yedeğinden sonra bunları devre dışı bırakın veya silin, yoksa küme VM'leri iki kez yedeklenir; yedekleri depolamada kalır. Kümede olmayan VM'ler (bir düğüme ait) küme işine dahil değildir; onları o düğümün bir işiyle yedekleyin.</p>
+<p id="cluster-missing-vms">Bir iş tek tek VM’leri seçtiğinde, kontrol paneli ve iş sayfası eksik VM’leri durumu doğrulanamayan VM’lerden ayırır. Bir VM, katılımcı düğümlerin hiçbirinin güncel envanterinde bildirilmediğinde eksiktir. Her düğüm çevrimiçi olmalı ve envanteri 20 dakikadan daha yeni olmalıdır. Uzun yedeklemeler sırasında envanterler güncelliğini yitirebilir. Küme üyeliği artık bildirilmeyen bir düğüm denetime dahil edilemez. Bu denetim yalnızca bilinen katılımcı düğümleri kapsar ve geri yükleme noktalarını doğrulamaz.</p>
 <h3>Nasıl çalışır</h3>
 <ul>
   <li>Her düğüm o anda üzerinde çalışan küme VM'lerini yedekler, hepsi depolamadaki <b>kümenin tek deposuna</b>.</li>

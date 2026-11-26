@@ -60,8 +60,7 @@ func (g JobGroup) Matches(a Agent) bool {
 		return false
 	}
 	if g.Scope == GroupHVCluster || g.Kind == JobVM {
-		return g.Scope == GroupHVCluster && g.Kind == JobVM && g.Options.HVCluster != "" &&
-			strings.EqualFold(a.HVCluster(), g.Options.HVCluster) && !slices.Contains(g.ExcludeIDs, a.ID)
+		return g.matchesHVCluster(a, a.HVCluster())
 	}
 	// Disk images are made of Windows computers, system backups of Linux
 	// ones, also when the agents are chosen.
@@ -88,6 +87,11 @@ func (g JobGroup) Matches(a Agent) bool {
 		return agentPlatform(a) == g.Scope
 	}
 	return false
+}
+
+func (g JobGroup) matchesHVCluster(a Agent, cluster string) bool {
+	return !a.Recovery && a.RemovedAt == nil && g.Scope == GroupHVCluster && g.Kind == JobVM && g.Options.HVCluster != "" &&
+		strings.EqualFold(cluster, g.Options.HVCluster) && !slices.Contains(g.ExcludeIDs, a.ID)
 }
 
 // agentPlatform is GroupWindows, GroupLinux or GroupMacOS for the
@@ -460,8 +464,17 @@ func (s *Server) handleGroup(w http.ResponseWriter, r *http.Request, user string
 			ok2++
 		}
 	}
+	var warnings []string
+	if monitorsClusterVMs(g) {
+		var agents []Agent
+		for _, row := range rows {
+			agents = append(agents, row.Agent)
+		}
+		observed := observeClusterVMs(g, clusterVMInventories(agents, time.Now()))
+		warnings = clusterVMWarnings(requestLanguage(r), g, observed)
+	}
 	s.render(w, r, "jobgroup", pageData{Title: g.Name, Nav: "jobs", User: user,
-		Data: map[string]any{"Group": g, "Rows": rows, "Failed": failed, "OK": ok2}})
+		Data: map[string]any{"Group": g, "Rows": rows, "Failed": failed, "OK": ok2, "ClusterVMWarnings": warnings}})
 }
 
 func (s *Server) handleGroupEditPage(w http.ResponseWriter, r *http.Request, user string) {

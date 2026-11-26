@@ -92,6 +92,7 @@
 </ol>
 <p>La page de la tâche montre chaque nœud avec son dernier résultat ; <i>Run backup now on all agents</i> les lance tous. Un nœud qui n'exécute à ce moment aucune VM de la tâche indique <i>None of the job's VMs runs on this node now</i>, ce qui est une réussite.</p>
 <p>Tâches de VM créées auparavant pour des nœuds isolés : désactivez-les ou supprimez-les après la première sauvegarde de la tâche du cluster, sinon les VM du cluster sont sauvegardées deux fois ; leurs sauvegardes restent sur le stockage. Les VM hors cluster (propres à un nœud) ne font pas partie de la tâche du cluster ; sauvegardez-les avec une tâche de ce nœud.</p>
+<p id="cluster-missing-vms">Si une tâche sélectionne des VM individuelles, le tableau de bord et la page de la tâche distinguent les VM manquantes des VM dont l’état ne peut pas être vérifié. Une VM est manquante si elle ne figure dans aucun inventaire actuel des nœuds participants. Chaque nœud doit être en ligne et son inventaire doit dater de moins de 20 minutes. Les inventaires peuvent devenir obsolètes pendant les sauvegardes longues. Un nœud dont l’appartenance au cluster n’est plus signalée ne peut pas être inclus dans la vérification. Ce contrôle ne concerne que les nœuds participants connus et ne vérifie pas les points de restauration.</p>
 <h3>Fonctionnement</h3>
 <ul>
   <li>Chaque nœud sauvegarde les VM du cluster qu'il exécute à ce moment, toutes dans <b>un même dépôt du cluster</b> sur le stockage.</li>

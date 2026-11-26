@@ -92,6 +92,7 @@
 </ol>
 <p>A página do job mostra cada nó com o último resultado; <i>Run backup now on all agents</i> inicia todos. Um nó que naquele momento não roda nenhuma VM do job informa <i>None of the job's VMs runs on this node now</i>, o que é um sucesso.</p>
 <p>Jobs de VM criados antes para nós isolados: desative-os ou exclua-os após o primeiro backup do job do cluster; caso contrário, as VMs do cluster são copiadas duas vezes. Os backups deles continuam no armazenamento. VMs fora do cluster (pertencem a um nó) não fazem parte do job do cluster; copie-as com um job desse nó.</p>
+<p id="cluster-missing-vms">Se uma tarefa selecionar VMs individuais, o painel e a página da tarefa distinguem as VMs em falta das VMs cujo estado não pode ser verificado. Uma VM está em falta se não constar dos inventários atuais de todos os nós participantes. Cada nó deve estar online e o inventário deve ter menos de 20 minutos. Os inventários podem ficar desatualizados durante cópias de segurança demoradas. Um nó cuja pertença ao cluster deixou de ser comunicada não pode ser incluído na verificação. Esta verificação abrange apenas os nós participantes conhecidos e não verifica pontos de restauro.</p>
 <h3>Como funciona</h3>
 <ul>
   <li>Cada nó copia as VMs do cluster que roda naquele momento, todas em <b>um repositório do cluster</b> no armazenamento.</li>

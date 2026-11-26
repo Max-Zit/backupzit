@@ -92,6 +92,7 @@
 </ol>
 <p>The job's page lists every node with its last result; <i>Run backup now on all agents</i> starts them all. A node that runs none of the job's VMs at that moment reports <i>None of the job's VMs runs on this node now</i>, which is a success.</p>
 <p>VM jobs created earlier for single nodes: disable or delete them after the first backup of the cluster job, otherwise the clustered VMs are backed up twice; their backups stay on the storage. VMs that are not clustered (they belong to one node) are not part of the cluster job; back them up with a job of that node.</p>
+<p id="cluster-missing-vms">If a job selects individual VMs, the dashboard and job page distinguish missing VMs from VMs whose status cannot be verified. A VM is missing when no known participating node reports it as clustered and all participating nodes are online with inventories less than 20 minutes old. Inventory may become stale during long backups. A node whose cluster membership is no longer reported cannot be included in the check. This check covers known participating nodes only; it does not verify restore points.</p>
 <h3>How it works</h3>
 <ul>
   <li>Each node backs up the clustered VMs it runs at that moment, all into <b>one repository of the cluster</b> on the storage.</li>

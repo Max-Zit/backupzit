@@ -103,13 +103,68 @@ func TestHyperVClusterJob(t *testing.T) {
 			t.Fatalf("repository %s", r)
 		}
 	}
-	// Editing keeps the cluster; a cluster job cannot back up files.
 	gid := groups[0].ID
+	report := func(a server.Agent, cluster, guests string) {
+		t.Helper()
+		inv := `{"platform":"hyperv","node":"` + a.Hostname + `","cluster_name":"` + cluster + `","guests":[` + guests + `]}`
+		if err := e.store.TouchAgent(ctx, a.ID, api.PollRequest{Hypervisor: json.RawMessage(inv)}, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	web := vm(1000000001, "web", "HV1", true)
+	db1 := vm(1000000002, "db", "HV1", true)
+	db2 := vm(1000000002, "db", "HV2", true)
+	syncTime := func(at time.Time) {
+		t.Helper()
+		if _, err := e.pool.Exec(ctx, `UPDATE agents SET last_seen_at=$1, hypervisor_at=$1 WHERE id IN ($2,$3)`, at, n1.ID, n2.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	warning := "Selected VM 1000000002 is not reported as clustered by any participating node of Hyper-V cluster HVC."
+	checkWarning := func(want bool) {
+		t.Helper()
+		syncTime(time.Now())
+		for _, path := range []string{"/", "/job-groups/" + itoa(gid)} {
+			_, _, page := c.do("GET", path, nil)
+			if strings.Contains(page, warning) != want {
+				t.Errorf("%s: missing VM warning present = %v, want %v", path, strings.Contains(page, warning), want)
+			}
+			if strings.Contains(page, "Cannot verify selected VMs 1000000002") {
+				t.Errorf("%s: fresh inventory produced unknown warning", path)
+			}
+		}
+	}
+	checkWarning(false)
+	report(n2, "HVC", "")
+	checkWarning(true)
+	report(n1, "HVC", web+","+db1)
+	checkWarning(false)
+	report(n1, "HVC", web)
+	report(n2, "HVC", "")
+	syncTime(time.Now())
+	if _, err := e.pool.Exec(ctx, `UPDATE agents SET hypervisor_at=$1 WHERE id=$2`, time.Now().Add(-time.Hour), n2.ID); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/", "/job-groups/" + itoa(gid)} {
+		_, _, page := c.do("GET", path, nil)
+		if !strings.Contains(page, "Cannot verify selected VMs 1000000002") || strings.Contains(page, warning) {
+			t.Errorf("%s: stale inventory must be unknown, not missing", path)
+		}
+	}
+	report(n2, "OTHER", db2)
+	checkWarning(true)
+	report(n2, "HVC", db2)
+	checkWarning(false)
+	report(n2, "HVC", "")
+	checkWarning(true)
+	// Editing keeps the cluster; a cluster job cannot back up files.
 	_, loc, _ = c.do("POST", "/job-groups/"+itoa(gid)+"/edit", url.Values{"name": {"cluster VMs"}, "scope": {"hvcluster"},
 		"vm_mode": {"all"}, "sched_kind": {"manual"}, "vm_block_size_kib": {"512"}})
 	if g, _ := e.store.GetJobGroup(ctx, gid); !strings.Contains(loc, "msg=") || g.Options.HVCluster != "HVC" || g.Options.VMBlockSizeKiB != 512 || strings.Join(g.Paths, ",") != "*" {
 		t.Fatalf("edit: %s %+v", loc, g)
 	}
+	checkWarning(false)
+	report(n2, "HVC", db2)
 	updated, err := e.store.ListJobs(ctx)
 	if err != nil {
 		t.Fatal(err)

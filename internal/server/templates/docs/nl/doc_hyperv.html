@@ -92,6 +92,7 @@
 </ol>
 <p>De pagina van de taak toont elk knooppunt met zijn laatste resultaat; <i>Run backup now on all agents</i> start ze allemaal. Een knooppunt waarop op dat moment geen VM van de taak draait, meldt <i>None of the job's VMs runs on this node now</i>; dat is een succes.</p>
 <p>VM-taken die eerder voor losse knooppunten zijn gemaakt: schakel ze uit of verwijder ze na de eerste back-up van de clustertaak, anders worden de geclusterde VM's dubbel geback-upt; hun back-ups blijven op de opslag. VM's buiten het cluster (ze horen bij één knooppunt) horen niet bij de clustertaak; maak er een back-up van met een taak van dat knooppunt.</p>
+<p id="cluster-missing-vms">Als een taak afzonderlijke VM’s selecteert, onderscheiden het dashboard en de taakpagina ontbrekende VM’s van VM’s waarvan de status niet kan worden gecontroleerd. Een VM ontbreekt als zij in geen enkele actuele inventaris van de deelnemende knooppunten staat. Elk knooppunt moet online zijn en de inventaris moet minder dan 20 minuten oud zijn. Tijdens lange back-ups kunnen inventarissen verouderen. Een knooppunt waarvan het clusterlidmaatschap niet meer wordt gemeld, kan niet bij de controle worden betrokken. Deze controle betreft alleen bekende deelnemende knooppunten en controleert geen herstelpunten.</p>
 <h3>Hoe het werkt</h3>
 <ul>
   <li>Elk knooppunt maakt een back-up van de geclusterde VM's die het op dat moment draait, allemaal in <b>één repository van het cluster</b> op de opslag.</li>

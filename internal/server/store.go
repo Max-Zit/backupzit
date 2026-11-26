@@ -357,8 +357,9 @@ type Agent struct {
 	// requests come from (the public address when it is behind NAT).
 	LocalIPs   []string
 	RemoteAddr string
-	// Hypervisor is the Proxmox VE inventory of an agent on a Proxmox node.
-	Hypervisor json.RawMessage
+	// Hypervisor is the last reported hypervisor inventory.
+	Hypervisor   json.RawMessage
+	HypervisorAt *time.Time
 	// RemovedAt is set for removed agents kept for their backups.
 	RemovedAt *time.Time
 	// DisplayName is the name shown in the console, set by its users (empty:
@@ -385,11 +386,11 @@ func (a Agent) Online() bool {
 	return a.LastSeen != nil && time.Since(*a.LastSeen) < 3*time.Minute
 }
 
-const agentCols = `id, uuid, hostname, repo_dir, os, arch, version, enrolled_at, last_seen_at, inventory, inventory_at, recovery, local_ips, remote_addr, hypervisor, max_runs, removed_at, display_name, tags, full_disk_access`
+const agentCols = `id, uuid, hostname, repo_dir, os, arch, version, enrolled_at, last_seen_at, inventory, inventory_at, recovery, local_ips, remote_addr, hypervisor, hypervisor_at, max_runs, removed_at, display_name, tags, full_disk_access`
 
 func scanAgent(r pgx.Row, extra ...any) (Agent, error) {
 	var a Agent
-	dest := append([]any{&a.ID, &a.UUID, &a.Hostname, &a.RepoDir, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen, &a.Inventory, &a.InventoryAt, &a.Recovery, &a.LocalIPs, &a.RemoteAddr, &a.Hypervisor, &a.MaxRuns, &a.RemovedAt, &a.DisplayName, &a.Tags, &a.FullDiskAccess}, extra...)
+	dest := append([]any{&a.ID, &a.UUID, &a.Hostname, &a.RepoDir, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen, &a.Inventory, &a.InventoryAt, &a.Recovery, &a.LocalIPs, &a.RemoteAddr, &a.Hypervisor, &a.HypervisorAt, &a.MaxRuns, &a.RemovedAt, &a.DisplayName, &a.Tags, &a.FullDiskAccess}, extra...)
 	err := r.Scan(dest...)
 	return a, err
 }

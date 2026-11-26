@@ -92,6 +92,7 @@
 </ol>
 <p>Die Seite des Jobs zeigt jeden Knoten mit seinem letzten Ergebnis; <i>Run backup now on all agents</i> startet alle. Ein Knoten, auf dem gerade keine VM des Jobs läuft, meldet <i>None of the job's VMs runs on this node now</i> – das ist ein Erfolg.</p>
 <p>Früher angelegte VM-Jobs einzelner Knoten: Deaktivieren oder löschen Sie sie nach der ersten Sicherung des Cluster-Jobs, sonst werden die geclusterten VMs doppelt gesichert; ihre Sicherungen bleiben auf dem Speicher. Nicht geclusterte VMs (sie gehören zu einem Knoten) gehören nicht zum Cluster-Job; sichern Sie sie mit einem Job dieses Knotens.</p>
+<p id="cluster-missing-vms">Wählt ein Auftrag einzelne VMs aus, unterscheiden die Übersicht und die Auftragsseite fehlende VMs von VMs mit ungeklärtem Status. Eine VM fehlt, wenn sie in den aktuellen Bestandsdaten aller teilnehmenden Knoten nicht gemeldet wird. Jeder Knoten muss online sein und seine Bestandsdaten müssen jünger als 20 Minuten sein. Bei langen Sicherungen können Bestandsdaten veralten. Ein Knoten, dessen Clusterzugehörigkeit nicht mehr gemeldet wird, kann nicht in die Prüfung einbezogen werden. Die Prüfung umfasst nur bekannte teilnehmende Knoten und prüft keine Wiederherstellungspunkte.</p>
 <h3>Wie es funktioniert</h3>
 <ul>
   <li>Jeder Knoten sichert die geclusterten VMs, die gerade auf ihm laufen, alle in <b>ein Repository des Clusters</b> auf dem Speicher.</li>
