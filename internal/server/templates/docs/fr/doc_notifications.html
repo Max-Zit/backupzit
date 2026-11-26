@@ -35,7 +35,7 @@
   <li>une adresse a été bloquée après trop de connexions échouées (désactivable dans la protection contre la force brute).</li>
 </ul>
 <p>Pour des résumés hebdomadaires ou mensuels, utilisez les <a href="/docs/monitoring">rapports planifiés</a> ; ils sont envoyés avec les mêmes paramètres de messagerie et ont leurs propres destinataires. Les objets commencent par <code>[BackupZit]</code> afin que les règles de messagerie puissent les trier. Le mot de passe SMTP est stocké chiffré. Les liens des e-mails, messages de chat et rapports mènent à la console à l'adresse avec laquelle vous l'ouvrez dans le navigateur (ou celle définie avec <code>--public-url</code>).</p>
-<p>Quand le port web HTTPS avec un certificat de confiance est activé (Paramètres → Certificat), les liens des e-mails, messages de chat et rapports utilisent son adresse, même quand le port 8443 ne sert que les agents.</p>
+<p>Quand le port web HTTPS avec un certificat de confiance est activé (Paramètres → Certificat), les liens des e-mails, messages de chat et rapports utilisent son adresse, même quand le port 8443 ne sert que les agents. Sinon, ils utilisent <code>--public-url</code>, ou à défaut l'adresse avec laquelle un utilisateur autorisé à modifier les paramètres a ouvert la console en dernier.</p>
 
 <h2>Slack, Microsoft Teams et webhooks</h2>
 <p>Dans <a href="/settings/chat">Paramètres → Chat et webhooks</a>, ajoutez autant de canaux que vous voulez ; chacun choisit s'il reçoit les échecs, les avertissements et les réussites. Les sauvegardes inhabituelles (rançongiciel possible) comptent comme des échecs. <b>Envoyer un test</b> vérifie immédiatement un canal.</p>

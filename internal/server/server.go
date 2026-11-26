@@ -661,7 +661,10 @@ func sameOrigin(r *http.Request) bool {
 }
 
 func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, d pageData) {
-	if d.User != "" {
+	if me := currentUser(r); d.User != "" && me != nil && me.Can(string(PermSettings)) {
+		// Only users who may change the settings: anyone else could point
+		// the links in emails and the tray at another host with a forged
+		// Host header.
 		s.noteConsoleURL(r)
 	}
 	lang := requestLanguage(r)

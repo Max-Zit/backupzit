@@ -35,7 +35,7 @@
   <li>adres został zablokowany po zbyt wielu nieudanych logowaniach (można to wyłączyć w ochronie przed atakami siłowymi).</li>
 </ul>
 <p>Do podsumowań tygodniowych lub miesięcznych używaj <a href="/docs/monitoring">raportów zaplanowanych</a>; są wysyłane z tymi samymi ustawieniami poczty i mają własnych odbiorców. Tematy zaczynają się od <code>[BackupZit]</code>, więc reguły poczty mogą je sortować. Hasło SMTP jest przechowywane w postaci zaszyfrowanej. Linki w e-mailach, wiadomościach czatu i raportach prowadzą do konsoli pod adresem, z którego otwierasz ją w przeglądarce (lub ustawionym przez <code>--public-url</code>).</p>
-<p>Gdy włączony jest port WWW HTTPS z zaufanym certyfikatem (Ustawienia → Certyfikat), łącza w e-mailach, wiadomościach czatu i raportach używają jego adresu, także gdy port 8443 obsługuje tylko agenty.</p>
+<p>Gdy włączony jest port WWW HTTPS z zaufanym certyfikatem (Ustawienia → Certyfikat), łącza w e-mailach, wiadomościach czatu i raportach używają jego adresu, także gdy port 8443 obsługuje tylko agenty. W przeciwnym razie używają <code>--public-url</code>, a gdy go brak — adresu, pod którym użytkownik mogący zmieniać ustawienia ostatnio otworzył konsolę.</p>
 
 <h2>Slack, Microsoft Teams i webhooki</h2>
 <p>W <a href="/settings/chat">Ustawienia → Czat i webhooki</a> dodaj dowolną liczbę kanałów; każdy wybiera, czy otrzymuje błędy, ostrzeżenia i sukcesy. Nietypowe kopie (możliwy ransomware) liczą się jako błędy. <b>Wyślij test</b> od razu sprawdza kanał.</p>

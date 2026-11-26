@@ -35,7 +35,7 @@
   <li>je adresa blokirana posle previše neuspešnih prijava (može da se isključi u zaštiti od pogađanja lozinki).</li>
 </ul>
 <p>Za nedeljne ili mesečne preglede koristite <a href="/docs/monitoring">zakazane izveštaje</a>; šalju se sa istim podešavanjima pošte i imaju svoje primaoce. Naslovi počinju sa <code>[BackupZit]</code>, pa pravila za poštu mogu da ih razvrstaju. SMTP lozinka se čuva šifrovana. Linkovi u mejlovima, porukama u chat-u i izveštajima vode na konzolu na adresi sa koje je otvarate u pregledaču (ili na adresi podešenoj sa <code>--public-url</code>).</p>
-<p>Kada je uključen HTTPS web port sa pouzdanim sertifikatom (Settings → Certificate), linkovi u mejlovima, chat porukama i izveštajima koriste njegovu adresu, i kada port 8443 služi samo agentima.</p>
+<p>Kada je uključen HTTPS web port sa pouzdanim sertifikatom (Settings → Certificate), linkovi u mejlovima, chat porukama i izveštajima koriste njegovu adresu, i kada port 8443 služi samo agentima. Inače koriste <code>--public-url</code>, a ako ga nema, adresu sa kojom je konzolu poslednji put otvorio korisnik koji sme da menja podešavanja.</p>
 
 <h2>Slack, Microsoft Teams i webhook-ovi</h2>
 <p>U <a href="/settings/chat">Podešavanja → Chat i webhook-ovi</a> dodajte bilo koliko kanala; svaki bira da li dobija neuspehe, upozorenja i uspehe. Neobični bekapi (mogući ransomware) računaju se kao neuspesi. <b>Pošalji test</b> odmah proverava kanal.</p>

@@ -35,7 +35,7 @@
   <li>um endereço foi bloqueado após muitas tentativas de login falhas (pode ser desligado na proteção contra força bruta).</li>
 </ul>
 <p>Para resumos semanais ou mensais use <a href="/docs/monitoring">relatórios agendados</a>; eles são enviados com as mesmas configurações de e-mail e têm seus próprios destinatários. Os assuntos começam com <code>[BackupZit]</code> para que regras de e-mail possam classificá-los. A senha SMTP é armazenada criptografada. Os links em e-mails, mensagens de chat e relatórios levam ao console no endereço com que você o abre no navegador (ou no definido com <code>--public-url</code>).</p>
-<p>Quando a porta web HTTPS com um certificado de confiança está ativa (Definições → Certificado), as ligações em e-mails, mensagens de chat e relatórios usam o seu endereço, também quando a porta 8443 serve apenas os agentes.</p>
+<p>Quando a porta web HTTPS com um certificado de confiança está ativa (Definições → Certificado), as ligações em e-mails, mensagens de chat e relatórios usam o seu endereço, também quando a porta 8443 serve apenas os agentes. Caso contrário, usam <code>--public-url</code> ou, na falta dele, o endereço com que um usuário que pode alterar as configurações abriu o console pela última vez.</p>
 
 <h2>Slack, Microsoft Teams e webhooks</h2>
 <p>Em <a href="/settings/chat">Configurações → Chat e webhooks</a> adicione quantos canais quiser; cada um escolhe se recebe falhas, avisos e sucessos. Backups incomuns (possível ransomware) contam como falhas. <b>Enviar teste</b> verifica um canal na hora.</p>

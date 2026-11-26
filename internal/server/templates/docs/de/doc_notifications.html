@@ -35,7 +35,7 @@
   <li>eine Adresse nach zu vielen fehlgeschlagenen Anmeldungen gesperrt wurde (abschaltbar beim Brute-Force-Schutz).</li>
 </ul>
 <p>Für wöchentliche oder monatliche Zusammenfassungen verwenden Sie <a href="/docs/monitoring">geplante Berichte</a>; sie werden mit denselben Mail-Einstellungen gesendet und haben eigene Empfänger. Betreffzeilen beginnen mit <code>[BackupZit]</code>, sodass Mailregeln sie sortieren können. Das SMTP-Passwort wird verschlüsselt gespeichert. Links in E-Mails, Chat-Nachrichten und Berichten führen zur Konsole unter der Adresse, mit der Sie sie im Browser öffnen (oder der mit <code>--public-url</code> gesetzten).</p>
-<p>Ist der HTTPS-Webport mit einem vertrauenswürdigen Zertifikat eingeschaltet (Einstellungen → Zertifikat), verwenden Links in E-Mails, Chat-Nachrichten und Berichten dessen Adresse, auch wenn Port 8443 nur Agenten bedient.</p>
+<p>Ist der HTTPS-Webport mit einem vertrauenswürdigen Zertifikat eingeschaltet (Einstellungen → Zertifikat), verwenden Links in E-Mails, Chat-Nachrichten und Berichten dessen Adresse, auch wenn Port 8443 nur Agenten bedient. Sonst verwenden sie <code>--public-url</code> oder die Adresse, mit der ein Benutzer, der die Einstellungen ändern darf, die Konsole zuletzt geöffnet hat.</p>
 
 <h2>Slack, Microsoft Teams und Webhooks</h2>
 <p>Unter <a href="/settings/chat">Einstellungen → Chat und Webhooks</a> fügen Sie beliebig viele Kanäle hinzu; jeder wählt, ob er Fehler, Warnungen und Erfolge erhält. Ungewöhnliche Sicherungen (mögliche Ransomware) zählen als Fehler. <b>Test senden</b> prüft einen Kanal sofort.</p>

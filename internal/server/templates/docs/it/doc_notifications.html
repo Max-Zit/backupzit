@@ -35,7 +35,7 @@
   <li>un indirizzo è stato bloccato dopo troppi accessi falliti (disattivabile nella protezione da forza bruta).</li>
 </ul>
 <p>Per riepiloghi settimanali o mensili usa i <a href="/docs/monitoring">report pianificati</a>; vengono inviati con le stesse impostazioni di posta e hanno destinatari propri. Gli oggetti iniziano con <code>[BackupZit]</code>, così le regole di posta possono smistarli. La password SMTP è memorizzata cifrata. I link in e-mail, messaggi chat e report portano alla console all'indirizzo con cui la apri nel browser (o a quello impostato con <code>--public-url</code>).</p>
-<p>Quando la porta web HTTPS con un certificato attendibile è attiva (Impostazioni → Certificato), i link in e-mail, messaggi chat e report usano il suo indirizzo, anche quando la porta 8443 serve solo gli agenti.</p>
+<p>Quando la porta web HTTPS con un certificato attendibile è attiva (Impostazioni → Certificato), i link in e-mail, messaggi chat e report usano il suo indirizzo, anche quando la porta 8443 serve solo gli agenti. Altrimenti usano <code>--public-url</code> oppure l'indirizzo con cui un utente che può modificare le impostazioni ha aperto la console l'ultima volta.</p>
 
 <h2>Slack, Microsoft Teams e webhook</h2>
 <p>In <a href="/settings/chat">Impostazioni → Chat e webhook</a> aggiungi quanti canali vuoi; ognuno sceglie se ricevere errori, avvisi e successi. I backup insoliti (possibile ransomware) contano come errori. <b>Invia test</b> verifica subito un canale.</p>
