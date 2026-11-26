@@ -608,7 +608,17 @@ func (s *Server) deployWindows(ctx context.Context, d *deployment, q deployReque
 	params.TransportDecorator = func() winrm.Transporter { return enc }
 	https := q.Port == 5986
 	ep := winrm.NewEndpoint(q.Host, q.Port, https, true, nil, nil, nil, 60*time.Second)
-	d.logf("connecting to %s:%d as %s (WinRM%s)", q.Host, q.Port, q.User, map[bool]string{true: " over HTTPS", false: ", NTLM-encrypted"}[https])
+	how := map[bool]string{true: " over HTTPS", false: ", NTLM-encrypted"}[https]
+	if https && strings.TrimSpace(q.HostKey) != "" {
+		// The certificate is pinned to the confirmed fingerprint (B3): the
+		// TLS connection is made here and accepts only that certificate,
+		// the WinRM library then speaks NTLM-sealed HTTP over it.
+		dial := pinnedTLSDial(strings.TrimSpace(q.HostKey))
+		params.TransportDecorator = func() winrm.Transporter { return winrm.NewClientNTLMWithDial(dial) }
+		ep = winrm.NewEndpoint(q.Host, q.Port, false, false, nil, nil, nil, 60*time.Second)
+		how = " over HTTPS, certificate " + strings.TrimSpace(q.HostKey) + " pinned"
+	}
+	d.logf("connecting to %s:%d as %s (WinRM%s)", q.Host, q.Port, q.User, how)
 	c, err := winrm.NewClientWithParameters(ep, q.User, q.Password, &params)
 	if err != nil {
 		return "", err
@@ -721,7 +731,54 @@ func cleanCLIXML(s string) string {
 func (s *Server) handleDeployStart(w http.ResponseWriter, r *http.Request, user string) {
 	q := deployRequest{Host: r.FormValue("host"), OS: r.FormValue("os"), User: r.FormValue("user"), Password: r.FormValue("password"),
 		Key: r.FormValue("key"), KeyPassphrase: r.FormValue("key_passphrase"), SudoPassword: r.FormValue("sudo_password"),
-		HostKey: r.FormValue("host_key"), Port: atoiDefault(r.FormValue("port")), By: user}
+		HostKey: strings.TrimSpace(r.FormValue("host_key")), Port: atoiDefault(r.FormValue("port")), By: user}
+	if err := q.validate(); err != nil {
+		redirectErr(w, r, "/agents#install", err)
+		return
+	}
+	// Without a fingerprint in the form, show the machine's and continue
+	// only once it is confirmed (B3). WinRM over HTTP has none to show.
+	if q.HostKey == "" && (q.OS == "linux" || q.Port == 5986) {
+		addr := net.JoinHostPort(q.Host, strconv.Itoa(q.Port))
+		p := &pendingConnect{By: user, Deploy: &q}
+		hint := "On the machine: ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub"
+		if q.OS == "windows" {
+			fp, err := fetchTLSFingerprint(r.Context(), addr)
+			if err != nil {
+				redirectErr(w, r, "/agents#install", fmt.Errorf("cannot read the WinRM certificate of %s: %v", addr, err))
+				return
+			}
+			p.Prints = []identityPrint{{Label: "WinRM certificate (SHA-256)", Value: fp}}
+			hint = "On the machine (PowerShell): Get-ChildItem WSMan:\\localhost\\Listener lists the HTTPS listener and its CertificateThumbprint; the console shows the SHA-256 of the certificate."
+		} else {
+			fp, err := fetchSSHHostKey(r.Context(), addr)
+			if err != nil {
+				redirectErr(w, r, "/agents#install", fmt.Errorf("cannot read the SSH host key of %s: %v", addr, err))
+				return
+			}
+			p.Prints = []identityPrint{{Label: "SSH host key", Value: fp}}
+		}
+		s.renderConfirmIdentity(w, r, user, p, "/agents/install/confirm", "/agents#install", hint)
+		return
+	}
+	s.runDeploy(w, r, q)
+}
+
+// handleDeployConfirm continues an installation once the user confirmed
+// the machine's fingerprint (B3).
+func (s *Server) handleDeployConfirm(w http.ResponseWriter, r *http.Request, user string) {
+	p, err := s.pendings().take(r.FormValue("pending"), user)
+	if err != nil || p.Deploy == nil || len(p.Prints) == 0 {
+		redirectErr(w, r, "/agents#install", errors.New("the confirmation expired; enter the details again"))
+		return
+	}
+	q := *p.Deploy
+	q.HostKey = p.Prints[0].Value
+	s.runDeploy(w, r, q)
+}
+
+// runDeploy starts an installation and shows its page.
+func (s *Server) runDeploy(w http.ResponseWriter, r *http.Request, q deployRequest) {
 	pub := s.publicURL(r)
 	d, err := s.startDeploy(q, pub)
 	if err != nil {

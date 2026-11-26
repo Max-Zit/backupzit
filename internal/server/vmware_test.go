@@ -71,8 +71,12 @@ func TestVMwareHosts(t *testing.T) {
 	if !strings.Contains(loc, "err=") || !strings.HasSuffix(loc, "#vmware") {
 		t.Fatalf("unreachable host accepted: %s", loc)
 	}
-	_, loc, _ = admin.do("POST", "/vmware", url.Values{"name": {"esxi1"}, "address": {sim.URL.Host}, "username": {sim.URL.User.Username()},
+	_, loc, body := admin.do("POST", "/vmware", url.Values{"name": {"esxi1"}, "address": {sim.URL.Host}, "username": {sim.URL.User.Username()},
 		"password": {simPass}, "proxy_agent_id": {fmt.Sprint(proxy.ID)}})
+	if p := pendingPrints(body); len(p) == 0 || !strings.HasPrefix(p[0], "SHA256:") {
+		t.Errorf("certificate not shown before the password: %v", p)
+	}
+	loc = confirmIdentity(t, admin, loc, body)
 	if !strings.Contains(loc, "msg=") {
 		t.Fatalf("add host: %s", loc)
 	}
@@ -649,8 +653,9 @@ func TestVCenterConnection(t *testing.T) {
 	agents, _ := e.store.ListAgents(ctx)
 	admin := newClient(t, e)
 	admin.login("admin", "admin-pass-123")
-	_, loc, _ := admin.do("POST", "/vmware", url.Values{"name": {"vc1"}, "address": {sim.URL.Host}, "username": {sim.URL.User.Username()},
+	_, loc, body := admin.do("POST", "/vmware", url.Values{"name": {"vc1"}, "address": {sim.URL.Host}, "username": {sim.URL.User.Username()},
 		"password": {pw}, "proxy_agent_id": {fmt.Sprint(agents[0].ID)}})
+	loc = confirmIdentity(t, admin, loc, body)
 	if !strings.Contains(loc, "msg=vCenter+Server+vc1+added") {
 		t.Fatalf("add vCenter: %s", loc)
 	}
@@ -658,7 +663,7 @@ func TestVCenterConnection(t *testing.T) {
 	if len(hosts) != 1 || !hosts[0].IsVCenter() || hosts[0].UsesSSH() || len(hosts[0].Inv().Hosts) == 0 {
 		t.Fatalf("vCenter: %+v", hosts)
 	}
-	_, _, body := admin.do("GET", "/agents", nil)
+	_, _, body = admin.do("GET", "/agents", nil)
 	if !strings.Contains(body, "vCenter Server (vSphere API)") || strings.Contains(body, fmt.Sprintf(`action="/vmware/%d/method"`, hosts[0].ID)) {
 		t.Error("agents page: vCenter mode or a method choice")
 	}

@@ -18,7 +18,7 @@ import (
 
 // handleVMwareCreate adds an ESXi host: the connection is checked first and
 // the host's certificate and SSH key are pinned from then on.
-func (s *Server) handleVMwareCreate(w http.ResponseWriter, r *http.Request, _ string) {
+func (s *Server) handleVMwareCreate(w http.ResponseWriter, r *http.Request, user string) {
 	h := VMwareHost{
 		Name:     strings.TrimSpace(r.FormValue("name")),
 		Address:  strings.TrimSpace(r.FormValue("address")),
@@ -44,6 +44,52 @@ func (s *Server) handleVMwareCreate(w http.ResponseWriter, r *http.Request, _ st
 		s.createVMwareViaProxy(w, r, h)
 		return
 	}
+	// The certificate and the SSH host key are shown and confirmed before
+	// the password is sent (B3); the connection then accepts only them.
+	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
+	defer cancel()
+	fp, sfp, err := vmware.PresentedFingerprints(ctx, h.Address)
+	if err != nil {
+		redirectErr(w, r, "/agents#vmware", fmt.Errorf("cannot connect to %s: %v", h.Address, err))
+		return
+	}
+	s.confirmVMware(w, r, user, &pendingConnect{By: user, VMware: &h}, fp, sfp)
+}
+
+// confirmVMware shows the fingerprints of an ESXi host or vCenter for
+// confirmation (B3).
+func (s *Server) confirmVMware(w http.ResponseWriter, r *http.Request, user string, p *pendingConnect, fp, sfp string) {
+	p.Prints = []identityPrint{{Label: "HTTPS certificate", Value: fp}}
+	if sfp != "" {
+		p.Prints = append(p.Prints, identityPrint{Label: "SSH host key", Value: sfp})
+	}
+	s.renderConfirmIdentity(w, r, user, p, "/vmware/confirm", "/agents#vmware",
+		"On the host's console (DCUI or ESXi Shell): openssl x509 -in /etc/vmware/ssl/rui.crt -noout -fingerprint -sha256 shows the certificate (as hexadecimal); the host client shows it under Manage → Security & users → Certificates.")
+}
+
+// handleVMwareConfirm adds an ESXi host once the user confirmed its
+// certificate and SSH host key (B3).
+func (s *Server) handleVMwareConfirm(w http.ResponseWriter, r *http.Request, user string) {
+	p, err := s.pendings().take(r.FormValue("pending"), user)
+	if err != nil || p.VMware == nil || len(p.Prints) == 0 {
+		redirectErr(w, r, "/agents#vmware", errors.New("the confirmation expired; enter the details again"))
+		return
+	}
+	h := *p.VMware
+	h.Thumbprint = p.Prints[0].Value
+	if len(p.Prints) > 1 {
+		h.SSHHostKey = p.Prints[1].Value
+	}
+	if p.Via {
+		s.addVMwareViaProxy(w, r, h)
+		return
+	}
+	s.createVMwareDirect(w, r, h)
+}
+
+// createVMwareDirect connects to a host with its confirmed fingerprints
+// and stores it.
+func (s *Server) createVMwareDirect(w http.ResponseWriter, r *http.Request, h VMwareHost) {
 	inv, c, sshErr, err := probeVMware(r.Context(), h)
 	if err != nil {
 		redirectErr(w, r, "/agents#vmware", fmt.Errorf("cannot connect to %s: %v", h.Address, err))

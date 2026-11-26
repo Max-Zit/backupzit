@@ -172,7 +172,7 @@ echo "{{.Code}}" | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support
           <label>{{T "Key passphrase"}} <small>{{T "only if the SSH key has one; used only to open the key"}}</small><input name="key_passphrase" type="password" autocomplete="new-password"></label>
           <label>{{T "Sudo password"}} <small>{{T "Linux, only if sudo asks for a password that differs from the one above (or a key is used)"}}</small><input name="sudo_password" type="password" autocomplete="new-password"></label>
         </div>
-        <label>{{T "SSH host key fingerprint"}} <small>{{T "Linux, optional: SHA256:… — verifies that the console talks to the right machine"}}</small><input name="host_key" class="mono"></label>
+        <label>{{T "Host key or certificate fingerprint"}} <small>{{T "optional, SHA256:… — the SSH host key (Linux) or the WinRM certificate (Windows, port 5986). Empty: the console shows what the machine presents and asks you to confirm it before it signs in"}}</small><input name="host_key" class="mono"></label>
         <p class="muted small">{{T "The console connects once, the machine downloads the newest agent package from the console and checks its SHA-256, installs and enrolls it. The password or key is used only for this and is not stored."}}</p>
         <div><button>{{T "Install agent"}}</button></div>
       </form>

@@ -37,6 +37,7 @@ systemctl enable --now backupzit-agent</pre>
   <li><b>Linux</b>（Debian、Ubuntu、AlmaLinux、Rocky Linux；64 位）：控制台通过 <b>SSH</b> 以 root 身份或具有 <code>sudo</code> 权限的用户身份连接。可使用密码或私钥（密钥的密码短语填在<b>密钥密码短语</b>中，只用于打开密钥）。控制台先在不提供密码的情况下尝试 sudo（<code>sudo -n</code>）；只有当 sudo 要求密码时才把密码交给它——用户的密码，或在不同或使用密钥时填写的 <b>sudo 密码</b>——密码从不会成为安装脚本的一部分。安装日志中的密码和密码短语都会被隐藏。输入机器的 <b>SSH 主机密钥指纹</b>（在机器上运行 <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code>），以确保控制台连接的是正确的机器；不输入时，指纹会显示在安装日志中。</li>
   <li><b>Windows</b>（64 位）：控制台通过 <b>WinRM</b>（端口 5985，消息使用 NTLM 加密；HTTPS 侦听器为 5986）以本地或域管理员身份连接。Windows Server 默认启用 WinRM；在 Windows 10/11 上以管理员身份运行一次 <code>winrm quickconfig</code>。内置 Administrator 以外的本地帐户需要远程管理权限（<code>LocalAccountTokenFilterPolicy</code>）——或使用域帐户。旧系统（Windows 7、Server 2008 R2/2012 R2）会获得 legacy MSI。</li>
 </ul>
+<p id="install-identity">如果表单中没有主机密钥或证书指纹，控制台会先在不登录的情况下读取 SSH 主机密钥（Linux）或 WinRM HTTPS 侦听器的证书（Windows，端口 5986），将其显示出来，并只在您确认后才发送密码；之后安装只接受该密钥或证书。请将其与机器上的进行比较（Linux 上为 <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code>）。通过 HTTP（端口 5985）的 WinRM 没有可检查的证书；如果控制台与机器之间的网络不可信，请使用 HTTPS 侦听器。</p>
 <p>Mac 不从这里安装：请手动或通过 MDM 部署 <code>.pkg</code>（<a href="/docs/macos#enroll">macOS 代理</a>）。</p>
 <p>机器通过一个仅对本次安装有效的链接（30 分钟、三次下载）从控制台下载最新的代理软件包，检查其 SHA-256 校验和，安装并注册。安装页面显示每一步；帐户和密码仅用于此目的，不会保存。如果机器已在此控制台注册，则保留注册并更新软件包；控制台不认识的注册（之前移除的代理或其他控制台）会被替换。每次安装都会记录在审计日志中。与任何代理一样，机器必须能访问控制台的代理地址。</p>
 

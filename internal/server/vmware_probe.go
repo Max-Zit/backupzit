@@ -184,11 +184,58 @@ func (s *Server) handleVMwareConnection(w http.ResponseWriter, r *http.Request, 
 // certificate and SSH key the proxy saw. The host is stored at once; a
 // wrong password shows on the Agents page as the error of the check.
 func (s *Server) createVMwareViaProxy(w http.ResponseWriter, r *http.Request, h VMwareHost) {
-	l := requestLanguage(r)
-	if _, err := s.store.probeAgent(r.Context(), h); err != nil {
+	a, err := s.store.probeAgent(r.Context(), h)
+	if err != nil {
 		redirectErr(w, r, "/agents#vmware", err)
 		return
 	}
+	if agentOlder(a, minFingerprintProbe) {
+		// The proxy cannot read the fingerprints alone yet: the first
+		// connection pins them, as before 0.62.
+		s.addVMwareViaProxy(w, r, h)
+		return
+	}
+	// B3: the proxy first reads what the host presents, without signing
+	// in; the password goes out only after the user confirmed it.
+	runID, err := s.store.queueFingerprintProbe(r.Context(), a.ID, h.Address)
+	if err != nil {
+		redirectErr(w, r, "/agents#vmware", err)
+		return
+	}
+	run, done := s.store.waitProbe(r.Context(), runID, 25*time.Second)
+	if !done {
+		redirectErr(w, r, "/agents#vmware", errors.New("the proxy agent did not answer within 25 seconds; add the host again when the agent is online"))
+		return
+	}
+	var p api.VMwareProbe
+	if run.Status != api.StatusSuccess || json.Unmarshal(run.Details, &p) != nil || p.Thumbprint == "" {
+		redirectErr(w, r, "/agents#vmware", fmt.Errorf("the proxy agent could not reach %s: %s", h.Address, run.Message))
+		return
+	}
+	s.confirmVMware(w, r, currentUser(r).Username, &pendingConnect{By: currentUser(r).Username, VMware: &h, Via: true}, p.Thumbprint, p.SSHHostKey)
+}
+
+// minFingerprintProbe is the first agent version that reads a host's
+// fingerprints without signing in.
+const minFingerprintProbe = "0.62.0"
+
+// queueFingerprintProbe asks agentID to read the certificate and SSH host
+// key of address (no VMware host record yet: the run's paths carry the
+// address).
+func (s *Store) queueFingerprintProbe(ctx context.Context, agentID int64, address string) (int64, error) {
+	var id int64
+	err := s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, kind, trigger, repo_url, notified, chat_notified, paths)
+		VALUES($1,'vmware-probe','manual','',true,true,$2) RETURNING id`, agentID, []string{fingerprintProbe, address}).Scan(&id)
+	return id, err
+}
+
+// fingerprintProbe marks a probe run that only reads fingerprints.
+const fingerprintProbe = "fingerprints-only"
+
+// addVMwareViaProxy stores a host reached through its proxy agent and lets
+// the agent connect (with the confirmed fingerprints, when given).
+func (s *Server) addVMwareViaProxy(w http.ResponseWriter, r *http.Request, h VMwareHost) {
+	l := requestLanguage(r)
 	h.ViaProxy = true
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)

@@ -325,6 +325,16 @@ func (a *Agent) vmwareProbe(ctx context.Context, run api.Run) api.RunResult {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
+	if run.VMware.FingerprintsOnly {
+		// Only what the host presents, without signing in: the console
+		// shows it for confirmation before it sends the password (B3).
+		tlsFP, sshFP, err := vmware.PresentedFingerprints(ctx, run.VMware.Address)
+		if err != nil {
+			return failed(fmt.Errorf("connect to %s: %w", run.VMware.Address, err))
+		}
+		details, _ := json.Marshal(api.VMwareProbe{Thumbprint: tlsFP, SSHHostKey: sshFP})
+		return api.RunResult{Status: api.StatusSuccess, Details: details, Message: "Read the certificate and the SSH host key of " + run.VMware.Address}
+	}
 	c, err := vmwareConnect(ctx, run.VMware)
 	if err != nil {
 		return failed(err)

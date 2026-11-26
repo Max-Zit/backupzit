@@ -46,8 +46,12 @@ type Server struct {
 	// X-Forwarded-For while no reverse proxy is set (A20, unix seconds);
 	// proxyLogged when that was last logged.
 	proxySeen, proxyLogged atomic.Int64
-	seen                   seenURL // the address users open the console with (ConsoleURL)
-	store                  *Store
+	// pending are connections waiting for the user to confirm the machine's
+	// identity (B3).
+	pending     *pendingStore
+	pendingOnce sync.Once
+	seen        seenURL // the address users open the console with (ConsoleURL)
+	store       *Store
 	// dups finds agent enrollments used by two machines at once.
 	dups *dupTracker
 	// deploys are agent installations started from the console.
@@ -448,6 +452,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET /agents", s.ui(PermView, s.handleAgents))
 	mux.HandleFunc("POST /agents/token", s.ui(PermStorage, s.handleAgentToken))
 	mux.HandleFunc("POST /agents/install", s.ui(PermStorage, s.handleDeployStart))
+	mux.HandleFunc("POST /agents/install/confirm", s.ui(PermStorage, s.handleDeployConfirm))
 	mux.HandleFunc("GET /agents/install/{id}", s.ui(PermStorage, s.handleDeployPage))
 	mux.HandleFunc("GET /agents/remove/{id}", s.ui(PermAgents, s.handleAgentRemovePage))
 	mux.HandleFunc("POST /agents/{id}/delete", s.ui(PermAgents, s.handleAgentDelete))
@@ -462,6 +467,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET /runs/{id}/log", s.ui(PermAgents, s.handleAgentLogDownload))
 	mux.HandleFunc("POST /agents/update-all", s.ui(PermAgents, s.handleAgentUpdateAll))
 	mux.HandleFunc("POST /vmware", s.ui(PermStorage, s.handleVMwareCreate))
+	mux.HandleFunc("POST /vmware/confirm", s.ui(PermStorage, s.handleVMwareConfirm))
 	mux.HandleFunc("POST /vmware/{id}/refresh", s.ui(PermAgents, s.handleVMwareRefresh))
 	mux.HandleFunc("POST /vmware/{id}/proxy", s.ui(PermStorage, s.handleVMwareProxy))
 	mux.HandleFunc("POST /vmware/{id}/method", s.ui(PermAgents, s.handleVMwareMethod))

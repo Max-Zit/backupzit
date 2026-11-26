@@ -1,0 +1,16 @@
+{{define "content"}}
+<div class="pagehead"><h1>{{T "Check the machine's identity"}}</h1></div>
+<div class="panel">
+  <p>{{T "Before the password is sent, compare these fingerprints with the ones the machine shows itself. If they differ, another machine may be answering in its place: cancel."}}</p>
+  <table>
+    {{range .Data.Prints}}<tr><th>{{T .Label}}</th><td class="mono">{{.Value}}</td></tr>{{end}}
+  </table>
+  {{with .Data.Hint}}<p class="muted small">{{T .}}</p>{{end}}
+  <form method="post" action="{{.Data.Action}}" class="row">
+    <input type="hidden" name="pending" value="{{.Data.ID}}">
+    <button>{{T "The fingerprints match — continue"}}</button>
+    <a class="button secondary" href="{{.Data.Back}}">{{T "Cancel"}}</a>
+  </form>
+  <p class="muted small">{{T "The confirmation is valid for 10 minutes; the password stays in the console's memory until then and is not stored."}}</p>
+</div>
+{{end}}

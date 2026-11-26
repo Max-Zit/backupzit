@@ -573,6 +573,10 @@ type VMwareHost struct {
 	// HotAdd: read the disks of running VMs through the proxy agent's own VM
 	// (agents before 0.54 ignore it and copy them on the datastore).
 	HotAdd bool `json:"hot_add,omitempty"`
+	// FingerprintsOnly: a probe that only reads the certificate and the SSH
+	// host key the host presents, without signing in, for the user to
+	// confirm before the password is sent (0.62, B3).
+	FingerprintsOnly bool `json:"fingerprints_only,omitempty"`
 }
 
 // SpeedLimit caps the upload speed, between FromHour and ToHour o'clock

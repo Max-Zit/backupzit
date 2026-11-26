@@ -318,3 +318,43 @@ func (c *Client) CheckSSH(ctx context.Context) error {
 	}
 	return nil
 }
+
+// PresentedFingerprints reads the certificate fingerprint of the host's
+// HTTPS port and, when SSH answers on port 22, its SSH host key, without
+// signing in (0.62: shown for confirmation before the password is sent).
+// sshFP is empty when SSH is not reachable.
+func PresentedFingerprints(ctx context.Context, host string) (tlsFP, sshFP string, err error) {
+	d := tls.Dialer{NetDialer: &net.Dialer{Timeout: 15 * time.Second},
+		Config: &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}} // #nosec G402 -- only reads the certificate to show it for confirmation
+	conn, err := d.DialContext(ctx, "tcp", hostPort(host, 443))
+	if err != nil {
+		return "", "", err
+	}
+	cs := conn.(*tls.Conn).ConnectionState()
+	_ = conn.Close()
+	if len(cs.PeerCertificates) == 0 {
+		return "", "", errors.New("no certificate")
+	}
+	tlsFP = Fingerprint(cs.PeerCertificates[0].Raw)
+	h, _, splitErr := net.SplitHostPort(host)
+	if splitErr != nil {
+		h = strings.Trim(host, "[]")
+	}
+	nc, err := (&net.Dialer{Timeout: 10 * time.Second}).DialContext(ctx, "tcp", net.JoinHostPort(h, "22"))
+	if err != nil {
+		return tlsFP, "", nil
+	}
+	defer nc.Close()
+	_ = nc.SetDeadline(time.Now().Add(15 * time.Second))
+	// The default host key algorithms, as the SSH connection of a backup
+	// uses them: the key shown is the key that connection sees.
+	cfg := &ssh.ClientConfig{User: "root", Timeout: 10 * time.Second,
+		HostKeyCallback: func(_ string, _ net.Addr, key ssh.PublicKey) error {
+			sshFP = ssh.FingerprintSHA256(key)
+			return errors.New("host key read")
+		}}
+	if c, _, _, err := ssh.NewClientConn(nc, h, cfg); err == nil {
+		_ = c.Close()
+	}
+	return tlsFP, sshFP, nil
+}

@@ -253,3 +253,48 @@ func TestDeploySecretsRedacted(t *testing.T) {
 		}
 	}
 }
+
+// B3: the console reads the host key without signing in, and an
+// installation with a confirmed key refuses another machine before any
+// password is sent.
+func TestFetchSSHHostKey(t *testing.T) {
+	var logins int
+	var mu sync.Mutex
+	f := &fakeSSH{t: t, uid: "0"}
+	addr := f.serve(t)
+	fp, err := fetchSSHHostKey(context.Background(), addr)
+	if err != nil || !strings.HasPrefix(fp, "SHA256:") {
+		t.Fatalf("host key: %q %v", fp, err)
+	}
+	f.mu.Lock()
+	n := len(f.runs)
+	f.mu.Unlock()
+	if n != 0 {
+		t.Errorf("reading the key ran %d commands", n)
+	}
+	dist := t.TempDir()
+	os.WriteFile(filepath.Join(dist, "backupzit-agent_0.62.0_amd64.deb"), []byte("deb"), 0o644)
+	s := &Server{DistDir: dist}
+	host, port, _ := net.SplitHostPort(addr)
+	q := deployRequest{Host: host, OS: "linux", User: "root", Password: "pw-1", HostKey: "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}
+	q.Port, _ = strconv.Atoi(port)
+	if err := q.validate(); err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.deployLinux(context.Background(), &deployment{secrets: q.secrets()}, q, "https://console:8443", "CODE-1")
+	if err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("another machine's key accepted: %v", err)
+	}
+	f.mu.Lock()
+	n = len(f.runs)
+	f.mu.Unlock()
+	mu.Lock()
+	defer mu.Unlock()
+	if n != 0 || logins != 0 {
+		t.Errorf("commands run with a wrong host key: %d", n)
+	}
+	q.HostKey = fp
+	if _, err := s.deployLinux(context.Background(), &deployment{secrets: q.secrets()}, q, "https://console:8443", "CODE-1"); err != nil {
+		t.Errorf("install with the confirmed key: %v", err)
+	}
+}

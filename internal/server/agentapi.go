@@ -169,6 +169,11 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 	}
 	if run.Kind == api.KindVMwareProbe {
 		ar := &api.Run{ID: run.ID, Kind: run.Kind}
+		if len(run.Paths) == 2 && run.Paths[0] == fingerprintProbe {
+			// Only the fingerprints, before the host is stored (B3).
+			ar.VMware = &api.VMwareHost{Name: run.Paths[1], Address: run.Paths[1], FingerprintsOnly: true}
+			return ar, nil
+		}
 		if err := s.addVMware(ctx, run, ar); err != nil {
 			return nil, err
 		}

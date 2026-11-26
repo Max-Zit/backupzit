@@ -181,3 +181,91 @@ func answerAsync(e *env, cfg *agent.Config, inv json.RawMessage, thumbprint stri
 	}
 	return nil
 }
+
+// B3: through a proxy agent of 0.62 or newer, the agent first reads the
+// host's fingerprints without the password; the host is stored and the
+// password sent only after the user confirmed them, and the check then
+// carries the confirmed certificate.
+func TestVMwareThroughProxyConfirm(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	admin := newClient(t, e)
+	admin.login("admin", "admin-pass-123")
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "0.62.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	agents, _ := e.store.ListAgents(ctx)
+	agentID := agents[0].ID
+	call := func(path string, body any, out any) {
+		b, _ := json.Marshal(body)
+		req, _ := http.NewRequest("POST", e.ts.URL+path, bytes.NewReader(b))
+		req.Header.Set("Authorization", "Bearer "+cfg.AgentUUID+":"+cfg.Secret)
+		resp, err := e.ts.Client().Do(req)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer resp.Body.Close()
+		if out != nil {
+			_ = json.NewDecoder(resp.Body).Decode(out)
+		}
+	}
+	poll := func() *api.Run {
+		var pr api.PollResponse
+		call(api.PathPoll, api.PollRequest{Hostname: "proxy1", OS: "Linux", Arch: "amd64", Version: "0.62.0", Parallel: true}, &pr)
+		return pr.Run
+	}
+	poll()
+	const fp = "SHA256:CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+	const sfp = "SHA256:DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"
+	inv, _ := json.Marshal(pve.Inventory{Platform: "vmware", Node: "esx-site", Version: "ESXi 8.0.3", Guests: []pve.Guest{{VMID: 10, Name: "web", Node: "esx-site"}}})
+	next := func() *api.Run {
+		for i := 0; i < 80; i++ {
+			if run := poll(); run != nil {
+				return run
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		t.Fatal("no run")
+		return nil
+	}
+	first := make(chan *api.Run, 1)
+	go func() {
+		run := next()
+		res, _ := json.Marshal(api.VMwareProbe{Thumbprint: fp, SSHHostKey: sfp})
+		call(fmt.Sprintf("%s%d/finish", api.PathRunsPrefix, run.ID), api.RunResult{Status: api.StatusSuccess, Details: res}, nil)
+		first <- run
+	}()
+	_, loc, body := admin.do("POST", "/vmware", url.Values{"name": {"esx-site"}, "address": {"10.9.9.9"}, "username": {"root"}, "password": {"secret-esx"},
+		"proxy_agent_id": {fmt.Sprint(agentID)}, "via_proxy": {"on"}})
+	run := <-first
+	if run.VMware == nil || !run.VMware.FingerprintsOnly || run.VMware.Password != "" || run.VMware.User != "" {
+		t.Fatalf("the first check carries credentials: %+v", run.VMware)
+	}
+	if p := pendingPrints(body); len(p) != 2 || p[0] != fp || p[1] != sfp {
+		t.Fatalf("fingerprints shown: %v (redirect %q)", p, loc)
+	}
+	if hosts, _ := e.store.ListVMwareHosts(ctx); len(hosts) != 0 {
+		t.Fatal("host stored before the confirmation")
+	}
+	second := make(chan *api.Run, 1)
+	go func() {
+		run := next()
+		res, _ := json.Marshal(api.VMwareProbe{Inventory: inv, Version: "8.0.3", Thumbprint: fp, SSHHostKey: sfp})
+		call(fmt.Sprintf("%s%d/finish", api.PathRunsPrefix, run.ID), api.RunResult{Status: api.StatusSuccess, Details: res}, nil)
+		second <- run
+	}()
+	loc = confirmIdentity(t, admin, "", body)
+	run = <-second
+	if run.VMware.Password != "secret-esx" || run.VMware.Thumbprint != fp || run.VMware.SSHHostKey != sfp {
+		t.Fatalf("the check after the confirmation: %+v", run.VMware)
+	}
+	if !strings.Contains(loc, "added+through+the+proxy+agent") {
+		t.Fatalf("add: %s", loc)
+	}
+	if hosts, _ := e.store.ListVMwareHosts(ctx); len(hosts) != 1 || hosts[0].Thumbprint != fp || hosts[0].SSHHostKey != sfp {
+		t.Fatalf("hosts: %+v", hosts)
+	}
+}
