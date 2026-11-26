@@ -75,7 +75,9 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
 | **NAS shares** | SMB or NFS share read by any agent, nothing installed on the NAS | into a folder or back onto the share |
 | **Microsoft 365** | Exchange Online mail (.eml), calendars (.ics), contacts (.vcf), OneDrive and SharePoint through Microsoft Graph, read-only permissions | browse and download, or restore into a folder |
 
-**Storage:** SFTP, S3-compatible storage (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud Storage), SMB shares, Azure Blob Storage, rotating USB disks, local disks, and the **BackupZit hardened repository** (a write-once Linux server). Backup copy jobs keep a second copy elsewhere (3-2-1). *Find backups* adds backups that are already on a storage target (for example after a reinstall of the console), so they can be restored. A target can be marked *reachable by agents only* (for example a NAS at a site the console cannot reach): the console then never connects to it, its connection test runs on an agent, and the files of its backups are browsed in the console through an agent that uses it (agents 0.61 and newer).
+Single files and folders are restored straight from the disks of VM backups of all three hypervisors, without restoring the VM: NTFS, ext2/3/4, XFS and btrfs (subvolumes and snapshots as folders, zstd/LZO/zlib compression), also inside LVM.
+
+**Storage:** SFTP, S3-compatible storage (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud Storage), SMB shares, Azure Blob Storage, rotating USB disks, local disks, and the **BackupZit hardened repository** (a write-once Linux server). Backup copy jobs keep a second copy elsewhere (3-2-1) and show their progress, speed and time left while they run. *VM backups* on a storage target lists every VM with restore points there, marks VMs that no job backs up any more (also on the dashboard), and deletes the restore points that hold only one VM. *Find backups* adds backups that are already on a storage target (for example after a reinstall of the console), so they can be restored. A target can be marked *reachable by agents only* (for example a NAS at a site the console cannot reach): the console then never connects to it, its connection test runs on an agent, and the files of its backups are browsed in the console through an agent that uses it (agents 0.61 and newer).
 
 **Protection against ransomware and mistakes:**
 - AES-256 encryption with a recovery key.
@@ -283,7 +285,7 @@ Open `https://<host>:8443` and sign in as `admin`. To update: `docker compose pu
 1. **Sign in** at `https://<console>:8443` as `admin` and change the password (*My account*).
 2. **Add storage:** open *Storage → Add storage target* and choose, for example, an SFTP server, S3 bucket, SMB share or hardened repository. The connection is tested when you save, by the console or by an agent of your choice. Write down the **recovery key** it shows: with it, backups can be restored even without the console.
 3. **Enroll agents:** on *Agents* click *Create enrollment token* and install the agent on each machine with the code (see [Installing agents](#installing-agents)). Machines appear within a minute.
-4. **Create a backup job** under *Backup jobs*: choose the agent, what to back up, the storage, a schedule (e.g. daily at 22:00) and the retention (e.g. 14 daily, 8 weekly, 12 monthly).
+4. **Create a backup job** under *Backup jobs*: choose the agent, what to back up, the storage, a schedule (e.g. daily at 22:00) and the retention (e.g. 14 daily, 8 weekly, 12 monthly, 5 yearly).
 5. Optionally:
    - email notifications under *Settings → Email*;
    - a trusted HTTPS certificate under *Settings → Certificate* (upload or Let's Encrypt);
