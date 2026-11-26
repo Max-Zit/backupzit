@@ -235,5 +235,5 @@ func clipText(s string, n int) string {
 	if len(s) <= n {
 		return s
 	}
-	return s[:n] + "â¦"
+	return s[:n] + "…"
 }
