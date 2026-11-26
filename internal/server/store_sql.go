@@ -356,10 +356,10 @@ func mysqlRestorePoints(d *repo.SQLBackup, logs []Run) []SQLRestorePoint {
 					continue
 				}
 				for _, b := range ld.Databases {
-					if b.Name != mysqldb.Binlog || b.LastLSN < want {
+					if b.Name != mysqldb.Binlog || mysqldb.BinlogLess(b.LastLSN, want) {
 						continue
 					}
-					if b.FirstLSN > want {
+					if mysqldb.BinlogLess(want, b.FirstLSN) {
 						break chain
 					}
 					p.LogUntil, want = b.Finish, mysqldb.NextBinlog(b.LastLSN)

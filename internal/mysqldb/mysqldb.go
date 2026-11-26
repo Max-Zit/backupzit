@@ -216,7 +216,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 				files = append(files, n)
 			}
 		}
-		sort.Strings(files)
+		sort.Slice(files, func(i, j int) bool { return binlogLess(files[i], files[j]) })
 		if len(files) > 0 {
 			files = files[:len(files)-1] // the newest one is still being written
 		}
@@ -225,7 +225,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 		var stored []string
 		var size uint64
 		for _, f := range files {
-			if (o.Previous != "" && f <= o.Previous) || (o.Previous == "" && o.From != "" && f < o.From) {
+			if (o.Previous != "" && !binlogLess(o.Previous, f)) || (o.Previous == "" && o.From != "" && binlogLess(f, o.From)) {
 				continue
 			}
 			src := filepath.Join(filepath.Dir(s.BinBase), f)
@@ -364,10 +364,10 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 		want := startFile
 		for i, sn := range logs {
 			b := find(sn, Binlog)
-			if b == nil || sn.SQL.Engine != "mysql" || b.LastLSN < want {
+			if b == nil || sn.SQL.Engine != "mysql" || binlogLess(b.LastLSN, want) {
 				continue
 			}
-			if b.FirstLSN > want {
+			if binlogLess(want, b.FirstLSN) {
 				return 0, fmt.Errorf("binary log %s is missing; restore to a point before %s", want, b.Start.Format("2006-01-02 15:04"))
 			}
 			dir, err := fetch(sn, b.File, fmt.Sprintf("b%d", i))
@@ -385,7 +385,7 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 				break
 			}
 		}
-		sort.Slice(binlogs, func(i, j int) bool { return filepath.Base(binlogs[i]) < filepath.Base(binlogs[j]) })
+		sort.Slice(binlogs, func(i, j int) bool { return binlogLess(filepath.Base(binlogs[i]), filepath.Base(binlogs[j])) })
 		if len(binlogs) == 0 || filepath.Base(binlogs[0]) != startFile {
 			return 0, fmt.Errorf("binary log %s (the position of the dump) is not stored yet; wait for the next log backup or restore the dump only", startFile)
 		}
@@ -515,12 +515,12 @@ func StoredState(sns []*repo.Snapshot) (previous, from string) {
 			continue
 		}
 		for _, d := range sn.SQL.Databases {
-			if d.Name == Binlog && d.LastLSN > previous {
+			if d.Name == Binlog && binlogLess(previous, d.LastLSN) {
 				previous = d.LastLSN
 			}
 			if d.Name != Binlog && d.FirstLSN != "" {
 				f, _, _ := strings.Cut(d.FirstLSN, ":")
-				if from == "" || f < from {
+				if from == "" || binlogLess(f, from) {
 					from = f
 				}
 			}
@@ -528,3 +528,21 @@ func StoredState(sns []*repo.Snapshot) (previous, from string) {
 	}
 	return previous, from
 }
+
+// binlogLess orders binary log names by their number: after
+// mysql-bin.999999 comes mysql-bin.1000000, which sorts first as text
+// (B10). Names without a number compare as text.
+func binlogLess(a, b string) bool {
+	ia, ib := strings.LastIndex(a, "."), strings.LastIndex(b, ".")
+	if ia >= 0 && ib >= 0 && a[:ia] == b[:ib] {
+		na, ea := strconv.ParseUint(a[ia+1:], 10, 64)
+		nb, eb := strconv.ParseUint(b[ib+1:], 10, 64)
+		if ea == nil && eb == nil {
+			return na < nb
+		}
+	}
+	return a < b
+}
+
+// BinlogLess is binlogLess for the console.
+func BinlogLess(a, b string) bool { return binlogLess(a, b) }
