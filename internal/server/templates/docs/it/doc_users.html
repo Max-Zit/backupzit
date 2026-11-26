@@ -80,7 +80,7 @@
 <ul>
   <li>La console verifica l'intera catena all'avvio e una volta al giorno. Se è spezzata, la pagina Registro di controllo mostra <b>Il registro di audit è stato modificato</b> con la prima voce errata, e gli amministratori ricevono un'e-mail.</li>
   <li><b>Verifica integrità ora</b> nella pagina Registro di controllo esegue subito la verifica.</li>
-  <li>Le voci scritte prima della versione 0.33.3 non hanno catena; la pagina mostra quante sono.</li>
+  <li>Le voci scritte prima della versione 0.33.3 non hanno catena; la pagina mostra quante sono. Una voce senza catena che segue la prima voce concatenata è stata aggiunta (o il suo hash cancellato) al di fuori di BackupZit e rompe la catena come una modifica.</li>
 </ul>
 <p>La catena mostra che il registro è stato modificato, ma non può recuperare ciò che è cambiato — e chi prendesse il controllo del server della console stesso, con il suo file dei segreti, potrebbe riscrivere la catena. Per difendersi, invia una copia di ogni voce a un server syslog o SIEM separato in <a href="/settings/security#audit-syslog">Impostazioni → Accesso e sicurezza → Protezione del registro di audit</a>:</p>
 <ul>

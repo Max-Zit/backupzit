@@ -80,7 +80,7 @@
 <ul>
   <li>Konzola proverava ceo lanac pri pokretanju i jednom dnevno. Ako je prekinut, stranica Dnevnik revizije prikazuje <b>Dnevnik revizije je izmenjen</b> sa prvim lošim unosom, a administratori dobijaju email.</li>
   <li><b>Proveri integritet sada</b> na stranici Dnevnik revizije odmah pokreće proveru.</li>
-  <li>Unosi upisani pre verzije 0.33.3 nemaju lanac; stranica prikazuje koliko ih je.</li>
+  <li>Unosi upisani pre verzije 0.33.3 nemaju lanac; stranica prikazuje koliko ih je. Unos bez lanca koji dolazi posle prvog ulančanog unosa dodat je (ili mu je obrisan heš) mimo BackupZit-a i prekida lanac kao i izmena.</li>
 </ul>
 <p>Lanac pokazuje da je dnevnik izmenjen, ali ne može da vrati izmenjeno — a neko ko preuzme sam server konzole, sa njegovim fajlom tajni, mogao bi da prepiše lanac. Protiv toga, šaljite kopiju svakog unosa na poseban syslog server ili SIEM u <a href="/settings/security#audit-syslog">Podešavanja → Prijava i bezbednost → Zaštita dnevnika revizije</a>:</p>
 <ul>

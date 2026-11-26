@@ -80,7 +80,7 @@
 <ul>
   <li>Die Konsole prüft die ganze Kette beim Start und einmal täglich. Ist sie unterbrochen, zeigt die Seite Prüfprotokoll <b>Das Audit-Protokoll wurde geändert</b> mit dem ersten fehlerhaften Eintrag, und die Administratoren erhalten eine E-Mail.</li>
   <li><b>Integrität jetzt prüfen</b> auf der Seite Prüfprotokoll führt die Prüfung sofort aus.</li>
-  <li>Einträge, die vor Version 0.33.3 geschrieben wurden, haben keine Kette; die Seite zeigt, wie viele es sind.</li>
+  <li>Einträge, die vor Version 0.33.3 geschrieben wurden, haben keine Kette; die Seite zeigt, wie viele es sind. Ein Eintrag ohne Kette, der nach dem ersten verketteten Eintrag kommt, wurde außerhalb von BackupZit hinzugefügt (oder sein Hash gelöscht) und bricht die Kette wie eine Änderung.</li>
 </ul>
 <p>Die Kette zeigt, dass das Protokoll geändert wurde, kann das Geänderte aber nicht zurückholen — und wer den Konsolenserver selbst mit seiner Geheimnisdatei übernimmt, könnte die Kette neu schreiben. Dagegen senden Sie eine Kopie jedes Eintrags an einen separaten Syslog-Server oder ein SIEM unter <a href="/settings/security#audit-syslog">Einstellungen → Anmeldung &amp; Sicherheit → Schutz des Audit-Protokolls</a>:</p>
 <ul>

@@ -80,7 +80,7 @@
 <ul>
   <li>Konsola sprawdza cały łańcuch przy starcie i raz dziennie. Jeśli jest przerwany, strona Dziennik audytu pokazuje <b>Dziennik audytu został zmieniony</b> z pierwszym złym wpisem, a administratorzy dostają e-mail.</li>
   <li><b>Sprawdź integralność teraz</b> na stronie Dziennik audytu od razu uruchamia sprawdzenie.</li>
-  <li>Wpisy zapisane przed wersją 0.33.3 nie mają łańcucha; strona pokazuje, ile ich jest.</li>
+  <li>Wpisy zapisane przed wersją 0.33.3 nie mają łańcucha; strona pokazuje, ile ich jest. Wpis bez łańcucha, który występuje po pierwszym wpisie z łańcuchem, został dodany (lub wymazano jego skrót) poza BackupZit i przerywa łańcuch tak jak zmiana.</li>
 </ul>
 <p>Łańcuch pokazuje, że dziennik został zmieniony, ale nie przywróci tego, co zmieniono — a ktoś, kto przejmie sam serwer konsoli wraz z plikiem sekretów, mógłby przepisać łańcuch. Aby się przed tym chronić, wysyłaj kopię każdego wpisu na osobny serwer syslog lub SIEM w <a href="/settings/security#audit-syslog">Ustawienia → Logowanie i bezpieczeństwo → Ochrona dziennika audytu</a>:</p>
 <ul>

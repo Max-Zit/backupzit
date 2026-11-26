@@ -80,7 +80,7 @@
 <ul>
   <li>La console vérifie toute la chaîne au démarrage et une fois par jour. Si elle est rompue, la page Journal d'audit affiche <b>Le journal d'audit a été modifié</b> avec la première entrée défectueuse, et les administrateurs reçoivent un e-mail.</li>
   <li><b>Vérifier l'intégrité maintenant</b> sur la page Journal d'audit lance la vérification immédiatement.</li>
-  <li>Les entrées écrites avant la version 0.33.3 n'ont pas de chaîne ; la page indique combien il y en a.</li>
+  <li>Les entrées écrites avant la version 0.33.3 n'ont pas de chaîne ; la page indique combien il y en a. Une entrée sans chaîne placée après la première entrée chaînée a été ajoutée (ou son hachage effacé) en dehors de BackupZit et rompt la chaîne comme une modification.</li>
 </ul>
 <p>La chaîne montre que le journal a été modifié, mais ne peut pas restaurer ce qui l'a été — et quelqu'un qui prend le contrôle du serveur de la console lui-même, avec son fichier de secrets, pourrait réécrire la chaîne. Pour s'en protéger, envoyez une copie de chaque entrée à un serveur syslog ou SIEM séparé dans <a href="/settings/security#audit-syslog">Paramètres → Connexion et sécurité → Protection du journal d'audit</a> :</p>
 <ul>

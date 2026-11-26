@@ -114,6 +114,18 @@ func (s *Store) VerifyAudit(ctx context.Context) AuditIntegrity {
 	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM audit_log WHERE hash = ''`).Scan(&res.Legacy); err != nil {
 		return fail(0, "cannot read the audit log: %v", err)
 	}
+	// Entries without a hash are only the old ones from before the chain
+	// existed: one after the chain started was added (or its hash wiped)
+	// outside BackupZit.
+	var stray int64
+	err := s.db.QueryRow(ctx, `SELECT COALESCE(min(id), 0) FROM audit_log WHERE hash = ''
+		AND id > (SELECT COALESCE(min(id), 0) FROM audit_log WHERE hash <> '') AND EXISTS (SELECT 1 FROM audit_log WHERE hash <> '')`).Scan(&stray)
+	if err != nil {
+		return fail(0, "cannot read the audit log: %v", err)
+	}
+	if stray != 0 {
+		return fail(stray, "entry #%d has no hash: it was added or changed outside BackupZit", stray)
+	}
 	rows, err := s.db.Query(ctx, `SELECT id, at, username, action, detail, remote, prev_hash, hash FROM audit_log WHERE hash <> '' ORDER BY id`)
 	if err != nil {
 		return fail(0, "cannot read the audit log: %v", err)

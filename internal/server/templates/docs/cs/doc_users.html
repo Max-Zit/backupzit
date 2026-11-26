@@ -80,7 +80,7 @@
 <ul>
   <li>Konzole kontroluje celý řetězec při startu a jednou denně. Je-li přerušený, stránka Protokol auditu ukáže <b>Protokol auditu byl změněn</b> s prvním chybným záznamem a správci dostanou e-mail.</li>
   <li><b>Ověřit integritu nyní</b> na stránce Protokol auditu spustí kontrolu okamžitě.</li>
-  <li>Záznamy zapsané před verzí 0.33.3 řetězec nemají; stránka ukazuje, kolik jich je.</li>
+  <li>Záznamy zapsané před verzí 0.33.3 řetězec nemají; stránka ukazuje, kolik jich je. Záznam bez řetězce, který následuje po prvním zřetězeném, byl přidán (nebo byl vymazán jeho hash) mimo BackupZit a poruší řetězec stejně jako změna.</li>
 </ul>
 <p>Řetězec ukazuje, že protokol byl změněn, ale změněné nedokáže vrátit — a kdo převezme samotný server konzole i se souborem tajemství, mohl by řetězec přepsat. Proti tomu posílejte kopii každého záznamu na samostatný server syslog nebo SIEM v <a href="/settings/security#audit-syslog">Nastavení → Přihlášení a zabezpečení → Ochrana protokolu auditu</a>:</p>
 <ul>

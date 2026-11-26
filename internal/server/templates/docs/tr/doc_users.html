@@ -80,7 +80,7 @@
 <ul>
   <li>Konsol, başlangıçta ve günde bir kez tüm zinciri denetler. Zincir kopmuşsa, Denetim günlüğü sayfası ilk hatalı girişle birlikte <b>Denetim günlüğü değiştirildi</b> gösterir ve yöneticiler bir e-posta alır.</li>
   <li>Denetim günlüğü sayfasındaki <b>Bütünlüğü şimdi doğrula</b> denetimi hemen çalıştırır.</li>
-  <li>0.33.3 sürümünden önce yazılan girişlerin zinciri yoktur; sayfa kaç tane olduğunu gösterir.</li>
+  <li>0.33.3 sürümünden önce yazılan girişlerin zinciri yoktur; sayfa kaç tane olduğunu gösterir. İlk zincirli girişten sonra gelen zinciri olmayan bir giriş BackupZit dışında eklenmiştir (veya karması silinmiştir) ve bir değişiklik gibi zinciri bozar.</li>
 </ul>
 <p>Zincir, günlüğün değiştirildiğini gösterir ama değiştirileni geri getiremez — ve konsol sunucusunun kendisini gizli anahtar dosyasıyla birlikte ele geçiren biri zinciri yeniden yazabilir. Buna karşı, her girişin bir kopyasını <a href="/settings/security#audit-syslog">Ayarlar → Oturum açma ve güvenlik → Denetim günlüğü koruması</a> altında ayrı bir syslog sunucusuna veya SIEM'e gönderin:</p>
 <ul>

@@ -110,3 +110,23 @@ func TestAuditChainTruncated(t *testing.T) {
 		t.Errorf("truncated chain after a new entry: %+v", res)
 	}
 }
+
+// A14: an entry without a hash after the chain started (added in the
+// database, or its hash wiped) is detected.
+func TestAuditChainStrayEntry(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	e.srv.StartAuditChain(ctx, t.TempDir())
+	newClient(t, e).login("admin", "admin-pass-123")
+	newClient(t, e).login("admin", "admin-pass-123")
+	if res := e.store.VerifyAudit(ctx); !res.OK {
+		t.Fatalf("fresh chain: %+v", res)
+	}
+	var id int64
+	if err := e.pool.QueryRow(ctx, `INSERT INTO audit_log(at, username, action, detail, remote) VALUES(now(), 'admin', 'login', '', '10.0.0.9') RETURNING id`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	if res := e.store.VerifyAudit(ctx); res.OK || res.BadID != id || !strings.Contains(res.Problem, "no hash") {
+		t.Errorf("stray entry: %+v", res)
+	}
+}

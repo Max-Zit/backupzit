@@ -80,7 +80,7 @@
 <ul>
   <li>De console controleert de hele keten bij het starten en één keer per dag. Is die verbroken, dan toont de pagina Auditlogboek <b>Het auditlogboek is gewijzigd</b> met het eerste foute item, en krijgen de beheerders een e-mail.</li>
   <li><b>Integriteit nu controleren</b> op de pagina Auditlogboek voert de controle direct uit.</li>
-  <li>Items die vóór versie 0.33.3 zijn geschreven, hebben geen keten; de pagina toont hoeveel het er zijn.</li>
+  <li>Items die vóór versie 0.33.3 zijn geschreven, hebben geen keten; de pagina toont hoeveel het er zijn. Een item zonder keten dat na het eerste geketende item komt, is buiten BackupZit toegevoegd (of de hash ervan is gewist) en breekt de keten net als een wijziging.</li>
 </ul>
 <p>De keten laat zien dat het logboek is gewijzigd, maar kan het gewijzigde niet terughalen — en iemand die de consoleserver zelf overneemt, met zijn geheimenbestand, zou de keten kunnen herschrijven. Stuur daarom een kopie van elk item naar een aparte syslog-server of SIEM onder <a href="/settings/security#audit-syslog">Instellingen → Aanmelden en beveiliging → Bescherming van het auditlogboek</a>:</p>
 <ul>

@@ -80,7 +80,7 @@
 <ul>
   <li>La consola comprueba toda la cadena al arrancar y una vez al día. Si está rota, la página Registro de auditoría muestra <b>El registro de auditoría fue modificado</b> con la primera entrada incorrecta, y los administradores reciben un correo.</li>
   <li><b>Verificar integridad ahora</b> en la página Registro de auditoría ejecuta la comprobación al momento.</li>
-  <li>Las entradas escritas antes de la versión 0.33.3 no tienen cadena; la página indica cuántas hay.</li>
+  <li>Las entradas escritas antes de la versión 0.33.3 no tienen cadena; la página indica cuántas hay. Una entrada sin cadena que aparece después de la primera encadenada se añadió (o se borró su hash) fuera de BackupZit y rompe la cadena como un cambio.</li>
 </ul>
 <p>La cadena muestra que el registro se modificó, pero no puede recuperar lo cambiado, y alguien que se haga con el propio servidor de la consola, con su archivo de secretos, podría reescribir la cadena. Para evitarlo, envíe una copia de cada entrada a un servidor syslog o SIEM aparte en <a href="/settings/security#audit-syslog">Configuración → Inicio de sesión y seguridad → Protección del registro de auditoría</a>:</p>
 <ul>

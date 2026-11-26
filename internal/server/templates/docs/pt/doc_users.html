@@ -80,7 +80,7 @@
 <ul>
   <li>O console verifica toda a corrente ao iniciar e uma vez por dia. Se ela estiver quebrada, a página Log de auditoria mostra <b>O registro de auditoria foi alterado</b> com a primeira entrada ruim, e os administradores recebem um e-mail.</li>
   <li><b>Verificar integridade agora</b> na página Log de auditoria executa a verificação na hora.</li>
-  <li>Entradas gravadas antes da versão 0.33.3 não têm corrente; a página mostra quantas são.</li>
+  <li>Entradas gravadas antes da versão 0.33.3 não têm corrente; a página mostra quantas são. Uma entrada sem corrente que vem depois da primeira encadeada foi adicionada (ou teve o hash apagado) fora do BackupZit e quebra a corrente como uma alteração.</li>
 </ul>
 <p>A corrente mostra que o log foi alterado, mas não consegue recuperar o que foi alterado — e alguém que tome o próprio servidor do console, com seu arquivo de segredos, poderia reescrever a corrente. Contra isso, envie uma cópia de cada entrada para um servidor syslog ou SIEM separado em <a href="/settings/security#audit-syslog">Configurações → Login e segurança → Proteção do registro de auditoria</a>:</p>
 <ul>

@@ -80,7 +80,7 @@
 <ul>
   <li>The console checks the whole chain at start and once a day. If it is broken, the Audit log page shows <b>The audit log was changed</b> with the first bad entry, and the administrators get an email.</li>
   <li><b>Verify integrity now</b> on the Audit log page runs the check at once.</li>
-  <li>Entries written before version 0.33.3 have no chain; the page shows how many of them there are.</li>
+  <li>Entries written before version 0.33.3 have no chain; the page shows how many of them there are. An entry without a chain that comes after the first chained one was added (or its hash wiped) outside BackupZit, and breaks the chain like a change.</li>
 </ul>
 <p>The chain shows that the log was changed, but cannot bring back what was changed — and somebody who takes over the console server itself, with its secrets file, could rewrite the chain. Against that, send a copy of every entry to a separate syslog server or SIEM under <a href="/settings/security#audit-syslog">Settings → Sign-in &amp; security → Audit log protection</a>:</p>
 <ul>
