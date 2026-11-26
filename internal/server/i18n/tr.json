@@ -327,7 +327,7 @@
   "Browse files": "Dosyalara göz at",
   "Browse files — download or restore selected ones": "Dosylara göz at — seçilenleri indir veya geri yükle",
   "Browse the NTFS partitions of a disk image and restore single files.": "Bir disk görüntüsünün NTFS bölümlerine göz atın ve tek tek dosyaları geri yükleyin.",
-  "Browse the disks of a VM backup (NTFS, ext4, XFS, LVM) or the files of a Proxmox container, download files or restore them to an agent.": "Bir VM yedeğinin disklerine (NTFS, ext4, XFS, LVM) veya bir Proxmox kapsayıcısının dosyalarına göz atın, dosyaları indirin veya bir ajana geri yükleyin.",
+  "Browse the disks of a VM backup (NTFS, ext4, XFS, btrfs, LVM) or the files of a Proxmox container, download files or restore them to an agent.": "Bir VM yedeğinin disklerine (NTFS, ext4, XFS, btrfs, LVM) veya bir Proxmox kapsayıcısının dosyalarına göz atın, dosyaları indirin veya bir ajana geri yükleyin.",
   "Brute-force protection": "Kaba kuvvet koruması",
   "Brute-force protection saved.": "Kaba kuvvet koruması kaydedildi.",
   "Bucket": "Bucket",

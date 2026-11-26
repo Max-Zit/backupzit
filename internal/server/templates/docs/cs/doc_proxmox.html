@@ -100,7 +100,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Nainstalujte agenta na každý uzel. Úloha zálohuje hosty běžící na uzlu svého agenta; host uvedený v úloze, který byl migrován na jiný uzel, se ohlásí jako varování s názvem toho uzlu — zálohujte každý uzel vlastní úlohou, nebo na každém uzlu použijte <i>Všechny VM (a kontejnery) na hostiteli</i>, aby byli migrovaní hosté vždy pokryti.</p>
 
 <h2>Obnova jednotlivých souborů</h2>
-<p>V tabulce hostů běhu zálohy VM klikněte na <b>Procházet soubory</b>. Konzole čte disk přímo ze zálohy — nic se předem neobnovuje — a ukáže jeho oddíly a logické svazky LVM; procházet lze NTFS (Windows), ext2/3/4 a XFS (Linux), i uvnitř LVM. Zaškrtněte soubory a složky a:</p>
+<p>V tabulce hostů běhu zálohy VM klikněte na <b>Procházet soubory</b>. Konzole čte disk přímo ze zálohy — nic se předem neobnovuje — a ukáže jeho oddíly a logické svazky LVM; procházet lze NTFS (Windows), ext2/3/4, XFS a btrfs (Linux), i uvnitř LVM. Zaškrtněte soubory a složky a:</p>
 <ul>
   <li><b>Stáhnout</b> — jeden soubor tak, jak je, více souborů nebo složek jako archiv ZIP, přímo do prohlížeče;</li>
   <li><b>Obnovit na agentovi</b> — zkopírovat je do složky na libovolném agentovi, např. zpět do VM (pokud v něm běží agent BackupZit) nebo na souborový server.</li>

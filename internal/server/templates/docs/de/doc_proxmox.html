@@ -100,7 +100,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Installieren Sie den Agenten auf jedem Knoten. Ein Auftrag sichert die Gäste, die auf dem Knoten seines Agenten laufen; ein in einem Auftrag aufgeführter Gast, der auf einen anderen Knoten migriert wurde, wird als Warnung mit dem Namen dieses Knotens gemeldet — sichern Sie jeden Knoten mit einem eigenen Auftrag, oder verwenden Sie <i>Alle VMs (und Container) auf dem Host</i> auf jedem Knoten, damit migrierte Gäste immer abgedeckt sind.</p>
 
 <h2>Einzelne Dateien wiederherstellen</h2>
-<p>Klicken Sie in der Gasttabelle eines VM-Sicherungslaufs auf <b>Dateien durchsuchen</b>. Die Konsole liest die Festplatte direkt aus der Sicherung — nichts wird vorher wiederhergestellt — und zeigt ihre Partitionen und logischen LVM-Volumes; NTFS (Windows), ext2/3/4 und XFS (Linux) können durchsucht werden, auch innerhalb von LVM. Markieren Sie Dateien und Ordner und:</p>
+<p>Klicken Sie in der Gasttabelle eines VM-Sicherungslaufs auf <b>Dateien durchsuchen</b>. Die Konsole liest die Festplatte direkt aus der Sicherung — nichts wird vorher wiederhergestellt — und zeigt ihre Partitionen und logischen LVM-Volumes; NTFS (Windows), ext2/3/4, XFS und btrfs (Linux) können durchsucht werden, auch innerhalb von LVM. Markieren Sie Dateien und Ordner und:</p>
 <ul>
   <li><b>Herunterladen</b> — eine Datei unverändert, mehrere Dateien oder Ordner als ZIP-Archiv, direkt in Ihren Browser;</li>
   <li><b>Auf Agent wiederherstellen</b> — in einen Ordner auf einem beliebigen Agenten kopieren, z. B. zurück in die VM (wenn dort der BackupZit-Agent läuft) oder auf einen Dateiserver.</li>

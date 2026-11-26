@@ -12,7 +12,7 @@
   <tr><td>VMware ESXi 虚拟机</td><td>任意代理都可作为代理服务器，<b>ESXi 和虚拟机内无需安装任何东西</b>；静默快照，Changed Block Tracking 只读取更改的块。<a href="/docs/vmware">VMware ESXi</a></td><td>整个虚拟机作为新虚拟机或就地还原（保留 UUID 和 MAC 地址），可还原到任意主机和数据存储；单个文件。</td></tr>
   <tr><td>NAS 和文件共享（SMB、NFS）</td><td>NAS 上无需软件：任意机器上的代理读取共享。<a href="/docs/jobs">备份作业</a></td><td>文件和文件夹还原回共享、某个文件夹或作为下载。</td></tr>
   <tr><td>数据库：SQL Server、PostgreSQL、MySQL/MariaDB</td><td>数据库机器上的代理；使用服务器自带工具，完整备份和日志备份。<a href="/docs/sql">数据库</a></td><td>单个数据库以新名称或就地还原，可还原到日志备份覆盖的任意时刻。</td></tr>
-  <tr><td>Proxmox VE 虚拟机和容器</td><td>Proxmox 主机上的代理，<b>客户机内无需代理</b>；基于 Proxmox 快照，只上传更改的块。<a href="/docs/proxmox">Proxmox VE</a></td><td>整个客户机作为新客户机或就地还原，可还原到任意节点和存储；直接从备份即时启动虚拟机（即时恢复，也支持 VMware ESXi）；从虚拟机磁盘（NTFS、ext4、XFS、LVM）提取单个文件，可下载或发送到代理。</td></tr>
+  <tr><td>Proxmox VE 虚拟机和容器</td><td>Proxmox 主机上的代理，<b>客户机内无需代理</b>；基于 Proxmox 快照，只上传更改的块。<a href="/docs/proxmox">Proxmox VE</a></td><td>整个客户机作为新客户机或就地还原，可还原到任意节点和存储；直接从备份即时启动虚拟机（即时恢复，也支持 VMware ESXi）；从虚拟机磁盘（NTFS、ext4、XFS、btrfs、LVM）提取单个文件，可下载或发送到代理。</td></tr>
   <tr><td>Microsoft 365</td><td>任何可访问互联网的代理通过 Microsoft Graph 以只读权限读取 Exchange Online 邮件、日历和联系人、OneDrive 和 SharePoint；租户中无需安装任何内容。<a href="/docs/m365">Microsoft 365</a></td><td>浏览并下载邮件（.eml）和文件，或将其还原到代理上的文件夹。</td></tr>
 </table>
 

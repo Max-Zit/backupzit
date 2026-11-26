@@ -327,7 +327,7 @@
   "Browse files": "Просмотр файлов",
   "Browse files — download or restore selected ones": "Просмотр файлов — скачать или восстановить выбранные",
   "Browse the NTFS partitions of a disk image and restore single files.": "Просмотр разделов NTFS образа диска и восстановление отдельных файлов.",
-  "Browse the disks of a VM backup (NTFS, ext4, XFS, LVM) or the files of a Proxmox container, download files or restore them to an agent.": "Просматривать диски копии ВМ (NTFS, ext4, XFS, LVM) или файлы контейнера Proxmox, скачивать файлы или восстанавливать их на агент.",
+  "Browse the disks of a VM backup (NTFS, ext4, XFS, btrfs, LVM) or the files of a Proxmox container, download files or restore them to an agent.": "Просматривать диски копии ВМ (NTFS, ext4, XFS, btrfs, LVM) или файлы контейнера Proxmox, скачивать файлы или восстанавливать их на агент.",
   "Brute-force protection": "Защита от перебора паролей",
   "Brute-force protection saved.": "Защита от перебора паролей сохранена.",
   "Bucket": "Bucket",

@@ -88,7 +88,7 @@
   <tr><td><code>pve list</code></td><td>Toont de VM's en containers van het cluster en de opslag die bruikbaar is voor herstel.</td></tr>
   <tr><td><code>pve backup [--vmid 100,200] [--exclude 300]</code></td><td>Maakt een back-up van de gasten van dit knooppunt (standaard: alle) vanuit Proxmox-snapshots.</td></tr>
   <tr><td><code>pve show SNAPSHOT|latest</code></td><td>Toont de gasten en schijven in een VM-back-up.</td></tr>
-  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Toont de partities en logische volumes van een gastschijf, of de bestanden in een map (NTFS, ext4, XFS, ook op LVM).</td></tr>
+  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Toont de partities en logische volumes van een gastschijf, of de bestanden in een map (NTFS, ext4, XFS, btrfs, ook op LVM).</td></tr>
   <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>Kopieert bestanden en mappen van een gastschijf zonder de VM te herstellen.</td></tr>
   <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite [--remove-first]] [--start] SNAPSHOT|latest</code></td><td>Bouwt een gast opnieuw; <code>--new-vmid -1</code> neemt de volgende vrije ID, <code>--overwrite</code> vervangt een bestaande gast met dezelfde ID. Zie <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
   <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>Direct herstel: start een VM binnen seconden terwijl de schijven uit de back-up worden gelezen (nieuwe VM, standaard de volgende vrije ID).</td></tr>

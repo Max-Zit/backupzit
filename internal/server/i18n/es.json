@@ -327,7 +327,7 @@
   "Browse files": "Examinar archivos",
   "Browse files — download or restore selected ones": "Explorar archivos — descargar o restaurar los seleccionados",
   "Browse the NTFS partitions of a disk image and restore single files.": "Examinar las particiones NTFS de una imagen de disco y restaurar archivos sueltos.",
-  "Browse the disks of a VM backup (NTFS, ext4, XFS, LVM) or the files of a Proxmox container, download files or restore them to an agent.": "Explorar los discos de una copia de VM (NTFS, ext4, XFS, LVM) o los archivos de un contenedor de Proxmox, descargar archivos o restaurarlos en un agente.",
+  "Browse the disks of a VM backup (NTFS, ext4, XFS, btrfs, LVM) or the files of a Proxmox container, download files or restore them to an agent.": "Explorar los discos de una copia de VM (NTFS, ext4, XFS, btrfs, LVM) o los archivos de un contenedor de Proxmox, descargar archivos o restaurarlos en un agente.",
   "Brute-force protection": "Protección contra fuerza bruta",
   "Brute-force protection saved.": "Protección contra fuerza bruta guardada.",
   "Bucket": "Bucket",

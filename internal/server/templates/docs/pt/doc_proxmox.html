@@ -100,7 +100,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Instale o agente em cada nó. Uma tarefa faz backup dos convidados que rodam no nó do seu agente; um convidado listado em uma tarefa e migrado para outro nó é informado como aviso com o nome desse nó — faça backup de cada nó com sua própria tarefa, ou use <i>Todas as VMs (e contêineres) do host</i> em cada nó para que convidados migrados estejam sempre cobertos.</p>
 
 <h2>Restaurar arquivos avulsos</h2>
-<p>Na tabela de convidados de uma execução de backup de VM, clique em <b>Navegar pelos arquivos</b>. O console lê o disco diretamente do backup — nada é restaurado antes — e mostra suas partições e volumes lógicos LVM; NTFS (Windows), ext2/3/4 e XFS (Linux) podem ser navegados, também dentro de LVM. Marque arquivos e pastas e:</p>
+<p>Na tabela de convidados de uma execução de backup de VM, clique em <b>Navegar pelos arquivos</b>. O console lê o disco diretamente do backup — nada é restaurado antes — e mostra suas partições e volumes lógicos LVM; NTFS (Windows), ext2/3/4, XFS e btrfs (Linux) podem ser navegados, também dentro de LVM. Marque arquivos e pastas e:</p>
 <ul>
   <li><b>Baixar</b> — um arquivo como está, vários arquivos ou pastas como arquivo ZIP, direto para o navegador;</li>
   <li><b>Restaurar no agente</b> — copiá-los para uma pasta em qualquer agente, por ex. de volta à VM (se ela roda o agente BackupZit) ou para um servidor de arquivos.</li>

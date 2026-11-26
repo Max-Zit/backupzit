@@ -100,7 +100,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Instale el agente en cada nodo. Un trabajo copia los invitados que se ejecutan en el nodo de su agente; un invitado incluido en un trabajo que se haya migrado a otro nodo se notifica como advertencia con el nombre de ese nodo: copie cada nodo con su propio trabajo, o use <i>Todas las VM (y contenedores) del host</i> en cada nodo para que los invitados migrados queden siempre cubiertos.</p>
 
 <h2>Restaurar archivos sueltos</h2>
-<p>En la tabla de invitados de una ejecución de copia de VM, haga clic en <b>Examinar archivos</b>. La consola lee el disco directamente de la copia —no se restaura nada antes— y muestra sus particiones y volúmenes lógicos LVM; se pueden examinar NTFS (Windows), ext2/3/4 y XFS (Linux), también dentro de LVM. Marque archivos y carpetas y:</p>
+<p>En la tabla de invitados de una ejecución de copia de VM, haga clic en <b>Examinar archivos</b>. La consola lee el disco directamente de la copia —no se restaura nada antes— y muestra sus particiones y volúmenes lógicos LVM; se pueden examinar NTFS (Windows), ext2/3/4, XFS y btrfs (Linux), también dentro de LVM. Marque archivos y carpetas y:</p>
 <ul>
   <li><b>Descargar</b>: un archivo tal cual, varios archivos o carpetas como archivo ZIP, directamente en el navegador;</li>
   <li><b>Restaurar en el agente</b>: copiarlos a una carpeta de cualquier agente, p. ej., de vuelta a la VM (si ejecuta el agente BackupZit) o a un servidor de archivos.</li>

@@ -88,7 +88,7 @@
   <tr><td><code>pve list</code></td><td>Liste les VM et conteneurs du cluster et le stockage utilisable pour les restaurations.</td></tr>
   <tr><td><code>pve backup [--vmid 100,200] [--exclude 300]</code></td><td>Sauvegarde les invités de ce nœud (par défaut : tous) à partir d'instantanés Proxmox.</td></tr>
   <tr><td><code>pve show SNAPSHOT|latest</code></td><td>Affiche les invités et disques d'une sauvegarde de VM.</td></tr>
-  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Liste les partitions et volumes logiques d'un disque d'invité, ou les fichiers d'un dossier (NTFS, ext4, XFS, aussi sur LVM).</td></tr>
+  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Liste les partitions et volumes logiques d'un disque d'invité, ou les fichiers d'un dossier (NTFS, ext4, XFS, btrfs, aussi sur LVM).</td></tr>
   <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>Copie des fichiers et dossiers depuis un disque d'invité sans restaurer la VM.</td></tr>
   <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite [--remove-first]] [--start] SNAPSHOT|latest</code></td><td>Recrée un invité ; <code>--new-vmid -1</code> prend le prochain ID libre, <code>--overwrite</code> remplace un invité existant ayant le même ID. Voir <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
   <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>Restauration instantanée : démarre une VM en quelques secondes pendant que ses disques sont lus depuis la sauvegarde (nouvelle VM, prochain ID libre par défaut).</td></tr>

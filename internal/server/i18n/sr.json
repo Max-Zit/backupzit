@@ -327,7 +327,7 @@
   "Browse files": "Pregledaj fajlove",
   "Browse files — download or restore selected ones": "Pregledaj fajlove — preuzmi ili vrati izabrane",
   "Browse the NTFS partitions of a disk image and restore single files.": "Pregledajte NTFS particije slike diska i vratite pojedinačne fajlove.",
-  "Browse the disks of a VM backup (NTFS, ext4, XFS, LVM) or the files of a Proxmox container, download files or restore them to an agent.": "Pregledajte diskove bekapa VM-a (NTFS, ext4, XFS, LVM) ili fajlove Proxmox kontejnera, preuzmite fajlove ili ih vratite na agenta.",
+  "Browse the disks of a VM backup (NTFS, ext4, XFS, btrfs, LVM) or the files of a Proxmox container, download files or restore them to an agent.": "Pregledajte diskove bekapa VM-a (NTFS, ext4, XFS, btrfs, LVM) ili fajlove Proxmox kontejnera, preuzmite fajlove ili ih vratite na agenta.",
   "Brute-force protection": "Zaštita od pogađanja lozinki",
   "Brute-force protection saved.": "Zaštita od pogađanja lozinki je sačuvana.",
   "Bucket": "Bucket",

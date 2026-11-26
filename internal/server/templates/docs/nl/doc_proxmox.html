@@ -100,7 +100,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Installeer de agent op elke node. Een taak maakt een back-up van de gasten die op de node van zijn agent draaien; een gast in een taak die naar een andere node is gemigreerd, wordt gemeld als waarschuwing met de naam van die node — maak van elke node een back-up met een eigen taak, of gebruik <i>Alle VM's (en containers) op de host</i> op elke node, zodat gemigreerde gasten altijd gedekt zijn.</p>
 
 <h2>Losse bestanden herstellen</h2>
-<p>Klik in de gastentabel van een VM-back-uprun op <b>Bestanden bladeren</b>. De console leest de schijf rechtstreeks uit de back-up — er wordt vooraf niets hersteld — en toont de partities en logische LVM-volumes; NTFS (Windows), ext2/3/4 en XFS (Linux) kunnen worden gebladerd, ook binnen LVM. Vink bestanden en mappen aan en:</p>
+<p>Klik in de gastentabel van een VM-back-uprun op <b>Bestanden bladeren</b>. De console leest de schijf rechtstreeks uit de back-up — er wordt vooraf niets hersteld — en toont de partities en logische LVM-volumes; NTFS (Windows), ext2/3/4, XFS en btrfs (Linux) kunnen worden gebladerd, ook binnen LVM. Vink bestanden en mappen aan en:</p>
 <ul>
   <li><b>Downloaden</b> — één bestand zoals het is, meerdere bestanden of mappen als ZIP-archief, rechtstreeks naar uw browser;</li>
   <li><b>Herstellen op agent</b> — kopieer ze naar een map op een willekeurige agent, bijv. terug in de VM (als die de BackupZit-agent draait) of naar een bestandsserver.</li>

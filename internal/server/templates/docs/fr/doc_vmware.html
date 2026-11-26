@@ -114,7 +114,7 @@
 <p>L'agent répond en NFS sur le port 2049 (et l'enregistre auprès du rpcbind de la machine sur le port 111, ou répond lui-même sur le port 111) uniquement pour l'adresse de l'hôte ESXi ; ouvrez ces ports de l'hôte vers l'agent si un pare-feu se trouve entre les deux. Lorsque la dernière VM instantanée est terminée ou abandonnée, le datastore est supprimé et le serveur NFS s'arrête.</p>
 
 <h3>Fichiers individuels</h3>
-<p><b>Parcourir les fichiers</b> sur la page de la sauvegarde (ou <i>Fichiers d’une machine virtuelle</i> dans l'assistant de restauration) ouvre les disques de la VM. Vous pouvez parcourir NTFS, ext2/3/4 et XFS, y compris sur LVM, et télécharger des fichiers ou les restaurer sur n'importe quel agent.</p>
+<p><b>Parcourir les fichiers</b> sur la page de la sauvegarde (ou <i>Fichiers d’une machine virtuelle</i> dans l'assistant de restauration) ouvre les disques de la VM. Vous pouvez parcourir NTFS, ext2/3/4, XFS et btrfs, y compris sur LVM, et télécharger des fichiers ou les restaurer sur n'importe quel agent.</p>
 
 <h2>Ligne de commande</h2>
 <p>Ces commandes s'exécutent sur n'importe quel agent. Définissez le mot de passe ESXi dans <code>BACKUPZIT_VMWARE_PASSWORD</code> :</p>

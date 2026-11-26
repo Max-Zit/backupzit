@@ -88,7 +88,7 @@
   <tr><td><code>pve list</code></td><td>Wyświetla maszyny wirtualne i kontenery klastra oraz magazyn dostępny do przywracania.</td></tr>
   <tr><td><code>pve backup [--vmid 100,200] [--exclude 300]</code></td><td>Tworzy kopie gości tego węzła (domyślnie: wszystkich) z migawek Proxmox.</td></tr>
   <tr><td><code>pve show SNAPSHOT|latest</code></td><td>Pokazuje gości i dyski w kopii maszyn wirtualnych.</td></tr>
-  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Wyświetla partycje i woluminy logiczne dysku gościa lub pliki w folderze (NTFS, ext4, XFS, także na LVM).</td></tr>
+  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Wyświetla partycje i woluminy logiczne dysku gościa lub pliki w folderze (NTFS, ext4, XFS, btrfs, także na LVM).</td></tr>
   <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>Kopiuje pliki i foldery z dysku gościa bez przywracania maszyny.</td></tr>
   <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite [--remove-first]] [--start] SNAPSHOT|latest</code></td><td>Odtwarza gościa; <code>--new-vmid -1</code> bierze następny wolny ID, <code>--overwrite</code> zastępuje istniejącego gościa o tym samym ID. Zobacz <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
   <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>Natychmiastowe odzyskiwanie: uruchamia maszynę w kilka sekund, podczas gdy jej dyski są czytane z kopii (nowa maszyna, domyślnie następny wolny ID).</td></tr>

@@ -1,7 +1,7 @@
 // Package vmfs reads files inside virtual machine disks stored in a backup,
 // without restoring the disk: it finds the partitions (GPT, MBR with
 // logical partitions), LVM logical volumes and the file systems on them
-// (NTFS, ext2/3/4, XFS) and lists and reads their files.
+// (NTFS, ext2/3/4, XFS, btrfs) and lists and reads their files.
 package vmfs
 
 import (
@@ -28,7 +28,9 @@ type Volume struct {
 func (v Volume) Reader() io.ReaderAt { return v.r }
 
 // Browsable reports whether files of the volume can be listed.
-func (v Volume) Browsable() bool { return v.FS == "ntfs" || v.FS == "ext4" || v.FS == "xfs" }
+func (v Volume) Browsable() bool {
+	return v.FS == "ntfs" || v.FS == "ext4" || v.FS == "xfs" || v.FS == "btrfs"
+}
 
 // Volumes finds the partitions and logical volumes of a disk.
 func Volumes(disk io.ReaderAt, size int64) (vols []Volume, err error) {
@@ -176,5 +178,10 @@ func detect(v *Volume) {
 		v.FS = "lvm"
 	case len(b) >= 90 && (string(b[82:87]) == "FAT32" || string(b[54:59]) == "FAT16" || string(b[54:59]) == "FAT12"):
 		v.FS = "vfat"
+	default:
+		// btrfs keeps its superblock at 64 KiB.
+		if label, ok := isBtrfs(v.r, v.Size); ok {
+			v.FS, v.Label = "btrfs", label
+		}
 	}
 }

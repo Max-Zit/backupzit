@@ -100,7 +100,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Aracıyı her düğüme kurun. Bir iş, aracısının düğümünde çalışan konukları yedekler; bir işte listelenen ve başka bir düğüme taşınmış bir konuk, o düğümün adıyla uyarı olarak bildirilir — her düğümü kendi işiyle yedekleyin veya her düğümde <i>Ana bilgisayardaki tüm VM'ler (ve kapsayıcılar)</i> seçeneğini kullanın; böylece taşınan konuklar her zaman kapsanır.</p>
 
 <h2>Tek tek dosyaları geri yükleme</h2>
-<p>Bir VM yedeği çalıştırmasının konuk tablosunda <b>Dosyalara göz at</b>'a tıklayın. Konsol diski doğrudan yedekten okur — önce hiçbir şey geri yüklenmez — ve bölümlerini ve LVM mantıksal birimlerini gösterir; NTFS (Windows), ext2/3/4 ve XFS'e (Linux), LVM içinde de göz atılabilir. Dosya ve klasörleri işaretleyip:</p>
+<p>Bir VM yedeği çalıştırmasının konuk tablosunda <b>Dosyalara göz at</b>'a tıklayın. Konsol diski doğrudan yedekten okur — önce hiçbir şey geri yüklenmez — ve bölümlerini ve LVM mantıksal birimlerini gösterir; NTFS (Windows), ext2/3/4, XFS ve btrfs'e (Linux), LVM içinde de göz atılabilir. Dosya ve klasörleri işaretleyip:</p>
 <ul>
   <li><b>İndir</b> — tek bir dosyayı olduğu gibi, birden fazla dosya veya klasörü ZIP arşivi olarak doğrudan tarayıcınıza;</li>
   <li><b>Aracıda geri yükle</b> — bunları herhangi bir aracıdaki bir klasöre kopyalayın; ör. VM'ye geri (içinde BackupZit aracısı çalışıyorsa) veya bir dosya sunucusuna.</li>

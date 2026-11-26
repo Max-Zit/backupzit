@@ -263,7 +263,7 @@ jobs:
           set -e
           for t in api:FuzzDecodeEnrollCode repo:FuzzParsePackHeader repo:FuzzDecodeIndexFile repo:FuzzParseID \
                    repo:FuzzDecodeBlob vmware:FuzzParseVMX vmware:FuzzParseDSPath update:FuzzVerify update:FuzzNewer \
-                   fsutil:FuzzParseSnapshotPath netcfg:FuzzParseNetworkFile vmfs:FuzzParseLVMConfig vmfs:FuzzVolumes \
+                   fsutil:FuzzParseSnapshotPath netcfg:FuzzParseNetworkFile vmfs:FuzzParseLVMConfig vmfs:FuzzVolumes vmfs:FuzzLZO1X vmfs:FuzzBtrfsBlock \
                    hardened:FuzzValidName hardened:FuzzParseKeyLine server:FuzzParseSchedule server:FuzzLocalPath server:FuzzParseSSOState \
                    server:FuzzParseMFAToken server:FuzzParseIdPMetadata server:FuzzParseKeyPair \
                    server:FuzzParseRecoveryKey server:FuzzCheckSAMLResponse recovery:FuzzParseAccessEnvelope \

@@ -100,7 +100,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Installez l'agent sur chaque nœud. Une tâche sauvegarde les invités qui tournent sur le nœud de son agent ; un invité listé dans une tâche et migré vers un autre nœud est signalé par un avertissement nommant ce nœud — sauvegardez chaque nœud avec sa propre tâche, ou utilisez <i>Toutes les VM (et conteneurs) de l’hôte</i> sur chaque nœud pour que les invités migrés soient toujours couverts.</p>
 
 <h2>Restaurer des fichiers individuels</h2>
-<p>Dans le tableau des invités d'une exécution de sauvegarde de VM, cliquez sur <b>Parcourir les fichiers</b>. La console lit le disque directement depuis la sauvegarde — rien n'est restauré au préalable — et affiche ses partitions et volumes logiques LVM ; NTFS (Windows), ext2/3/4 et XFS (Linux) peuvent être parcourus, y compris dans LVM. Cochez des fichiers et dossiers, puis :</p>
+<p>Dans le tableau des invités d'une exécution de sauvegarde de VM, cliquez sur <b>Parcourir les fichiers</b>. La console lit le disque directement depuis la sauvegarde — rien n'est restauré au préalable — et affiche ses partitions et volumes logiques LVM ; NTFS (Windows), ext2/3/4, XFS et btrfs (Linux) peuvent être parcourus, y compris dans LVM. Cochez des fichiers et dossiers, puis :</p>
 <ul>
   <li><b>Télécharger</b> — un fichier tel quel, plusieurs fichiers ou dossiers dans une archive ZIP, directement dans votre navigateur ;</li>
   <li><b>Restaurer sur l’agent</b> — les copier dans un dossier sur n'importe quel agent, par ex. dans la VM (si elle exécute l'agent BackupZit) ou sur un serveur de fichiers.</li>

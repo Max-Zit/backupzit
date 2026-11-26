@@ -327,7 +327,7 @@
   "Browse files": "ファイルを参照",
   "Browse files — download or restore selected ones": "ファイルを参照 — 選択したものをダウンロードまたは復元",
   "Browse the NTFS partitions of a disk image and restore single files.": "ディスク イメージの NTFS パーティションを参照し、個別のファイルをリストアします。",
-  "Browse the disks of a VM backup (NTFS, ext4, XFS, LVM) or the files of a Proxmox container, download files or restore them to an agent.": "VM バックアップのディスク（NTFS、ext4、XFS、LVM）や Proxmox コンテナーのファイルを参照し、ファイルをダウンロードするか、エージェントに復元します。",
+  "Browse the disks of a VM backup (NTFS, ext4, XFS, btrfs, LVM) or the files of a Proxmox container, download files or restore them to an agent.": "VM バックアップのディスク（NTFS、ext4、XFS、btrfs、LVM）や Proxmox コンテナーのファイルを参照し、ファイルをダウンロードするか、エージェントに復元します。",
   "Brute-force protection": "ブルート フォース対策",
   "Brute-force protection saved.": "ブルート フォース対策を保存しました。",
   "Bucket": "Bucket",

@@ -100,7 +100,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Zainstaluj agenta na każdym węźle. Zadanie kopiuje gości działających na węźle jego agenta; gość wymieniony w zadaniu, który został zmigrowany na inny węzeł, jest zgłaszany jako ostrzeżenie z nazwą tego węzła — kopiuj każdy węzeł osobnym zadaniem albo użyj opcji <i>Wszystkie VM (i kontenery) na hoście</i> na każdym węźle, aby zmigrowani goście byli zawsze objęci.</p>
 
 <h2>Przywracanie pojedynczych plików</h2>
-<p>W tabeli gości uruchomienia kopii maszyny kliknij <b>Przeglądaj pliki</b>. Konsola odczytuje dysk bezpośrednio z kopii — nic nie jest najpierw przywracane — i pokazuje jego partycje oraz woluminy logiczne LVM; można przeglądać NTFS (Windows), ext2/3/4 i XFS (Linux), także wewnątrz LVM. Zaznacz pliki i foldery, a następnie:</p>
+<p>W tabeli gości uruchomienia kopii maszyny kliknij <b>Przeglądaj pliki</b>. Konsola odczytuje dysk bezpośrednio z kopii — nic nie jest najpierw przywracane — i pokazuje jego partycje oraz woluminy logiczne LVM; można przeglądać NTFS (Windows), ext2/3/4, XFS i btrfs (Linux), także wewnątrz LVM. Zaznacz pliki i foldery, a następnie:</p>
 <ul>
   <li><b>Pobierz</b> — jeden plik bez zmian, wiele plików lub folderów jako archiwum ZIP, wprost do przeglądarki;</li>
   <li><b>Przywróć na agencie</b> — skopiuj je do folderu na dowolnym agencie, np. z powrotem do maszyny (jeśli działa w niej agent BackupZit) albo na serwer plików.</li>

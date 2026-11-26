@@ -114,7 +114,7 @@
 <p>The agent answers NFS on port 2049 (and registers it with the machine's rpcbind on port 111, or answers port 111 itself) only for the ESXi host's address; open these ports from the host to the agent if a firewall is in between. When the last instant VM is finished or discarded, the datastore is removed and the NFS server stops.</p>
 
 <h3>Single files</h3>
-<p><b>Browse files</b> on the backup's page (or <i>Files from a virtual machine</i> in the restore wizard) opens the VM's disks. You can browse NTFS, ext2/3/4 and XFS, also on LVM, and download files or restore them to any agent.</p>
+<p><b>Browse files</b> on the backup's page (or <i>Files from a virtual machine</i> in the restore wizard) opens the VM's disks. You can browse NTFS, ext2/3/4, XFS and btrfs, also on LVM, and download files or restore them to any agent.</p>
 
 <h2>Command line</h2>
 <p>These commands run on any agent. Set the ESXi password in <code>BACKUPZIT_VMWARE_PASSWORD</code>:</p>

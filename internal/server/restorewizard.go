@@ -30,7 +30,7 @@ type restoreType struct {
 
 var restoreTypes = []restoreType{
 	{Key: "vm", Title: "Whole VM or container", Desc: "Proxmox VE virtual machines (QEMU) and containers (LXC), Hyper-V and VMware ESXi VMs, as a new guest or in place of the original.", Icon: "vm"},
-	{Key: "vmfiles", Title: "Files from a VM or container", Desc: "Browse the disks of a VM backup (NTFS, ext4, XFS, LVM) or the files of a Proxmox container, download files or restore them to an agent.", Icon: "folder"},
+	{Key: "vmfiles", Title: "Files from a VM or container", Desc: "Browse the disks of a VM backup (NTFS, ext4, XFS, btrfs, LVM) or the files of a Proxmox container, download files or restore them to an agent.", Icon: "folder"},
 	{Key: "files", Title: "Files and folders", Desc: "From file backups and Linux system backups, into a folder or to their original location.", Icon: "folder"},
 	{Key: "m365", Title: "Microsoft 365", Desc: "Mail (.eml), OneDrive and SharePoint files, events (.ics) and contacts (.vcf) from Microsoft 365 backups: browse and download them, or restore them into a folder.", Icon: "folder"},
 	{Key: "image", Title: "Disk image / bare metal", Desc: "A Windows disk or its partitions onto a disk, also on different hardware or as a VM, from the recovery ISO.", Icon: "disk"},

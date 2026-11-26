@@ -88,7 +88,7 @@
   <tr><td><code>pve list</code></td><td>Navodi VM-ove i kontejnere klastera i storage koji se može koristiti za vraćanja.</td></tr>
   <tr><td><code>pve backup [--vmid 100,200] [--exclude 300]</code></td><td>Bekap gostiju ovog čvora (podrazumevano: svih) iz Proxmox snimaka.</td></tr>
   <tr><td><code>pve show SNAPSHOT|latest</code></td><td>Prikazuje goste i diskove u bekapu VM-a.</td></tr>
-  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Navodi particije i logičke volumene diska gosta, ili fajlove u folderu (NTFS, ext4, XFS, i na LVM-u).</td></tr>
+  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Navodi particije i logičke volumene diska gosta, ili fajlove u folderu (NTFS, ext4, XFS, btrfs, i na LVM-u).</td></tr>
   <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>Kopira fajlove i foldere sa diska gosta bez vraćanja VM-a.</td></tr>
   <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite [--remove-first]] [--start] SNAPSHOT|latest</code></td><td>Ponovo pravi gosta; <code>--new-vmid -1</code> uzima sledeći slobodan ID, <code>--overwrite</code> zamenjuje postojećeg gosta sa istim ID-jem. Vidi <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
   <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>Instant recovery: pokreće VM za nekoliko sekundi dok se njegovi diskovi čitaju iz bekapa (nov VM, podrazumevano sledeći slobodan ID).</td></tr>

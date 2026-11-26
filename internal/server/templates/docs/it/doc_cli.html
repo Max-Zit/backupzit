@@ -88,7 +88,7 @@
   <tr><td><code>pve list</code></td><td>Elenca VM e container del cluster e lo storage utilizzabile per i ripristini.</td></tr>
   <tr><td><code>pve backup [--vmid 100,200] [--exclude 300]</code></td><td>Esegue il backup dei guest di questo nodo (predefinito: tutti) da snapshot Proxmox.</td></tr>
   <tr><td><code>pve show SNAPSHOT|latest</code></td><td>Mostra i guest e i dischi di un backup di VM.</td></tr>
-  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Elenca partizioni e volumi logici di un disco guest, o i file di una cartella (NTFS, ext4, XFS, anche su LVM).</td></tr>
+  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Elenca partizioni e volumi logici di un disco guest, o i file di una cartella (NTFS, ext4, XFS, btrfs, anche su LVM).</td></tr>
   <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>Copia file e cartelle da un disco guest senza ripristinare la VM.</td></tr>
   <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite [--remove-first]] [--start] SNAPSHOT|latest</code></td><td>Ricrea un guest; <code>--new-vmid -1</code> prende il prossimo ID libero, <code>--overwrite</code> sostituisce un guest esistente con lo stesso ID. Vedete <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
   <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>Ripristino istantaneo: avvia una VM in pochi secondi mentre i suoi dischi vengono letti dal backup (nuova VM, per impostazione predefinita il prossimo ID libero).</td></tr>

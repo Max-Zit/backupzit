@@ -100,7 +100,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Instalirajte agenta na svaki čvor. Posao pravi bekap gostiju koji rade na čvoru njegovog agenta; gost naveden u poslu koji je migriran na drugi čvor prijavljuje se kao upozorenje sa imenom tog čvora — pravite bekap svakog čvora sopstvenim poslom, ili koristite <i>Svi VM-ovi (i kontejneri) na hostu</i> na svakom čvoru, da migrirani gosti uvek budu pokriveni.</p>
 
 <h2>Vraćanje pojedinačnih fajlova</h2>
-<p>U tabeli gostiju pokretanja VM bekapa kliknite <b>Pregledaj fajlove</b>. Konzola čita disk direktno iz bekapa — ništa se prvo ne vraća — i prikazuje njegove particije i LVM logičke volumene; mogu da se pregledaju NTFS (Windows), ext2/3/4 i XFS (Linux), i unutar LVM-a. Označite fajlove i foldere i:</p>
+<p>U tabeli gostiju pokretanja VM bekapa kliknite <b>Pregledaj fajlove</b>. Konzola čita disk direktno iz bekapa — ništa se prvo ne vraća — i prikazuje njegove particije i LVM logičke volumene; mogu da se pregledaju NTFS (Windows), ext2/3/4, XFS i btrfs (Linux), i unutar LVM-a. Označite fajlove i foldere i:</p>
 <ul>
   <li><b>Preuzmi</b> — jedan fajl kakav jeste, više fajlova ili foldera kao ZIP arhiva, direktno u pregledač;</li>
   <li><b>Vrati na agenta</b> — kopirajte ih u folder na bilo kom agentu, npr. nazad u VM (ako u njoj radi BackupZit agent) ili na fajl server.</li>

@@ -88,7 +88,7 @@
   <tr><td><code>pve list</code></td><td>クラスターの VM とコンテナー、および復元に使えるストレージを一覧表示します。</td></tr>
   <tr><td><code>pve backup [--vmid 100,200] [--exclude 300]</code></td><td>このノードのゲスト（既定: すべて）を Proxmox スナップショットからバックアップします。</td></tr>
   <tr><td><code>pve show SNAPSHOT|latest</code></td><td>VM バックアップ内のゲストとディスクを表示します。</td></tr>
-  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>ゲスト ディスクのパーティションと論理ボリューム、またはフォルダー内のファイルを一覧表示します（NTFS、ext4、XFS、LVM 上も可）。</td></tr>
+  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>ゲスト ディスクのパーティションと論理ボリューム、またはフォルダー内のファイルを一覧表示します（NTFS、ext4、XFS、btrfs、LVM 上も可）。</td></tr>
   <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>VM を復元せずにゲスト ディスクからファイルとフォルダーをコピーします。</td></tr>
   <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite [--remove-first]] [--start] SNAPSHOT|latest</code></td><td>ゲストを再作成します。<code>--new-vmid -1</code> は次の空き ID を使い、<code>--overwrite</code> は同じ ID の既存ゲストを置き換えます。<a href="/docs/proxmox">Proxmox VE</a> を参照してください。</td></tr>
   <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>インスタント リカバリ: ディスクをバックアップから読み取りながら数秒で VM を起動します（新しい VM、既定は次の空き ID）。</td></tr>

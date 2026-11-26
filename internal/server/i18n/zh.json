@@ -327,7 +327,7 @@
   "Browse files": "浏览文件",
   "Browse files — download or restore selected ones": "浏览文件 — 下载或恢复所选内容",
   "Browse the NTFS partitions of a disk image and restore single files.": "浏览磁盘映像的 NTFS 分区并还原单个文件。",
-  "Browse the disks of a VM backup (NTFS, ext4, XFS, LVM) or the files of a Proxmox container, download files or restore them to an agent.": "浏览虚拟机备份的磁盘（NTFS、ext4、XFS、LVM）或 Proxmox 容器的文件，下载文件或将其还原到代理。",
+  "Browse the disks of a VM backup (NTFS, ext4, XFS, btrfs, LVM) or the files of a Proxmox container, download files or restore them to an agent.": "浏览虚拟机备份的磁盘（NTFS、ext4、XFS、btrfs、LVM）或 Proxmox 容器的文件，下载文件或将其还原到代理。",
   "Brute-force protection": "暴力破解防护",
   "Brute-force protection saved.": "暴力破解防护已保存。",
   "Bucket": "Bucket",

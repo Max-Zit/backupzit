@@ -12,7 +12,7 @@
   <tr><td>VMware ESXi VM</td><td>任意のエージェントがプロキシとして動作、<b>ESXi にも VM にも何もインストールしない</b>。静止化スナップショット、Changed Block Tracking で変更されたブロックのみ読み取り。<a href="/docs/vmware">VMware ESXi</a></td><td>VM 全体を新規またはその場に（UUID と MAC アドレスを保持）、任意のホストとデータストアへ。個別ファイル。</td></tr>
   <tr><td>NAS とファイル共有（SMB、NFS）</td><td>NAS にソフトウェア不要: 任意のマシン上のエージェントが共有を読み取ります。<a href="/docs/jobs">バックアップ ジョブ</a></td><td>ファイルとフォルダーを共有へ戻す、フォルダーへ、またはダウンロードとして。</td></tr>
   <tr><td>データベース: SQL Server、PostgreSQL、MySQL/MariaDB</td><td>データベース マシン上のエージェント。サーバー自身のツールで完全バックアップとログ バックアップ。<a href="/docs/sql">データベース</a></td><td>個別のデータベースを新しい名前またはその場に、ログ バックアップでカバーされる任意の時点へ。</td></tr>
-  <tr><td>Proxmox VE の VM とコンテナー</td><td>Proxmox ホスト上のエージェント、<b>ゲスト内にエージェント不要</b>。Proxmox スナップショットから、変更されたブロックのみアップロード。<a href="/docs/proxmox">Proxmox VE</a></td><td>ゲスト全体を新規またはその場に、任意のノードとストレージへ。バックアップから VM を即座に起動（インスタント リカバリ、VMware ESXi でも可）。VM ディスク（NTFS、ext4、XFS、LVM）から個別ファイルをダウンロードまたはエージェントへ。</td></tr>
+  <tr><td>Proxmox VE の VM とコンテナー</td><td>Proxmox ホスト上のエージェント、<b>ゲスト内にエージェント不要</b>。Proxmox スナップショットから、変更されたブロックのみアップロード。<a href="/docs/proxmox">Proxmox VE</a></td><td>ゲスト全体を新規またはその場に、任意のノードとストレージへ。バックアップから VM を即座に起動（インスタント リカバリ、VMware ESXi でも可）。VM ディスク（NTFS、ext4、XFS、btrfs、LVM）から個別ファイルをダウンロードまたはエージェントへ。</td></tr>
   <tr><td>Microsoft 365</td><td>インターネットに接続できる任意のエージェントが、Microsoft Graph 経由で読み取り専用の権限により Exchange Online のメール・予定表・連絡先、OneDrive、SharePoint を読み取ります。テナントには何もインストールしません。<a href="/docs/m365">Microsoft 365</a></td><td>メッセージ（.eml）とファイルの参照とダウンロード、またはエージェント上のフォルダーへの復元。</td></tr>
 </table>
 

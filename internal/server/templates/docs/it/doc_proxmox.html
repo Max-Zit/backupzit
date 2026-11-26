@@ -100,7 +100,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Installa l'agente su ogni nodo. Un job salva i guest in esecuzione sul nodo del suo agente; un guest elencato in un job e migrato su un altro nodo viene segnalato come avviso con il nome di quel nodo — salva ogni nodo con un proprio job, oppure usa <i>Tutte le VM (e i container) dell’host</i> su ogni nodo, così i guest migrati sono sempre coperti.</p>
 
 <h2>Ripristinare singoli file</h2>
-<p>Nella tabella dei guest di un'esecuzione di backup di VM fai clic su <b>Sfoglia file</b>. La console legge il disco direttamente dal backup — nulla viene ripristinato prima — e mostra le sue partizioni e i volumi logici LVM; si possono sfogliare NTFS (Windows), ext2/3/4 e XFS (Linux), anche dentro LVM. Seleziona file e cartelle e:</p>
+<p>Nella tabella dei guest di un'esecuzione di backup di VM fai clic su <b>Sfoglia file</b>. La console legge il disco direttamente dal backup — nulla viene ripristinato prima — e mostra le sue partizioni e i volumi logici LVM; si possono sfogliare NTFS (Windows), ext2/3/4, XFS e btrfs (Linux), anche dentro LVM. Seleziona file e cartelle e:</p>
 <ul>
   <li><b>Scarica</b> — un file così com'è, più file o cartelle come archivio ZIP, direttamente nel browser;</li>
   <li><b>Ripristina sull’agente</b> — copiali in una cartella su qualsiasi agente, ad es. di nuovo nella VM (se esegue l'agente BackupZit) o su un file server.</li>

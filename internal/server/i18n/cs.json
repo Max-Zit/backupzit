@@ -327,7 +327,7 @@
   "Browse files": "Procházet soubory",
   "Browse files — download or restore selected ones": "Procházet soubory — stáhnout nebo obnovit vybrané",
   "Browse the NTFS partitions of a disk image and restore single files.": "Procházejte oddíly NTFS obrazu disku a obnovujte jednotlivé soubory.",
-  "Browse the disks of a VM backup (NTFS, ext4, XFS, LVM) or the files of a Proxmox container, download files or restore them to an agent.": "Procházet disky zálohy VM (NTFS, ext4, XFS, LVM) nebo soubory kontejneru Proxmox, stahovat soubory nebo je obnovit na agenta.",
+  "Browse the disks of a VM backup (NTFS, ext4, XFS, btrfs, LVM) or the files of a Proxmox container, download files or restore them to an agent.": "Procházet disky zálohy VM (NTFS, ext4, XFS, btrfs, LVM) nebo soubory kontejneru Proxmox, stahovat soubory nebo je obnovit na agenta.",
   "Brute-force protection": "Ochrana proti útokům hrubou silou",
   "Brute-force protection saved.": "Ochrana proti útokům hrubou silou uložena.",
   "Bucket": "Bucket",

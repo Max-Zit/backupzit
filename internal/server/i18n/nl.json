@@ -327,7 +327,7 @@
   "Browse files": "Bestanden bladeren",
   "Browse files — download or restore selected ones": "Bestanden bekijken — geselecteerde downloaden of herstellen",
   "Browse the NTFS partitions of a disk image and restore single files.": "Blader door de NTFS-partities van een schijfimage en herstel losse bestanden.",
-  "Browse the disks of a VM backup (NTFS, ext4, XFS, LVM) or the files of a Proxmox container, download files or restore them to an agent.": "De schijven van een VM-back-up (NTFS, ext4, XFS, LVM) of de bestanden van een Proxmox-container doorbladeren, bestanden downloaden of terugzetten op een agent.",
+  "Browse the disks of a VM backup (NTFS, ext4, XFS, btrfs, LVM) or the files of a Proxmox container, download files or restore them to an agent.": "De schijven van een VM-back-up (NTFS, ext4, XFS, btrfs, LVM) of de bestanden van een Proxmox-container doorbladeren, bestanden downloaden of terugzetten op een agent.",
   "Brute-force protection": "Bescherming tegen brute force",
   "Brute-force protection saved.": "Bescherming tegen brute force opgeslagen.",
   "Bucket": "Bucket",

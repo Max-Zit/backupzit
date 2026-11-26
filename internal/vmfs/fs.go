@@ -45,7 +45,7 @@ type FS interface {
 }
 
 // ErrNotBrowsable is returned for volumes without a supported file system.
-var ErrNotBrowsable = errors.New("this volume has no file system that can be browsed (NTFS, ext2/3/4 or XFS)")
+var ErrNotBrowsable = errors.New("this volume has no file system that can be browsed (NTFS, ext2/3/4, XFS or btrfs)")
 
 // Open opens the file system of a volume.
 func Open(v Volume) (f FS, err error) {
@@ -75,6 +75,12 @@ func open(v Volume) (FS, error) {
 		f, err := xfs.NewFS(*io.NewSectionReader(v.r, 0, v.Size), nil)
 		if err != nil {
 			return nil, fmt.Errorf("read XFS: %w", err)
+		}
+		return &ioFS{fsys: newLockedFS(f)}, nil
+	case "btrfs":
+		f, err := openBtrfs(v.r, v.Size)
+		if err != nil {
+			return nil, fmt.Errorf("read btrfs: %w", err)
 		}
 		return &ioFS{fsys: newLockedFS(f)}, nil
 	}
