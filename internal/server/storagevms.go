@@ -26,7 +26,10 @@ import (
 // holds only this VM can be deleted from here; one that also holds other
 // VMs (a VM job writes one backup per run for all its VMs) stays until
 // the job's retention removes it, so the other VMs' history is never
-// touched. Deleting asks for the password or two-factor code, waits for a
+// touched. When that job is gone no retention runs for it any more, so
+// such a restore point can be deleted as a whole, with the backups of all
+// its VMs, which the page names (#79). Deleting asks for the password or
+// two-factor code, waits for a
 // second user with four-eyes approval on, and runs on the console like
 // the clean-up of a removed agent's backups (audit log entry with the
 // result; immutable storage refuses what is still locked).
@@ -39,9 +42,15 @@ type storedPoint struct {
 	Repo       string
 	Copy       bool
 	JobName    string
-	Stored     uint64 // bytes of this VM's disks with data
-	Others     int    // other VMs in the same backup: not deleted alone
+	Stored     uint64   // bytes of this VM's disks with data
+	Others     int      // other VMs in the same backup: not deleted alone
+	OtherVMs   []string // their names
+	JobGone    bool     // its job was deleted: no retention removes it any more
 }
+
+// CanDelete reports whether the point can be deleted from the page: it
+// holds only this VM, or its job is gone and it goes with all its VMs.
+func (p storedPoint) CanDelete() bool { return p.Others == 0 || p.JobGone }
 
 // storedVM is a VM with restore points in one repository of a target.
 type storedVM struct {
@@ -54,15 +63,26 @@ type storedVM struct {
 	Points   []storedPoint
 }
 
-// Deletable is the number of restore points that hold only this VM.
+// Deletable is the number of restore points that can be deleted here.
 func (v storedVM) Deletable() int {
 	n := 0
 	for _, p := range v.Points {
-		if p.Others == 0 {
+		if p.CanDelete() {
 			n++
 		}
 	}
 	return n
+}
+
+// DeletesOthers reports whether a point that can be deleted here also
+// holds other VMs.
+func (v storedVM) DeletesOthers() bool {
+	for _, p := range v.Points {
+		if p.Others > 0 && p.JobGone {
+			return true
+		}
+	}
+	return false
 }
 
 func (v storedVM) Newest() time.Time { return v.Points[0].Time }
@@ -83,7 +103,7 @@ func jobSelects(paths, excludes []string, vmid int) bool {
 func (s *Store) storageVMs(ctx context.Context, targetID int64) ([]storedVM, error) {
 	rows, err := s.db.Query(ctx, `SELECT r.id, r.kind, r.repo_url, r.snapshot_id, COALESCE(r.finished_at, r.started_at, r.queued_at),
 			r.details, COALESCE(j.name, NULLIF(r.job_name,''), ''), `+agentNameSQL+`,
-			sel.id IS NOT NULL, COALESCE(sel.kind,''), COALESCE(sel.paths,'{}'), COALESCE(sel.excludes,'{}')
+			sel.id IS NOT NULL, COALESCE(sel.kind,''), COALESCE(sel.paths,'{}'), COALESCE(sel.excludes,'{}'), j.id IS NULL
 		FROM runs r JOIN agents a ON a.id=r.agent_id LEFT JOIN jobs j ON j.id=r.job_id
 			LEFT JOIN jobs sel ON sel.id = CASE WHEN r.kind='copy' THEN j.source_job_id ELSE j.id END
 		WHERE r.target_id=$1 AND r.status IN ('success','warning') AND r.snapshot_id<>'' AND NOT r.expired
@@ -101,10 +121,11 @@ func (s *Store) storageVMs(ctx context.Context, targetID int64) ([]storedVM, err
 		hasJob              bool
 		selKind             string
 		selPaths, selExcl   []string
+		jobGone             bool
 	}
 	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (row, error) {
 		var x row
-		err := r.Scan(&x.id, &x.kind, &x.repoURL, &x.snap, &x.at, &x.details, &x.job, &x.host, &x.hasJob, &x.selKind, &x.selPaths, &x.selExcl)
+		err := r.Scan(&x.id, &x.kind, &x.repoURL, &x.snap, &x.at, &x.details, &x.job, &x.host, &x.hasJob, &x.selKind, &x.selPaths, &x.selExcl, &x.jobGone)
 		return x, err
 	})
 	if err != nil {
@@ -118,7 +139,13 @@ func (s *Store) storageVMs(ctx context.Context, targetID int64) ([]storedVM, err
 			continue // not a VM backup (a copy of files or images)
 		}
 		guests := d.Guests
-		for _, g := range guests {
+		for i, g := range guests {
+			var others []string
+			for k, o := range guests {
+				if k != i {
+					others = append(others, o.Name)
+				}
+			}
 			key := fmt.Sprintf("%s\x00%s\x00%d\x00%s", x.repoURL, g.Type, g.VMID, g.Name)
 			v := byKey[key]
 			if v == nil {
@@ -130,7 +157,7 @@ func (s *Store) storageVMs(ctx context.Context, targetID int64) ([]storedVM, err
 				v.NoJob = false
 			}
 			v.Points = append(v.Points, storedPoint{RunID: x.id, Time: x.at, SnapshotID: x.snap, Repo: x.repoURL, Copy: x.kind == "copy",
-				JobName: x.job, Stored: g.Stored, Others: len(guests) - 1})
+				JobName: x.job, Stored: g.Stored, Others: len(guests) - 1, OtherVMs: others, JobGone: x.jobGone})
 		}
 	}
 	out := make([]storedVM, 0, len(order))
@@ -304,8 +331,9 @@ func (s *Server) handleTargetVMsDelete(w http.ResponseWriter, r *http.Request, u
 }
 
 // vmDeletePoints checks a deletion: every run is a VM backup (or a copy
-// of one) on this target, still kept, holding only the one VM. It returns
-// the snapshots to remove per repository.
+// of one) on this target, still kept, holding only the one VM or made by
+// a job that is gone. It returns the snapshots to remove per repository
+// and the names of all VMs whose backups go.
 func (s *Store) vmDeletePoints(ctx context.Context, targetID int64, d vmDelete) (map[string][]string, string, error) {
 	vms, err := s.storageVMs(ctx, targetID)
 	if err != nil {
@@ -318,7 +346,7 @@ func (s *Store) vmDeletePoints(ctx context.Context, targetID int64, d vmDelete) 
 	alone := map[int64]point{}
 	for _, v := range vms {
 		for _, p := range v.Points {
-			if p.Others == 0 {
+			if _, seen := alone[p.RunID]; !seen && p.CanDelete() { // a shared point under each of its VMs
 				alone[p.RunID] = point{p, v.Name}
 			}
 		}
@@ -331,8 +359,10 @@ func (s *Store) vmDeletePoints(ctx context.Context, targetID int64, d vmDelete) 
 			return nil, "", errors.New("a restore point is no longer there, or it also holds other VMs: it is removed with the job's retention")
 		}
 		out[p.Repo] = append(out[p.Repo], p.SnapshotID)
-		if !slices.Contains(names, p.vm) {
-			names = append(names, p.vm)
+		for _, n := range append([]string{p.vm}, p.OtherVMs...) {
+			if !slices.Contains(names, n) {
+				names = append(names, n)
+			}
 		}
 	}
 	return out, strings.Join(names, ", "), nil

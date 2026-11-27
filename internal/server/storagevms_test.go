@@ -20,7 +20,8 @@ import (
 
 // #73: the storage page lists every VM with restore points, marks VMs no
 // job backs up any more (also on the dashboard), and deletes restore
-// points that hold only one VM; a point shared with other VMs stays.
+// points that hold only one VM; a point shared with other VMs stays while
+// its job exists (#79: with the job gone it goes, with all its VMs).
 func TestStorageVMs(t *testing.T) {
 	e := setup(t)
 	ctx := e.ctx
@@ -210,5 +211,61 @@ func TestStorageVMs(t *testing.T) {
 		if run, _ := e.store.GetRun(ctx, runOf["web1"]); run.Expired {
 			t.Error("a viewer deleted a restore point")
 		}
+	}
+
+	// #79: a restore point of several VMs whose job was deleted. No retention
+	// removes it any more, so it can be deleted here, with the backups of all
+	// its VMs, which the page names.
+	job3, err := e.store.CreateJob(ctx, server.Job{AgentID: a.ID, TargetID: targetID, Name: "pair", Kind: server.JobVM, Paths: []string{"104", "105"}, Enabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	be3, _ := backend.Open(ctx, repoURL, backend.Options{S3AccessKey: "AK", S3SecretKey: "SK"})
+	if r, err = repo.Open(ctx, be3, repo.Password("")); err != nil {
+		t.Fatal(err)
+	}
+	app1 := repo.Guest{Platform: "proxmox", Type: "qemu", VMID: 104, Name: "app1"}
+	app2 := repo.Guest{Platform: "proxmox", Type: "qemu", VMID: 105, Name: "app2"}
+	backup("pair", job3, app1, app2)
+	_ = r.Close()
+	box := func(name string) string { return fmt.Sprintf(`name="run" value="%d"`, runOf[name]) }
+	if b := page(); strings.Contains(b, box("pair")) {
+		t.Error("a shared restore point of an existing job can be ticked")
+	}
+	if err := e.store.DeleteJob(ctx, job3); err != nil {
+		t.Fatal(err)
+	}
+	b = page()
+	if strings.Count(b, box("pair")) != 2 || !strings.Contains(b, "deleting it also deletes the backups of app2") || !strings.Contains(b, "deleting it also deletes the backups of app1") {
+		t.Errorf("the shared point of a deleted job: %d checkboxes, VMs named %v", strings.Count(b, box("pair")), strings.Contains(b, "deletes the backups of app2"))
+	}
+	if strings.Contains(b, box("both")) {
+		t.Error("a shared restore point of an existing job can be ticked")
+	}
+	form = url.Values{"run": {fmt.Sprint(runOf["pair"])}, "reauth_password": {"admin-pass-123"}}
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/targets/%d/vms/delete", targetID), form); !strings.Contains(loc, "msg=") {
+		t.Fatalf("delete the shared point of a deleted job: %s", loc)
+	}
+	result, deadline = "", time.Now().Add(30*time.Second)
+	for result == "" && time.Now().Before(deadline) {
+		entries, _ := e.store.ListAudit(ctx, 50)
+		for _, x := range entries {
+			if x.Action == "storage.vm_backups" && strings.HasPrefix(x.Detail, "app1, app2,") {
+				result = x.Detail
+			}
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if !strings.Contains(result, "deleted 1 restore points, freed") {
+		t.Fatalf("result %q", result)
+	}
+	if b := page(); strings.Contains(b, "app1") || strings.Contains(b, "app2") {
+		t.Error("the VMs of the deleted point are still listed")
+	}
+	if run, _ := e.store.GetRun(ctx, runOf["pair"]); !run.Expired {
+		t.Error("the run of the deleted point is not marked expired")
+	}
+	if run, _ := e.store.GetRun(ctx, runOf["both"]); run.Expired {
+		t.Error("the shared point of the existing job went too")
 	}
 }
