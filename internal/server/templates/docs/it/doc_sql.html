@@ -17,7 +17,7 @@
 <ol>
   <li>Installa l'agente sulla macchina Windows su cui gira SQL Server (qualsiasi edizione dal 2012, inclusa Express).</li>
   <li>L'agente gira come <code>NT AUTHORITY\SYSTEM</code> e si collega con l'autenticazione Windows. Assegna a quell'account il ruolo <b>sysadmin</b>, una volta per istanza:
-    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre> In un Windows in un’altra lingua l’account ha un nome tradotto (ad esempio <code>AUTORIDADE NT\SISTEMA</code> in portoghese) e il comando sopra fallisce con l’errore 15151. Questa riga di PowerShell funziona in ogni lingua:<pre>$sys = ([Security.Principal.SecurityIdentifier]'S-1-5-18').Translate([Security.Principal.NTAccount]).Value; sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [$sys]"</pre></li>
 </ol>
 <ul>
   <li>Ogni esecuzione scrive un file di backup per database (BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM) nella cartella di backup predefinita dell'istanza, archivia i file e li elimina. Durante l'esecuzione la cartella deve avere spazio libero per il database più grande.</li>

@@ -22,6 +22,9 @@ type Server struct {
 }
 
 // System databases; tempdb is never backed up.
+// defaultSystemAccount is the English name of the LocalSystem account.
+const defaultSystemAccount = `NT AUTHORITY\SYSTEM`
+
 var systemDBs = map[string]bool{"master": true, "model": true, "msdb": true}
 
 // IsSystem reports whether name is a system database.
@@ -35,8 +38,7 @@ func Open(ctx context.Context, instance string) (*Server, error) {
 	}
 	var errs []string
 	for _, host := range hosts(instance) {
-		dsn := "server=" + host + ";database=master;encrypt=disable;app name=BackupZit;dial timeout=10;connection timeout=20"
-		db, err := sql.Open("sqlserver", dsn)
+		db, err := sql.Open("sqlserver", dsn(host))
 		if err != nil {
 			return nil, err
 		}
@@ -55,6 +57,16 @@ func Open(ctx context.Context, instance string) (*Server, error) {
 		name = "the default instance"
 	}
 	return nil, fmt.Errorf("cannot connect to SQL Server %s: %s", name, strings.Join(errs, "; "))
+}
+
+// dsn is the connection string for host. It has no "connection timeout":
+// in go-mssqldb that is a deadline for every read and write of the
+// connection, not only for the login, so a BACKUP DATABASE that sends
+// nothing back for longer failed with "Pipe IO timed out" (#78).
+// Connecting is bounded by the dial timeout and the context of the first
+// ping, every statement by the run's context (Stop run).
+func dsn(host string) string {
+	return "server=" + host + ";database=master;encrypt=disable;app name=BackupZit;dial timeout=10"
 }
 
 // hosts are the server names to try, best first.
@@ -362,7 +374,8 @@ func permissionHint(err error) error {
 	}
 	m := err.Error()
 	if strings.Contains(m, "permission") || strings.Contains(m, "3201") && strings.Contains(m, "Access is denied") || strings.Contains(m, "262") || strings.Contains(m, "Login failed") {
-		return fmt.Errorf("%w — the agent runs as NT AUTHORITY\\SYSTEM; give it the sysadmin role in this instance: ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\\SYSTEM]", err)
+		sys := systemAccount()
+		return fmt.Errorf("%w — the agent runs as %s; give it the sysadmin role in this instance: ALTER SERVER ROLE sysadmin ADD MEMBER [%s]", err, sys, sys)
 	}
 	return err
 }

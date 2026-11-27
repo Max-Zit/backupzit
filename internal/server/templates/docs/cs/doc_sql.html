@@ -17,7 +17,7 @@
 <ol>
   <li>Nainstalujte agenta na počítač s Windows, na kterém běží SQL Server (libovolná edice od 2012 včetně Express).</li>
   <li>Agent běží jako <code>NT AUTHORITY\SYSTEM</code> a připojuje se ověřováním Windows. Dejte tomuto účtu roli <b>sysadmin</b>, jednou pro každou instanci:
-    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre> Ve Windows v jiném jazyce má účet přeložený název (například <code>AUTORIDADE NT\SISTEMA</code> v portugalštině) a příkaz výše skončí chybou 15151. Tento řádek PowerShellu funguje v každém jazyce:<pre>$sys = ([Security.Principal.SecurityIdentifier]'S-1-5-18').Translate([Security.Principal.NTAccount]).Value; sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [$sys]"</pre></li>
 </ol>
 <ul>
   <li>Každý běh zapíše jeden soubor zálohy na databázi (BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM) do výchozí složky záloh instance, uloží soubory a smaže je. Složka potřebuje po dobu běhu volné místo pro největší databázi.</li>

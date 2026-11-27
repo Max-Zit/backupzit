@@ -17,7 +17,7 @@
 <ol>
   <li>Instalirajte agenta na Windows mašinu na kojoj radi SQL Server (bilo koje izdanje od 2012, uključujući Express).</li>
   <li>Agent radi kao <code>NT AUTHORITY\SYSTEM</code> i povezuje se Windows autentifikacijom. Dajte tom nalogu ulogu <b>sysadmin</b>, jednom po instanci:
-    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre> Na Windows-u na drugom jeziku nalog ima prevedeno ime (na portugalskom na primer <code>AUTORIDADE NT\SISTEMA</code>), pa komanda iznad pada sa greškom 15151. Ova linija u PowerShell-u radi na svakom jeziku:<pre>$sys = ([Security.Principal.SecurityIdentifier]'S-1-5-18').Translate([Security.Principal.NTAccount]).Value; sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [$sys]"</pre></li>
 </ol>
 <ul>
   <li>Svako pokretanje upisuje po jedan fajl bekapa za svaku bazu (BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM) u podrazumevani folder za bekape instance, čuva fajlove i briše ih. Folderu tokom pokretanja treba slobodnog prostora za najveću bazu.</li>

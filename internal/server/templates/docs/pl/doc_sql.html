@@ -17,7 +17,7 @@
 <ol>
   <li>Zainstaluj agenta na maszynie Windows, na której działa SQL Server (dowolna edycja od 2012, w tym Express).</li>
   <li>Agent działa jako <code>NT AUTHORITY\SYSTEM</code> i łączy się z uwierzytelnianiem Windows. Nadaj temu kontu rolę <b>sysadmin</b>, raz na instancję:
-    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre> W Windows w innym języku konto ma przetłumaczoną nazwę (na przykład <code>AUTORIDADE NT\SISTEMA</code> po portugalsku) i powyższe polecenie kończy się błędem 15151. Ten wiersz PowerShell działa w każdym języku:<pre>$sys = ([Security.Principal.SecurityIdentifier]'S-1-5-18').Translate([Security.Principal.NTAccount]).Value; sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [$sys]"</pre></li>
 </ol>
 <ul>
   <li>Każde uruchomienie zapisuje jeden plik kopii na bazę (BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM) w domyślnym folderze kopii instancji, zapisuje pliki w magazynie i je usuwa. Na czas uruchomienia folder potrzebuje wolnego miejsca na największą bazę.</li>

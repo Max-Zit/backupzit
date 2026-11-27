@@ -17,7 +17,7 @@
 <ol>
   <li>Installeer de agent op de Windows-machine waarop SQL Server draait (elke editie vanaf 2012, inclusief Express).</li>
   <li>De agent draait als <code>NT AUTHORITY\SYSTEM</code> en maakt verbinding met Windows-verificatie. Geef dat account de rol <b>sysadmin</b>, één keer per instantie:
-    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre> In een Windows in een andere taal heeft het account een vertaalde naam (in het Portugees bijvoorbeeld <code>AUTORIDADE NT\SISTEMA</code>) en mislukt de opdracht hierboven met fout 15151. Deze PowerShell-regel werkt in elke taal:<pre>$sys = ([Security.Principal.SecurityIdentifier]'S-1-5-18').Translate([Security.Principal.NTAccount]).Value; sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [$sys]"</pre></li>
 </ol>
 <ul>
   <li>Elke run schrijft één back-upbestand per database (BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM) in de standaard back-upmap van de instantie, slaat de bestanden op en verwijdert ze. De map heeft tijdens de run vrije ruimte nodig voor de grootste database.</li>

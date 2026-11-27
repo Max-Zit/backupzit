@@ -17,7 +17,7 @@
 <ol>
   <li>Установите агента на машину Windows, где работает SQL Server (любая редакция начиная с 2012, включая Express).</li>
   <li>Агент работает как <code>NT AUTHORITY\SYSTEM</code> и подключается с проверкой подлинности Windows. Дайте этой учётной записи роль <b>sysadmin</b>, один раз для каждого экземпляра:
-    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre> В Windows на другом языке у учётной записи переведённое имя (например, <code>AUTORIDADE NT\SISTEMA</code> на португальском), и команда выше завершается ошибкой 15151. Эта строка PowerShell работает на любом языке:<pre>$sys = ([Security.Principal.SecurityIdentifier]'S-1-5-18').Translate([Security.Principal.NTAccount]).Value; sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [$sys]"</pre></li>
 </ol>
 <ul>
   <li>Каждый запуск записывает по одному файлу копии на базу (BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM) в папку резервных копий экземпляра по умолчанию, сохраняет файлы и удаляет их. На время запуска в папке нужно свободное место для самой большой базы.</li>

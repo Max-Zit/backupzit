@@ -17,7 +17,7 @@
 <ol>
   <li>在运行 SQL Server 的 Windows 机器上安装代理（2012 及以后的任何版本，包括 Express）。</li>
   <li>代理以 <code>NT AUTHORITY\SYSTEM</code> 身份运行，并使用 Windows 身份验证连接。为每个实例授予该帐户一次 <b>sysadmin</b> 角色：
-    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre> 在其他语言的 Windows 中，该帐户的名称是翻译过的（例如葡萄牙语中为 <code>AUTORIDADE NT\SISTEMA</code>），上面的命令会因错误 15151 而失败。下面这行 PowerShell 命令在任何语言下都可用:<pre>$sys = ([Security.Principal.SecurityIdentifier]'S-1-5-18').Translate([Security.Principal.NTAccount]).Value; sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [$sys]"</pre></li>
 </ol>
 <ul>
   <li>每次运行都会为每个数据库写入一个备份文件（BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM）到实例的默认备份文件夹，存储这些文件后将其删除。运行期间该文件夹需要能容纳最大数据库的可用空间。</li>

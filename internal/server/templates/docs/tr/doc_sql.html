@@ -17,7 +17,7 @@
 <ol>
   <li>Aracıyı SQL Server'ın çalıştığı Windows makineye kurun (Express dahil 2012'den itibaren her sürüm).</li>
   <li>Aracı <code>NT AUTHORITY\SYSTEM</code> olarak çalışır ve Windows kimlik doğrulamasıyla bağlanır. Bu hesaba her örnek için bir kez <b>sysadmin</b> rolünü verin:
-    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre> Başka dildeki bir Windows'ta hesabın adı çevrilmiştir (örneğin Portekizce <code>AUTORIDADE NT\SISTEMA</code>) ve yukarıdaki komut 15151 hatasıyla başarısız olur. Bu PowerShell satırı her dilde çalışır:<pre>$sys = ([Security.Principal.SecurityIdentifier]'S-1-5-18').Translate([Security.Principal.NTAccount]).Value; sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [$sys]"</pre></li>
 </ol>
 <ul>
   <li>Her çalıştırma, veritabanı başına bir yedek dosyasını (BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM) örneğin varsayılan yedek klasörüne yazar, dosyaları saklar ve siler. Klasörün, çalıştırma süresince en büyük veritabanı için boş alana ihtiyacı vardır.</li>
