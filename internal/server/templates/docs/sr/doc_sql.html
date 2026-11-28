@@ -12,6 +12,7 @@
   <li><b>Raspored</b> je raspored punih bekapa, npr. svakog dana u 22:00.</li>
 </ul>
 <p>Bekapi su deduplicirani — nepromenjeni podaci se ne šalju ponovo — i šifrovani kao svaki bekap. Retencija broji pune bekape; bekapi logova se čuvaju dok postoji puni bekap na koji se nastavljaju. Stranica pokretanja navodi šta svaki bekap sadrži. Ako u punom bekapu nedostaje baza (više ne postoji, offline je ili nije mogla da se izveze), pokretanje se završava upozorenjem i retencija posla se ne primenjuje, pa stariji bekapi koji je sadrže ostaju.</p>
+<p>Bekap koji ne može ponovo da pročita neki od fajlova koje je sam upisao (dump ili log) ne uspeva i ne čuva tačku vraćanja, pa ga retencija posla ne računa; u komandnoj liniji (<code>sql</code>, <code>pg</code>, <code>mysql backup</code>) završava se greškom.</p>
 
 <h2>Microsoft SQL Server</h2>
 <ol>

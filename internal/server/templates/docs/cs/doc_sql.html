@@ -12,6 +12,7 @@
   <li><b>Plán</b> je plánem úplných záloh, např. denně ve 22:00.</li>
 </ul>
 <p>Zálohy jsou deduplikované — nezměněná data se znovu neodesílají — a šifrované jako každá záloha. Uchovávání počítá úplné zálohy; zálohy protokolů se uchovávají, dokud existuje úplná záloha, na kterou navazují. Stránka běhu vypisuje, co každá záloha obsahuje. Pokud v úplné záloze chybí databáze (už neexistuje, je offline nebo ji nešlo vyexportovat), běh skončí s varováním a uchovávání úlohy se nespustí, takže starší zálohy, které ji obsahují, zůstanou.</p>
+<p>Záloha, která nedokáže přečíst některý ze souborů, které sama zapsala (výpis nebo protokol), selže a neuloží žádný bod obnovy, takže ji uchovávání úlohy nezapočítá; na příkazovém řádku (<code>sql</code>, <code>pg</code>, <code>mysql backup</code>) skončí chybou.</p>
 
 <h2>Microsoft SQL Server</h2>
 <ol>

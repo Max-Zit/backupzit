@@ -73,6 +73,9 @@ func cmdMySQL(ctx context.Context, args []string) error {
 			fmt.Println("nothing to store")
 			return nil
 		}
+		if err := incompleteSQL(sn); err != nil {
+			return err
+		}
 		for _, d := range sn.SQL.Databases {
 			fmt.Printf("  %-20s %10s  %s %s\n", d.Name, humanBytes(d.Size), d.FirstLSN, d.LastLSN)
 		}

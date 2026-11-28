@@ -12,6 +12,7 @@
   <li>Het <b>schema</b> is dat van de volledige back-ups, bijv. dagelijks om 22:00.</li>
 </ul>
 <p>Back-ups worden gededupliceerd — ongewijzigde gegevens worden niet opnieuw geüpload — en versleuteld zoals elke back-up. Het bewaarbeleid telt de volledige back-ups; logback-ups worden bewaard zolang de volledige back-up waarop ze voortbouwen bestaat. De runpagina toont wat elke back-up bevat. Ontbreekt er een database in een volledige back-up (hij bestaat niet meer, is offline of kon niet worden gedumpt), dan eindigt de run met een waarschuwing en wordt het bewaarbeleid van de taak niet toegepast, zodat de oudere back-ups met die database blijven bestaan.</p>
+<p>Een back-up die een van de bestanden die hij zelf schreef (een dump of een log) niet kan teruglezen, mislukt en slaat geen herstelpunt op, zodat het bewaarbeleid van de taak hem niet meetelt; op de opdrachtregel (<code>sql</code>, <code>pg</code>, <code>mysql backup</code>) eindigt hij met een fout.</p>
 
 <h2>Microsoft SQL Server</h2>
 <ol>

@@ -12,6 +12,7 @@
   <li>La <b>pianificazione</b> è quella dei backup completi, ad es. ogni giorno alle 22:00.</li>
 </ul>
 <p>I backup sono deduplicati — i dati invariati non vengono ricaricati — e cifrati come ogni backup. La conservazione conta i backup completi; i backup dei log vengono mantenuti finché esiste il backup completo su cui si basano. La pagina dell'esecuzione elenca cosa contiene ogni backup. Se in un backup completo manca un database (non esiste più, è offline o non è stato possibile esportarlo), l'esecuzione termina con un avviso e la conservazione del job non viene applicata, così i backup precedenti che lo contengono restano.</p>
+<p>Un backup che non riesce a rileggere uno dei file che ha scritto (un dump o un log) fallisce e non salva alcun punto di ripristino, quindi la conservazione del job non lo conta; dalla riga di comando (<code>sql</code>, <code>pg</code>, <code>mysql backup</code>) termina con un errore.</p>
 
 <h2>Microsoft SQL Server</h2>
 <ol>

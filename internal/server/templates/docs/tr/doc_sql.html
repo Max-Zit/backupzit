@@ -12,6 +12,7 @@
   <li><b>Zamanlama</b>, tam yedeklerin zamanlamasıdır, ör. her gün 22:00'de.</li>
 </ul>
 <p>Yedekler tekilleştirilir — değişmeyen veriler yeniden yüklenmez — ve her yedek gibi şifrelenir. Saklama kuralı tam yedekleri sayar; günlük yedekleri, dayandıkları tam yedek var olduğu sürece tutulur. Çalıştırma sayfası her yedeğin neler içerdiğini listeler. Tam bir yedekte bir veritabanı eksikse (artık yoksa, çevrimdışıysa veya dökümü alınamadıysa), çalıştırma bir uyarıyla biter ve işin saklama kuralı uygulanmaz; böylece o veritabanını içeren eski yedekler kalır.</p>
+<p>Yazdığı dosyalardan birini (bir döküm ya da günlük) geri okuyamayan bir yedek başarısız olur ve geri yükleme noktası kaydetmez; bu yüzden işin saklama kuralı onu saymaz. Komut satırında (<code>sql</code>, <code>pg</code>, <code>mysql backup</code>) hatayla biter.</p>
 
 <h2>Microsoft SQL Server</h2>
 <ol>

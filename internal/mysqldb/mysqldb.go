@@ -179,7 +179,8 @@ type BackupOptions struct {
 }
 
 // BackupToRepo stores dumps of the databases (full) or the binary logs
-// closed since Previous (log) in a snapshot of r.
+// closed since Previous (log) in a snapshot of r. A snapshot that misses a
+// file it could not read comes back unsaved (Stats.Errors, zero ID).
 func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*repo.Snapshot, []string, error) {
 	if o.Log == nil {
 		o.Log = func(string, ...any) {}
@@ -285,7 +286,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 			return nil, problems, errors.New("no database was backed up")
 		}
 	}
-	sn, err := archiver.Run(ctx, r, archiver.Options{Paths: []string{stage}, NoParent: true, Version: o.Version, Tags: o.Tags, SQL: meta, Progress: o.Progress})
+	sn, err := archiver.Run(ctx, r, archiver.Options{Paths: []string{stage}, NoParent: true, Version: o.Version, Tags: o.Tags, SQL: meta, Progress: o.Progress, CompleteOnly: true})
 	return sn, problems, err
 }
 

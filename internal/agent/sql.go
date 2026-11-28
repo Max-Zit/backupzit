@@ -84,7 +84,9 @@ func (a *Agent) sqlBackup(ctx context.Context, run api.Run) api.RunResult {
 	// file it could not read means a database (or a log) is missing.
 	if len(sn.Stats.Errors) > 0 {
 		res := failed(fmt.Errorf("%s could not be read, the backup is incomplete: %s", count(len(sn.Stats.Errors), "file", "files"), strings.Join(sn.Stats.Errors, "; ")))
-		// No restore point: the console must not offer it or chain logs to it.
+		// No restore point: the console must not offer it or chain logs to
+		// it, and the snapshot was not saved (archiver CompleteOnly), so
+		// the job's retention does not count it (L-N22).
 		res.Stats, res.Details = stats, details
 		res.Errors = append(problems, sn.Stats.Errors...)
 		return res

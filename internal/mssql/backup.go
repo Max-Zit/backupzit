@@ -33,7 +33,8 @@ type BackupOptions struct {
 // BackupToRepo backs up databases with native BACKUP statements into a
 // folder SQL Server can write, stores the files in a snapshot of r and
 // deletes them. It returns the snapshot (nil when there was nothing to
-// back up) and per-database problems.
+// back up) and per-database problems; a snapshot that misses a file it
+// could not read comes back unsaved (Stats.Errors, zero ID).
 func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*repo.Snapshot, []string, error) {
 	if o.Log == nil {
 		o.Log = func(string, ...any) {}
@@ -111,7 +112,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 		}
 		return nil, problems, nil
 	}
-	sn, err := archiver.Run(ctx, r, archiver.Options{Paths: []string{stage}, NoParent: true, Version: o.Version, Tags: o.Tags, SQL: meta, Progress: o.Progress})
+	sn, err := archiver.Run(ctx, r, archiver.Options{Paths: []string{stage}, NoParent: true, Version: o.Version, Tags: o.Tags, SQL: meta, Progress: o.Progress, CompleteOnly: true})
 	if err != nil {
 		return nil, problems, err
 	}

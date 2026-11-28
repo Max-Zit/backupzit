@@ -12,6 +12,7 @@
   <li>The <b>schedule</b> is that of the full backups, e.g. daily at 22:00.</li>
 </ul>
 <p>Backups are deduplicated — unchanged data is not uploaded again — and encrypted like every backup. Retention counts the full backups; log backups are kept as long as the full backup they build on. The run page lists what each backup holds. If a database is missing from a full backup (it no longer exists, is offline or could not be dumped), the run ends with a warning and the job's retention does not run, so the older backups that hold it stay.</p>
+<p>A backup that cannot read back one of the files it wrote (a dump or a log) fails and stores no restore point, so the job's retention does not count it; on the command line (<code>sql</code>, <code>pg</code>, <code>mysql backup</code>) it ends with an error.</p>
 
 <h2>Microsoft SQL Server</h2>
 <ol>

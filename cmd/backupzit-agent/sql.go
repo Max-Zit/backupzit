@@ -12,6 +12,16 @@ import (
 	"github.com/max-zit/backupzit/internal/repo"
 )
 
+// incompleteSQL is the error of a database backup (sql, mysql, pg) that
+// could not read every file it wrote: it was not stored, as in a job
+// (L-N22), and the command fails instead of printing a snapshot.
+func incompleteSQL(sn *repo.Snapshot) error {
+	if len(sn.Stats.Errors) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%d file(s) could not be read, the backup is incomplete and was not stored: %s", len(sn.Stats.Errors), strings.Join(sn.Stats.Errors, "; "))
+}
+
 // cmdSQL handles: sql list|backup|show|restore (Microsoft SQL Server on this
 // machine, as the agent's account).
 func cmdSQL(ctx context.Context, args []string) error {
@@ -79,6 +89,9 @@ func cmdSQL(ctx context.Context, args []string) error {
 		if sn == nil {
 			fmt.Println("nothing to back up")
 			return nil
+		}
+		if err := incompleteSQL(sn); err != nil {
+			return err
 		}
 		fmt.Printf("snapshot %s: %d databases (%s backup)\n", sn.ID.Short(), len(sn.SQL.Databases), kind)
 		return nil

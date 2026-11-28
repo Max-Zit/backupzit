@@ -12,6 +12,7 @@
   <li>O <b>agendamento</b> é o dos backups completos, por ex. diariamente às 22:00.</li>
 </ul>
 <p>Os backups são deduplicados — dados inalterados não são enviados de novo — e criptografados como qualquer backup. A retenção conta os backups completos; backups de log são mantidos enquanto existir o backup completo em que se baseiam. A página da execução lista o que cada backup contém. Se faltar um banco de dados em um backup completo (ele não existe mais, está offline ou não pôde ser exportado), a execução termina com um aviso e a retenção da tarefa não é aplicada, então os backups anteriores que o contêm são mantidos.</p>
+<p>Um backup que não consegue reler um dos arquivos que gravou (um dump ou um log) falha e não guarda nenhum ponto de restauração, então a retenção da tarefa não o conta; na linha de comando (<code>sql</code>, <code>pg</code>, <code>mysql backup</code>) termina com um erro.</p>
 
 <h2>Microsoft SQL Server</h2>
 <ol>

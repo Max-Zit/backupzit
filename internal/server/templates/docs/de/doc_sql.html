@@ -12,6 +12,7 @@
   <li>Der <b>Zeitplan</b> ist der der Vollsicherungen, z. B. täglich um 22:00.</li>
 </ul>
 <p>Sicherungen werden dedupliziert — unveränderte Daten werden nicht erneut hochgeladen — und wie jede Sicherung verschlüsselt. Die Aufbewahrung zählt die Vollsicherungen; Log-Sicherungen werden so lange behalten wie die Vollsicherung, auf der sie aufbauen. Die Laufseite listet auf, was jede Sicherung enthält. Fehlt in einer Vollsicherung eine Datenbank (sie existiert nicht mehr, ist offline oder konnte nicht exportiert werden), endet der Lauf mit einer Warnung und die Aufbewahrung des Auftrags läuft nicht, sodass die älteren Sicherungen mit dieser Datenbank erhalten bleiben.</p>
+<p>Eine Sicherung, die eine der von ihr geschriebenen Dateien (einen Dump oder ein Log) nicht zurücklesen kann, schlägt fehl und speichert keinen Wiederherstellungspunkt, sodass die Aufbewahrung des Auftrags sie nicht mitzählt; auf der Befehlszeile (<code>sql</code>, <code>pg</code>, <code>mysql backup</code>) endet sie mit einem Fehler.</p>
 
 <h2>Microsoft SQL Server</h2>
 <ol>

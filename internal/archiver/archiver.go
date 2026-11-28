@@ -55,6 +55,13 @@ type Options struct {
 	System *repo.SystemLayout
 	// SQL is stored with the snapshot of a SQL Server backup.
 	SQL *repo.SQLBackup
+	// CompleteOnly saves the snapshot only when every file was read; else
+	// Run returns it unsaved (zero ID) with its stats, and its data goes
+	// with the next prune. A SQL backup missing a dump or a log is no
+	// restore point, but a saved snapshot of it kept the job's tag: the
+	// job's retention counted it as one of the backups to keep, and MySQL
+	// log backups went on after the logs it lacked (L-N22).
+	CompleteOnly bool
 	// OneFileSystem does not descend into directories on other file systems
 	// (mount points); they are stored empty.
 	OneFileSystem bool
@@ -280,6 +287,9 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 	if opts.Parent != nil {
 		pid := opts.Parent.ID
 		sn.Parent = &pid
+	}
+	if opts.CompleteOnly && len(sn.Stats.Errors) > 0 {
+		return sn, nil
 	}
 	if _, err := r.SaveSnapshot(ctx, sn); err != nil {
 		return nil, fmt.Errorf("save snapshot: %w", err)
@@ -592,7 +602,10 @@ type repoError struct{ err error }
 
 func (e *repoError) Error() string { return e.err.Error() }
 
-func (a *Archiver) archiveFile(ctx context.Context, p string, fi fs.FileInfo, n *repo.Node, parent *repo.Node) error {
+// openSource opens a file to back up; tests replace it.
+var openSource = func(p string) (io.ReadCloser, error) { return os.Open(p) } // #nosec G304 -- a file the job backs up
+
+func (a *Archiver) archiveFile(ctx context.Context, p string, fi fs.FileInfo, n *repo.Node, parent *repo.Node) (err error) {
 	size := uint64(fi.Size()) // #nosec G115 -- file sizes and counts are not negative
 	n.Size = size
 	a.stats.Files++
@@ -609,6 +622,13 @@ func (a *Archiver) archiveFile(ctx context.Context, p string, fi fs.FileInfo, n 
 			return nil
 		}
 		defer func() {
+			// Only a file read completely is shared: after a failed read n
+			// holds the chunks read so far, and the next name of the file
+			// took them as its whole content, counted as unchanged (MED 3).
+			// That name is read itself instead.
+			if err != nil {
+				return
+			}
 			if a.links == nil {
 				a.links = map[string]*repo.Node{}
 			}
@@ -633,7 +653,7 @@ func (a *Archiver) archiveFile(ctx context.Context, p string, fi fs.FileInfo, n 
 		a.stats.FilesNew++
 	}
 
-	f, err := os.Open(a.src(p))
+	f, err := openSource(a.src(p))
 	if err != nil {
 		if inCloudLive(p) {
 			return a.skipCloudOnly(p, size, true, parent != nil)
