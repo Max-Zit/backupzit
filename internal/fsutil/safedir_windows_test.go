@@ -64,6 +64,18 @@ func TestOnlyTrustedMay(t *testing.T) {
 	if !check() {
 		t.Error("only SYSTEM and Administrators may write, but the folder is not trusted")
 	}
+	// #80: the cluster service (NT SERVICE\ClusSvc) has full control of
+	// C:\ClusterStorage and its junctions; a service SID counts as trusted.
+	clussvc, err := windows.StringToSid("S-1-5-80-3686368352-2818529501-1460576502-2564618696-351529990")
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := windows.EXPLICIT_ACCESS{AccessPermissions: full, AccessMode: windows.GRANT_ACCESS, Inheritance: windows.NO_INHERITANCE,
+		Trustee: windows.TRUSTEE{TrusteeForm: windows.TRUSTEE_IS_SID, TrusteeType: windows.TRUSTEE_IS_USER, TrusteeValue: windows.TrusteeValueFromSID(clussvc)}}
+	setDACL(t, dir, []windows.EXPLICIT_ACCESS{sys, svc, read})
+	if !check() {
+		t.Error("only SYSTEM and the cluster service may write, but the folder is not trusted")
+	}
 	setDACL(t, dir, []windows.EXPLICIT_ACCESS{sys, admins, read, allow(t, windows.WinAuthenticatedUserSid, windows.ACCESS_MASK(fileWriteData))})
 	if check() {
 		t.Error("Authenticated Users may change it, but it is trusted")

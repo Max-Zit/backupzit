@@ -166,6 +166,14 @@ const (
 // ownerRights is OWNER RIGHTS (S-1-3-4): the owner, checked separately.
 const ownerRights = "S-1-3-4"
 
+// serviceSID reports whether sid is the SID of a Windows service (NT
+// SERVICE\name, S-1-5-80-...): only that service's own process holds it,
+// and only an administrator can install or change a service, so it counts
+// like TrustedInstaller (which is one of them). Cluster Shared Volumes give
+// the cluster service (NT SERVICE\ClusSvc) full control of
+// C:\ClusterStorage and its junctions (#80).
+func serviceSID(sid *windows.SID) bool { return strings.HasPrefix(sid.String(), "S-1-5-80-") }
+
 // onlyTrustedMay reports whether only the system and administrators may
 // do any of rights on h: its owner is one of them, and no entry of its
 // access list allows any of rights to anybody else (entries that deny are
@@ -200,7 +208,7 @@ func onlyTrustedMay(h windows.Handle, rights uint32, alsoTrusted ...string) bool
 			return false // another kind of entry that allows: not trusted
 		}
 		sid := (*windows.SID)(unsafe.Pointer(&ace.SidStart)) // #nosec G103 -- the SID inside the entry
-		if trustedOwner(sid) || sid.String() == ownerRights || slices.Contains(alsoTrusted, sid.String()) {
+		if trustedOwner(sid) || serviceSID(sid) || sid.String() == ownerRights || slices.Contains(alsoTrusted, sid.String()) {
 			continue
 		}
 		return false
