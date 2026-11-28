@@ -261,7 +261,31 @@ func readDisk(h windows.Handle, n int) (Disk, error) {
 		d.Partitions = append(d.Partitions, p)
 	}
 	sort.Slice(d.Partitions, func(i, j int) bool { return d.Partitions[i].Offset < d.Partitions[j].Offset })
+	// An empty MBR may be a disk that was never initialized, which Windows
+	// reports the same way; its first sector tells. When it cannot be read,
+	// the disk stays MBR as before.
+	if d.Style == StyleMBR && len(d.Partitions) == 0 {
+		if sec, err := readSector0(h, d.SectorSize); err == nil && noPartitionTable(sec) {
+			d.Style, d.MBRSignature = StyleRaw, 0
+		}
+	}
 	return d, nil
+}
+
+// readSector0 reads the first sector of disk h (a whole sector, as raw disk
+// devices require). The offset is given in an OVERLAPPED, which a handle
+// opened without FILE_FLAG_OVERLAPPED reads synchronously, so it does not
+// depend on the handle's file position.
+func readSector0(h windows.Handle, sectorSize uint32) ([]byte, error) {
+	b := make([]byte, max(sectorSize, 512))
+	var n uint32
+	if err := windows.ReadFile(h, b, &n, &windows.Overlapped{}); err != nil {
+		return nil, err
+	}
+	if n < 512 {
+		return nil, fmt.Errorf("read %d bytes of sector 0", n)
+	}
+	return b[:n], nil
 }
 
 // storageInfo returns "Vendor Product", the bus kind ("usb", "sd",

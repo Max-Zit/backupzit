@@ -220,6 +220,28 @@ func SameDiskAsSource(img *repo.DiskImage, target imaging.Disk) bool {
 	return false
 }
 
+// SourceDiskPresent returns the number of a disk other than the target
+// that has the disk ID the restore writes: the image's GPT disk GUID or MBR
+// signature, which a whole-disk restore keeps unless its layout converts
+// the partition table. That is usually the backed up disk itself, still in
+// this computer (a move to a new disk). Windows keeps the restored disk
+// offline while both are in (partmgr event 58), so what needs its volumes
+// cannot run: extending larger partitions, boot files, new hardware (#61).
+func (j Job) SourceDiskPresent(disks []imaging.Disk) (int, bool) {
+	if j.Into != nil || j.Snapshot == nil || j.Image < 0 || j.Image >= len(j.Snapshot.Images) {
+		return 0, false
+	}
+	img := &j.Snapshot.Images[j.Image]
+	if j.Layout != nil && j.Layout.Style != img.Style {
+		return 0, false // a converted disk gets new IDs
+	}
+	return imaging.DiskWithID(disks, j.TargetDisk, img.Style, img.GPTDiskID, img.MBRSignature)
+}
+
+// WarnShrunk is the warning of a restore that shrank partitions. The
+// recovery program translates it by this text.
+const WarnShrunk = "partitions were restored smaller: Windows checks their file systems (chkdsk) once at the next start"
+
 // Progress reports a phase ("verify", "write", "hardware") and bytes.
 type Progress func(phase string, done, total uint64)
 
@@ -446,7 +468,7 @@ func Run(ctx context.Context, s *Session, j Job, progress Progress, log *Logger)
 		}
 	}
 	if len(st.Shrunk) > 0 {
-		res.Warnings = append(res.Warnings, "partitions were restored smaller: Windows checks their file systems (chkdsk) once at the next start")
+		res.Warnings = append(res.Warnings, WarnShrunk)
 		for _, sh := range st.Shrunk {
 			if sh.ShadowCopiesRemoved {
 				res.Warnings = append(res.Warnings, fmt.Sprintf("partition %d: its shadow copies (previous versions) were removed by the shrink", sh.Partition))

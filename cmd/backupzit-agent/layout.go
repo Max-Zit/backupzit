@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -154,35 +155,44 @@ func cmdImageLayout(ctx context.Context, args []string) error {
 		}
 		return enc.Encode(out)
 	}
-	printImageLayout(img, limits, l, size, needed)
+	printImageLayout(os.Stdout, img, limits, l, size, needed)
 	return err
 }
 
-func printImageLayout(img *repo.DiskImage, limits map[int]imaging.PartitionLimits, l *imaging.Layout, size, needed uint64) {
-	fmt.Printf("Image: disk %d, %s, %s\n", img.Number, humanBytes(img.Size), strings.ToUpper(img.Style))
-	fmt.Printf("Target: %s (smallest possible: %s)\n\n", humanBytes(size), humanBytes(needed))
-	fmt.Println("  #  original    minimum     used        shrinkable  resizable")
+func printImageLayout(w io.Writer, img *repo.DiskImage, limits map[int]imaging.PartitionLimits, l *imaging.Layout, size, needed uint64) {
+	fmt.Fprintf(w, "Image: disk %d, %s, %s\n", img.Number, humanBytes(img.Size), strings.ToUpper(img.Style))
+	fmt.Fprintf(w, "Target: %s (smallest possible: %s)\n\n", humanBytes(size), humanBytes(needed))
+	fmt.Fprintln(w, "  #  original    minimum     used        shrinkable  resizable")
 	for _, p := range img.Partitions {
 		lim := limits[p.Number]
-		res := "yes"
-		if !lim.Resizable {
-			res = "no: " + lim.Reason
-		}
 		shrink := "-"
 		if lim.ShrinkableTo > 0 {
 			shrink = humanBytes(lim.ShrinkableTo)
 		}
-		fmt.Printf("  %d  %-10s  %-10s  %-10s  %-10s  %s\n", p.Number, humanBytes(p.Length), humanBytes(lim.Min(&p)), humanBytes(lim.UsedBytes), shrink, res)
+		fmt.Fprintf(w, "  %d  %-10s  %-10s  %-10s  %-10s  %s\n", p.Number, humanBytes(p.Length), humanBytes(lim.Min(&p)), humanBytes(lim.UsedBytes), shrink, resizableText(lim))
 	}
 	if l == nil {
 		return
 	}
-	fmt.Println("\nTarget layout:")
+	fmt.Fprintln(w, "\nTarget layout:")
 	for _, lp := range l.Partitions {
 		what := "restore"
 		if !lp.Restore {
 			what = "create empty"
 		}
-		fmt.Printf("  %d  at %-14d %-10s  %s\n", lp.Source, lp.Offset, humanBytes(lp.Length), what)
+		fmt.Fprintf(w, "  %d  at %-14d %-10s  %s\n", lp.Source, lp.Offset, humanBytes(lp.Length), what)
 	}
+}
+
+// resizableText is the last column of the limits table. A partition that
+// can grow but not shrink (e.g. a copy that was not shut down cleanly)
+// shows why its minimum is its original size, not only "yes" (#61).
+func resizableText(lim imaging.PartitionLimits) string {
+	switch {
+	case !lim.Resizable:
+		return "no: " + lim.Reason
+	case lim.Reason != "":
+		return "yes, but " + lim.Reason
+	}
+	return "yes"
 }

@@ -80,6 +80,31 @@ func (id DiskIdentity) Matches(d Disk) error {
 	return nil
 }
 
+// DiskWithID returns the number of a disk other than disk except whose
+// partition table has the disk ID of a table of the given style: the GPT
+// disk GUID or the MBR disk signature (an empty or zero ID matches none).
+// Windows keeps a disk offline while another disk in the computer has its
+// ID (partmgr event 58, "disk signature is identical"), so a copy restored
+// next to its source disk gets no volumes.
+func DiskWithID(disks []Disk, except int, style, gptDiskID string, mbrSignature uint32) (int, bool) {
+	for _, d := range disks {
+		if d.Number == except || d.Style != style {
+			continue
+		}
+		switch style {
+		case StyleGPT:
+			if gptDiskID != "" && strings.EqualFold(d.GPTDiskID, gptDiskID) {
+				return d.Number, true
+			}
+		case StyleMBR:
+			if mbrSignature != 0 && d.MBRSignature == mbrSignature {
+				return d.Number, true
+			}
+		}
+	}
+	return 0, false
+}
+
 // DiskRef names the disk a restore step works on: its number and the
 // identity it must still have. Without an identity the number alone
 // counts, as for runs the console checked itself.

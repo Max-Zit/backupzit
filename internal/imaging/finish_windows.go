@@ -31,11 +31,15 @@ func FinishLayout(ctx context.Context, ref DiskRef, st *RestoreStats, log func(s
 	// must not wait for one.
 	var disk *Disk
 	var winPart *Partition
+	// all are the disks as last listed, to name another disk with the same
+	// IDs when a partition gets no volume (a converted disk, which waits
+	// for Windows, has new IDs).
+	var all []Disk
 	var err error
 	if st.NeedMBRCode {
 		disk, winPart, err = waitForWindows(ctx, ref, 0)
 	} else {
-		disk, err = waitForVolumes(ctx, ref, st.Grown)
+		disk, all, err = waitForVolumes(ctx, ref, st.Grown)
 	}
 	if disk == nil {
 		return []string{fmt.Sprintf("finish the partitions: %v", err)}
@@ -69,7 +73,7 @@ func FinishLayout(ctx context.Context, ref DiskRef, st *RestoreStats, log func(s
 			}
 		}
 		if part == nil || part.VolumeGUIDPath == "" {
-			warnings = append(warnings, fmt.Sprintf("partition at %d: no volume to extend; extend it in Disk Management", off))
+			warnings = append(warnings, noVolumeWarning(all, ref, part, off))
 			continue
 		}
 		if !strings.EqualFold(part.FileSystem, "NTFS") {
@@ -87,32 +91,34 @@ func FinishLayout(ctx context.Context, ref DiskRef, st *RestoreStats, log func(s
 
 // waitForVolumes waits until Windows has mounted the partitions at the
 // offsets offs of a freshly written disk (at most a minute) and returns the
-// disk as it is then. A disk with the number that is not ref's disk is
-// refused at once.
-func waitForVolumes(ctx context.Context, ref DiskRef, offs []uint64) (*Disk, error) {
+// disk as it is then, with all disks as listed then. A disk with the number
+// that is not ref's disk is refused at once.
+func waitForVolumes(ctx context.Context, ref DiskRef, offs []uint64) (*Disk, []Disk, error) {
 	var disk *Disk
+	var disks []Disk
 	for i := 0; i < 30; i++ {
-		disks, err := ListDisks()
+		var err error
+		disks, err = ListDisks()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		disk, err = ref.Pick(disks)
 		if err != nil && hasNumber(disks, ref.Number) {
-			return nil, err
+			return nil, nil, err
 		}
 		if disk != nil && mounted(disk, offs) {
-			return disk, nil
+			return disk, disks, nil
 		}
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return nil, nil, ctx.Err()
 		case <-time.After(2 * time.Second):
 		}
 	}
 	if disk == nil {
-		return nil, fmt.Errorf("disk %d not found after the restore", ref.Number)
+		return nil, nil, fmt.Errorf("disk %d not found after the restore", ref.Number)
 	}
-	return disk, nil
+	return disk, disks, nil
 }
 
 // mounted tells whether every partition of d at the offsets offs has a

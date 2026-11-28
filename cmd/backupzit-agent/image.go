@@ -35,7 +35,7 @@ func cmdDisks(args []string) error {
 		if d.System {
 			sys = "  [system disk]"
 		}
-		fmt.Printf("Disk %d: %s, %s, %s, sector %d%s\n", d.Number, strings.TrimSpace(d.Model), humanBytes(d.Size), strings.ToUpper(d.Style), d.SectorSize, sys)
+		fmt.Printf("Disk %d: %s, %s, %s, sector %d%s\n", d.Number, strings.TrimSpace(d.Model), humanBytes(d.Size), diskStyleText(d.Style), d.SectorSize, sys)
 		for _, p := range d.Partitions {
 			fmt.Printf("  %d  %10s  at %-12d %s\n", p.Number, humanBytes(p.Length), p.Offset, p.Describe())
 		}
@@ -221,7 +221,7 @@ func cmdImageRestore(ctx context.Context, args []string) error {
 			return err
 		}
 		needed, _ := imaging.NeededDiskSize(img, limits, lo)
-		printImageLayout(img, limits, l, size, needed)
+		printImageLayout(os.Stdout, img, limits, l, size, needed)
 		job.Layout, job.Partitions = l, nil
 	}
 	job.Protect = append([]string{rf.location}, recovery.BootMediumPaths()...)
@@ -233,6 +233,9 @@ func cmdImageRestore(ctx context.Context, args []string) error {
 	}
 	if err := job.Check(disks, recovery.ProtectedDisks(disks, job.Protect)); err != nil {
 		return err
+	}
+	if n, ok := job.SourceDiskPresent(disks); ok && !job.KeepOffline {
+		fmt.Println(sourceDiskWarning(n))
 	}
 	fmt.Printf("restoring disk %d of image %s from %s to disk %d\n", sn.Images[idx].Number, sn.ID.Short(), sn.Time.Local().Format("2006-01-02 15:04:05"), *target)
 	verified, written := progressPrinter("verified"), progressPrinter("written")
@@ -258,6 +261,22 @@ func cmdImageRestore(ctx context.Context, args []string) error {
 		return exitCodeError{code: recovery.ExitIncomplete, msg: "the data was written, but finishing the disk failed (see the warnings above): it may not start yet"}
 	}
 	return nil
+}
+
+// sourceDiskWarning is printed before a whole-disk restore while disk n,
+// which has the disk ID the restored disk gets (usually the backed up disk),
+// is in this computer: Windows keeps the copy offline then (#61).
+func sourceDiskWarning(n int) string {
+	return fmt.Sprintf("warning: disk %d has the same disk ID as the backed up disk (it probably is that disk). While both disks are in this computer, Windows keeps the restored disk offline: larger partitions are not extended, and boot files and drivers for new hardware are not written. Use --keep-offline, remove the old disk after the restore, then extend the file system in Disk Management or run boot-repair.", n)
+}
+
+// diskStyleText is the partition table of a listed disk; a disk without one
+// (never initialized) says so instead of "RAW".
+func diskStyleText(style string) string {
+	if style == imaging.StyleRaw {
+		return "not initialized"
+	}
+	return strings.ToUpper(style)
 }
 
 // openImageVolume loads snapshot ref and opens the NTFS volume of partition part.

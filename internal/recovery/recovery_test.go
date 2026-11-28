@@ -227,6 +227,37 @@ func TestJobCheck(t *testing.T) {
 	}
 }
 
+// #61 finding 2: a whole-disk restore onto a second disk while the backed
+// up disk (same disk ID) is still in the computer is recognised before it
+// starts; restoring over that disk itself, a partition restore and a
+// converted table (new IDs) are not that case.
+func TestSourceDiskPresent(t *testing.T) {
+	gpt := repo.DiskImage{Style: imaging.StyleGPT, SectorSize: 512, GPTDiskID: "AAAA0000-0000-0000-0000-000000000000"}
+	mbr := repo.DiskImage{Style: imaging.StyleMBR, SectorSize: 512, MBRSignature: 0x5150}
+	sn := &repo.Snapshot{Images: []repo.DiskImage{gpt, mbr}}
+	disks := append(testDisks(), imaging.Disk{Number: 4, Style: imaging.StyleMBR, MBRSignature: 0x5150})
+	for _, c := range []struct {
+		what string
+		job  Job
+		want int
+		ok   bool
+	}{
+		{"GPT copy next to the source disk", Job{Snapshot: sn, TargetDisk: 3}, 0, true},
+		{"over the source disk itself", Job{Snapshot: sn, TargetDisk: 0}, 0, false},
+		{"MBR copy next to the source disk", Job{Snapshot: sn, Image: 1, TargetDisk: 2}, 4, true},
+		{"same style layout keeps the IDs", Job{Snapshot: sn, TargetDisk: 3, Layout: &imaging.Layout{Style: imaging.StyleGPT}}, 0, true},
+		{"converted to MBR: new IDs", Job{Snapshot: sn, TargetDisk: 3, Layout: &imaging.Layout{Style: imaging.StyleMBR}}, 0, false},
+		{"partition restore keeps the target's table", Job{Snapshot: sn, TargetDisk: 3, Into: &PartitionTarget{Partition: 1}}, 0, false},
+		{"no snapshot", Job{TargetDisk: 3}, 0, false},
+		{"no such image", Job{Snapshot: sn, Image: 5, TargetDisk: 3}, 0, false},
+	} {
+		n, ok := c.job.SourceDiskPresent(disks)
+		if ok != c.ok || n != c.want {
+			t.Errorf("%s: got disk %d, %v; want %d, %v", c.what, n, ok, c.want, c.ok)
+		}
+	}
+}
+
 func TestLogger(t *testing.T) {
 	var buf bytes.Buffer
 	var lines []string

@@ -1,6 +1,31 @@
 package imaging
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
+
+// SameIDOfflineWarning is FinishLayout's warning for a partition that
+// became larger but got no volume to extend because another disk in the
+// computer has the disk ID of the restored one, usually the backed up disk
+// itself: Windows keeps the copy offline then (#61). Brought online next
+// to the old disk it would get new IDs and no longer start (see
+// RestoreOptions.KeepOffline), so the old disk goes first. The arguments
+// are the partition number and the other disk; the recovery program
+// translates the warning by this format.
+const SameIDOfflineWarning = "partition %d: not extended, because disk %d in this computer has the same disk and partition IDs (the backed up disk), so Windows keeps this copy offline; remove the old disk, then extend the file system in Disk Management once this disk is online"
+
+// noVolumeWarning is the warning for a partition at offset off of the
+// restored disk ref (part as listed, nil if not) that became larger but has
+// no volume to extend. disks are all disks as listed after the restore.
+func noVolumeWarning(disks []Disk, ref DiskRef, part *Partition, off uint64) string {
+	if part != nil && ref.ID != nil {
+		if n, ok := DiskWithID(disks, ref.Number, ref.ID.Style, ref.ID.GPTDiskID, ref.ID.MBRSignature); ok {
+			return fmt.Sprintf(SameIDOfflineWarning, part.Number, n)
+		}
+	}
+	return fmt.Sprintf("partition at %d: no volume to extend; extend it in Disk Management", off)
+}
 
 // RestoreOptions configure an image restore.
 type RestoreOptions struct {

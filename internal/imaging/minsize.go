@@ -185,13 +185,13 @@ func ShrinkOptions(p *repo.PartitionImage) ntfsresize.PlanOptions {
 // while on volumes with many files). MinSize is only a size the restore's
 // planning accepts; when it would refuse every shrink (an inconsistent
 // or unclean source), the partition keeps the size its volume needs and
-// Reason says why.
+// Reason says why (Why is ReasonNoShrink; it can still grow).
 func shrinkLimits(pr io.ReaderAt, p *repo.PartitionImage, u *NTFSUsage) PartitionLimits {
 	lim := PartitionLimits{Resizable: true, MinSize: u.MinSize, ShrinkableTo: u.MinSize, UsedBytes: u.UsedBytes}
 	vol, err := ntfsresize.Open(pr)
 	if err != nil {
 		lim.MinSize, lim.ShrinkableTo = p.Length, p.Length
-		lim.Reason = "cannot be shrunk: " + err.Error()
+		lim.Reason, lim.Why = NoShrinkPrefix+err.Error(), ReasonNoShrink
 		return lim
 	}
 	m, err := vol.MinimumSize(ShrinkOptions(p))
@@ -200,7 +200,7 @@ func shrinkLimits(pr io.ReaderAt, p *repo.PartitionImage, u *NTFSUsage) Partitio
 		// is, which needs none of the checks.
 		keep := min(p.Length, alignUp(vol.UnchangedSize(), LayoutAlign))
 		lim.MinSize, lim.ShrinkableTo = keep, keep
-		lim.Reason = "cannot be shrunk: " + err.Error()
+		lim.Reason, lim.Why = NoShrinkPrefix+err.Error(), ReasonNoShrink
 		return lim
 	}
 	// Every size from the minimum up is accepted, so aligning up keeps it.

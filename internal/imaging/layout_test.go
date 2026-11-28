@@ -2,6 +2,7 @@ package imaging
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/max-zit/backupzit/internal/repo"
@@ -249,6 +250,55 @@ func TestLayoutSectorSizeMismatch(t *testing.T) {
 	l.SectorSize = 4096
 	if err := l.Validate(img, nil); err == nil {
 		t.Error("different sector size must not validate")
+	}
+}
+
+// #61 finding 1: the "too small" errors name the reason a partition keeps
+// its size (here a source that was not shut down cleanly), not only the
+// numbers; EFI, MSR and recovery, which keep their size by type, are not
+// listed.
+func TestTooSmallErrorsSayWhy(t *testing.T) {
+	img := windowsGPT()
+	why := NoShrinkPrefix + "the file system in the backup was not shut down cleanly"
+	lim := map[int]PartitionLimits{
+		1: {Reason: "EFI System partitions keep their size", Why: ReasonFixedSize},
+		3: {Resizable: true, MinSize: 50 * gib, Reason: why, Why: ReasonNoShrink},
+		4: {Reason: "Recovery partitions keep their size", Why: ReasonFixedSize},
+	}
+	_, err := SuggestLayout(img, 40*gib, lim, LayoutOptions{})
+	var tse *TooSmallError
+	if !errors.As(err, &tse) {
+		t.Fatalf("got %v, want TooSmallError", err)
+	}
+	if len(tse.Held) != 1 || tse.Held[0].Partition != 3 || tse.Held[0].Limits.Why != ReasonNoShrink {
+		t.Errorf("held: %+v", tse.Held)
+	}
+	if !strings.Contains(err.Error(), "partition 3: "+why) || strings.Contains(err.Error(), "EFI") {
+		t.Errorf("error: %v", err)
+	}
+	// The same from Validate, for a layout that was made too small by hand.
+	l, err := SuggestLayout(img, 60*gib, lim, LayoutOptions{Mode: LayoutAsSource})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.Resize(3, 30*gib); err != nil {
+		t.Fatal(err)
+	}
+	err = l.Validate(img, lim)
+	var mse *MinSizeError
+	if !errors.As(err, &mse) || mse.Partition != 3 || mse.Min != 50*gib || mse.Length != 30*gib {
+		t.Fatalf("got %v, want MinSizeError for partition 3", err)
+	}
+	if !strings.Contains(err.Error(), "needs at least") || !strings.HasSuffix(err.Error(), ": "+why) {
+		t.Errorf("error: %v", err)
+	}
+	// Without a reason the error stays as it was.
+	plain := windowsLimits(50 * gib)
+	if err := l.Validate(img, plain); err == nil || strings.Contains(err.Error(), ": cannot") {
+		t.Errorf("without a reason: %v", err)
+	}
+	if _, err := SuggestLayout(img, 40*gib, plain, LayoutOptions{}); !errors.As(err, &tse) || len(tse.Held) != 0 || strings.Contains(err.Error(), "; partition") {
+		t.Errorf("without a reason: %v", err)
 	}
 }
 

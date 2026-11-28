@@ -1,6 +1,7 @@
 package imaging
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -200,5 +201,63 @@ func TestShrinkLimitsArePromises(t *testing.T) {
 	}
 	if mins[0] >= mins[1] {
 		t.Errorf("moving data (vss) gives no smaller minimum: %d, without moving %d", mins[0], mins[1])
+	}
+}
+
+// markDirty sets the dirty flag in $VOLUME_INFORMATION of $Volume (file
+// record 3) of the NTFS image b, as Windows does for a volume that needs a
+// check. It skips the test when the flags would sit on a fixup position.
+func markDirty(t *testing.T, b []byte) {
+	t.Helper()
+	bps := uint64(binary.LittleEndian.Uint16(b[0x0B:]))
+	cs := bps * uint64(b[0x0D])
+	mft := binary.LittleEndian.Uint64(b[0x30:]) * cs
+	rs := uint64(b[0x40]) * cs
+	if c := int8(b[0x40]); c < 0 {
+		rs = 1 << uint(-c)
+	}
+	rec := b[mft+3*rs : mft+4*rs]
+	for off := int(binary.LittleEndian.Uint16(rec[0x14:])); off+0x18 <= len(rec); {
+		typ, n := binary.LittleEndian.Uint32(rec[off:]), int(binary.LittleEndian.Uint32(rec[off+4:]))
+		if typ == 0xFFFFFFFF || n <= 0 {
+			break
+		}
+		if typ == 0x70 {
+			at := off + int(binary.LittleEndian.Uint16(rec[off+0x14:])) + 0x0A
+			if uint64(at+2)%bps == 0 || uint64(at+1)%bps == 0 {
+				t.Skip("the volume flags sit on a fixup position of the test image")
+			}
+			binary.LittleEndian.PutUint16(rec[at:], binary.LittleEndian.Uint16(rec[at:])|1)
+			return
+		}
+		off += n
+	}
+	t.Fatal("no $VOLUME_INFORMATION in file record 3 of the test image")
+}
+
+// #61 finding 1: a volume that cannot be shrunk (here: marked dirty) stays
+// resizable, since it can still grow, and its limits say why it keeps its
+// size, with a code the recovery program translates.
+func TestShrinkLimitsOfAnUncleanVolumeSayWhy(t *testing.T) {
+	b, err := os.ReadFile(goNTFSTestImage(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	markDirty(t, b)
+	r := bytes.NewReader(b)
+	u, err := MeasureNTFS(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	length := u.Geometry.TotalSectors*uint64(u.Geometry.BytesPerSector) + uint64(u.Geometry.BytesPerSector)
+	for _, source := range []string{"vss", "live"} {
+		p := &repo.PartitionImage{Number: 1, Length: length, Included: true, FileSystem: "NTFS", Source: source}
+		lim := shrinkLimits(r, p, u)
+		if !lim.Resizable || lim.Why != ReasonNoShrink || !strings.HasPrefix(lim.Reason, NoShrinkPrefix) || !strings.Contains(lim.Reason, "dirty") {
+			t.Errorf("%s: %+v", source, lim)
+		}
+		if lim.MinSize <= u.MinSize || lim.MinSize > length {
+			t.Errorf("%s: minimum %d, want the size of the volume (used area ends at %d, partition %d)", source, lim.MinSize, u.MinSize, length)
+		}
 	}
 }

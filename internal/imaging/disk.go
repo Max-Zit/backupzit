@@ -105,6 +105,16 @@ func (p Partition) Describe() string {
 // End is the first byte after the partition.
 func (p Partition) End() uint64 { return p.Offset + p.Length }
 
+// noPartitionTable tells whether the first sector of a disk holds no
+// partition table: it lacks the boot signature 55 AA that every MBR, and
+// the protective MBR of a GPT disk, ends with. Windows reports such a disk
+// (never initialized, "Not Initialized" in Disk Management) as MBR without
+// partitions; it is listed as StyleRaw instead (#61). A sector too short
+// to tell counts as a table.
+func noPartitionTable(sector0 []byte) bool {
+	return len(sector0) >= 512 && (sector0[510] != 0x55 || sector0[511] != 0xAA)
+}
+
 // AllDisks selects every internal disk in an image job ("all disks").
 const AllDisks = -1
 
