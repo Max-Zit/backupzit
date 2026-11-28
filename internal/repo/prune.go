@@ -43,6 +43,10 @@ type PruneStats struct {
 	// they stay, neither deleted nor indexed.
 	PacksRestored  int `json:"packs_restored,omitempty"`
 	PacksUnchecked int `json:"packs_unchecked,omitempty"`
+	// PacksGone were in the index but are no longer on the storage (asked
+	// for one by one, not only missing from the listing) and held no data
+	// backups use: they left the index (MED 4, 0.63).
+	PacksGone int `json:"packs_gone,omitempty"`
 }
 
 type unindexedVerdict int
@@ -58,8 +62,10 @@ const (
 // and the index has nowhere else; then it is verified (three tries, as the
 // data check does): indexed again when intact, deleted only when every try
 // proves it damaged. A header that cannot be read for a storage problem
-// leaves the pack alone; a damaged header makes it garbage.
-func (r *Repository) neededUnindexed(ctx context.Context, p ID, used map[BlobHandle]bool) ([]PackedBlob, unindexedVerdict) {
+// leaves the pack alone; a damaged header makes it garbage. A blob the
+// index places in a pack the storage no longer has (gone) counts as not
+// indexed: this pack may hold its last copy (MED 4, 0.63).
+func (r *Repository) neededUnindexed(ctx context.Context, p ID, used map[BlobHandle]bool, gone map[ID]bool) ([]PackedBlob, unindexedVerdict) {
 	header, err := r.ReadPackHeader(ctx, p)
 	switch {
 	case errors.Is(err, errPackHeader), errors.Is(err, backend.ErrNotFound):
@@ -70,7 +76,10 @@ func (r *Repository) neededUnindexed(ctx context.Context, p ID, used map[BlobHan
 	needed := false
 	for _, b := range header {
 		h := BlobHandle{Type: b.Type, ID: b.ID}
-		if used[h] && !r.idx.Has(h) {
+		if !used[h] {
+			continue
+		}
+		if l, ok := r.idx.Lookup(h); !ok || gone[l.Pack] {
 			needed = true
 			break
 		}
@@ -94,6 +103,50 @@ func (r *Repository) neededUnindexed(ctx context.Context, p ID, used map[BlobHan
 		return nil, unindexedDelete
 	}
 	return nil, unindexedUnchecked
+}
+
+// gonePacks returns the indexed packs that the listing (onDisk) lacks and
+// that the storage, asked for each of them, says are not there (MED 4,
+// 0.63). Prune builds the new index from the listing, and SFTP and SMB
+// listings skip folders they cannot read without an error (H-N6): a pack
+// that is there after all, or that cannot be looked up, stops the prune,
+// and so do an empty listing and most packs gone at once (a folder that is
+// not mounted rather than lost data, the data check's rule).
+func (r *Repository) gonePacks(ctx context.Context, onDisk []ID, indexed []ID) (map[ID]bool, error) {
+	gone := map[ID]bool{}
+	if len(indexed) == 0 {
+		return gone, nil
+	}
+	if len(onDisk) == 0 {
+		return nil, fmt.Errorf("the storage lists no data packs at all although the index names %d: a folder may be missing or not mounted; nothing was pruned", len(indexed))
+	}
+	listed := make(map[ID]bool, len(onDisk))
+	for _, p := range onDisk {
+		listed[p] = true
+	}
+	for _, p := range indexed {
+		if listed[p] {
+			continue
+		}
+		var stored bool
+		err := Tries(ctx, 0, func() (err error) {
+			stored, err = r.PackStored(ctx, p)
+			return err
+		})
+		switch {
+		case ctx.Err() != nil:
+			return nil, ctx.Err()
+		case err != nil:
+			return nil, fmt.Errorf("pack %s is in the index but not in the storage listing, and it could not be looked up: %w; nothing was pruned", p.Short(), err)
+		case stored:
+			return nil, fmt.Errorf("pack %s is on the storage but missing from its listing: the storage listed its folders incompletely; nothing was pruned (check the storage and try again)", p.Short())
+		}
+		gone[p] = true
+	}
+	if len(gone) > 10 && len(gone)*2 > len(indexed) {
+		return nil, fmt.Errorf("%d of %d data packs the index names are missing on the storage: more likely a folder that is not mounted or a wrong location than lost data; nothing was pruned", len(gone), len(indexed))
+	}
+	return gone, nil
 }
 
 // repackGiveUp is how many packs in a row may fail to be read before prune
@@ -230,6 +283,26 @@ func (r *Repository) Prune(ctx context.Context, opts PruneOptions) (*PruneStats,
 		}
 	})
 
+	// Indexed packs the listing lacks: confirmed one by one before they leave
+	// the index (MED 4, 0.63). lost are the blobs backups use that the index
+	// has only in such a pack.
+	indexed := make([]ID, 0, len(packs))
+	for p := range packs {
+		indexed = append(indexed, p)
+	}
+	gone, err := r.gonePacks(ctx, onDisk, indexed)
+	if err != nil {
+		return nil, err
+	}
+	lost := map[BlobHandle]bool{}
+	for p := range gone {
+		for _, b := range packs[p].blobs {
+			if h := (BlobHandle{Type: b.Type, ID: b.ID}); used[h] {
+				lost[h] = true
+			}
+		}
+	}
+
 	var deletePacks []ID
 	var keep []indexPack
 	var repack []ID
@@ -239,12 +312,17 @@ func (r *Repository) Prune(ctx context.Context, opts PruneOptions) (*PruneStats,
 			// Not in the index: usually what an interrupted backup left. But
 			// an index file lost or deleted by hand takes its packs out of
 			// the index too, and they may hold the only copy of data backups
-			// use (B5, 0.59): such a pack is verified and indexed again.
-			switch blobs, verdict := r.neededUnindexed(ctx, p, used); verdict {
+			// use (B5, 0.59): such a pack is verified and indexed again. So
+			// is one holding a copy of data the index has only in a pack
+			// that is gone.
+			switch blobs, verdict := r.neededUnindexed(ctx, p, used, gone); verdict {
 			case unindexedRestore:
 				say("pack %s was not in the index but holds data backups use: indexed again", p.Short())
 				keep = append(keep, indexPack{ID: p, Blobs: blobs})
 				st.PacksRestored++
+				for _, b := range blobs {
+					delete(lost, BlobHandle{Type: b.Type, ID: b.ID})
+				}
 				continue
 			case unindexedUnchecked:
 				say("pack %s is not in the index, may hold data backups use and could not be verified now: left as it is", p.Short())
@@ -265,9 +343,30 @@ func (r *Repository) Prune(ctx context.Context, opts PruneOptions) (*PruneStats,
 			st.BytesRemaining += pi.totalBytes
 		}
 	}
+	// Data backups use that is only in packs the storage no longer has: the
+	// new index would drop it silently, and another pack may still hold a
+	// copy the index does not show (M-N6), which deleting or repacking that
+	// pack would destroy. Repair is the step for lost data: it takes the
+	// missing packs out of the index and names the backups that need them.
+	if len(lost) > 0 {
+		var names []string
+		for p := range gone {
+			names = append(names, p.Short())
+		}
+		sort.Strings(names)
+		if len(names) > 5 {
+			names = append(names[:5], "…")
+		}
+		return nil, fmt.Errorf("%d blocks that backups use are indexed only in %d data packs the storage no longer has (%s): nothing was pruned, so that no other copy of them is deleted; run a data check and repair, which takes the missing packs out of the index and names the backups that need them", len(lost), len(gone), strings.Join(names, ", "))
+	}
+	// A gone pack whose data no backup uses leaves the index even when
+	// nothing else changes: a new backup would otherwise reuse its blobs.
+	if st.PacksGone = len(gone); st.PacksGone > 0 {
+		say("%d data packs in the index are no longer on the storage and hold no data backups use: they leave the index", st.PacksGone)
+	}
 	// A pack indexed again needs the new index written even when nothing
 	// goes.
-	if len(deletePacks) == 0 && len(repack) == 0 && st.PacksRestored == 0 {
+	if len(deletePacks) == 0 && len(repack) == 0 && st.PacksRestored == 0 && st.PacksGone == 0 {
 		say("nothing to prune")
 		return st, nil
 	}
