@@ -155,17 +155,26 @@ func chainTargets(jobs []Job, self int64) []Job {
 	return out
 }
 
-// windowClosedTmpl is an SQL condition on runs r joined with jobs j: the
-// run waits for its job's backup window (scheduled and chained runs only;
-// $H stands for the parameter with the console's current hour).
-const windowClosedTmpl = `(r.trigger IN ('schedule','after-job','after-backup') AND COALESCE((j.options->>'window')::boolean, false)
+// jobWindowClosedTmpl is an SQL condition on jobs j: the job has a backup
+// window, and it is closed at the hour $H.
+const jobWindowClosedTmpl = `(COALESCE((j.options->>'window')::boolean, false)
 	AND NOT (CASE WHEN COALESCE((j.options->>'window_from')::int,0) < COALESCE((j.options->>'window_to')::int,0)
 		THEN $H >= COALESCE((j.options->>'window_from')::int,0) AND $H < COALESCE((j.options->>'window_to')::int,0)
 		ELSE $H >= COALESCE((j.options->>'window_from')::int,0) OR $H < COALESCE((j.options->>'window_to')::int,0) END))`
 
-// expireWindowRuns cancels scheduled and chained runs that could not start
-// within their job's backup window (queued over a minute ago, window closed
-// now), so they do not start during working hours.
+// windowClosedTmpl is an SQL condition on runs r joined with jobs j: the
+// run waits for its job's backup window (scheduled and chained runs only;
+// $H stands for the parameter with the console's current hour). The window
+// is for the job's backups and copies (MED 9): SQL log backups keep
+// point-in-time restore going all day, a replica follows its backup, and
+// restore tests and data checks are queued while the window is open
+// instead; none of them waits for the window or is cancelled by it.
+const windowClosedTmpl = `(r.trigger IN ('schedule','after-job','after-backup')
+	AND r.kind IN ('backup','image-backup','vm-backup','system-backup','sql-backup','copy') AND ` + jobWindowClosedTmpl + `)`
+
+// expireWindowRuns cancels scheduled and chained backups and copies that
+// could not start within their job's backup window (queued over a minute
+// ago, window closed now), so they do not start during working hours.
 func (s *Store) expireWindowRuns(ctx context.Context, now time.Time) ([]int64, error) {
 	rows, err := s.db.Query(ctx, `UPDATE runs r SET status='cancelled', finished_at=now(), notified=true,
 		message=format('Not started: the backup window %s:00–%s:00 closed', lpad(COALESCE(j.options->>'window_from','0'),2,'0'), lpad(COALESCE(j.options->>'window_to','0'),2,'0'))
@@ -183,6 +192,11 @@ func (s *Store) expireWindowRuns(ctx context.Context, now time.Time) ([]int64, e
 // windowClosed is windowClosedTmpl with the hour as parameter $n.
 func windowClosed(n int) string {
 	return strings.ReplaceAll(windowClosedTmpl, "$H", fmt.Sprintf("$%d", n))
+}
+
+// jobWindowClosed is jobWindowClosedTmpl with the hour as parameter $n.
+func jobWindowClosed(n int) string {
+	return strings.ReplaceAll(jobWindowClosedTmpl, "$H", fmt.Sprintf("$%d", n))
 }
 
 // afterJob is the job a chained job runs after (nil if none).

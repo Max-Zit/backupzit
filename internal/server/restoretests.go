@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -103,17 +104,29 @@ func (s *Store) QueueRestoreTest(ctx context.Context, jobID int64, trigger strin
 	return id, err
 }
 
-// queueDueRestoreTests queues tests for jobs not tested within the interval.
+// cancelledByConsoleSQL is an SQL condition on a run (alias $A): the
+// console cancelled it itself, without a user (before 0.63 the backup
+// window cancelled restore tests and checks). Such a run does not count as
+// a test or check done (MED 9); one a user cancelled does, or it would be
+// queued again a moment later.
+const cancelledByConsoleSQL = `($A.status='cancelled' AND $A.cancel_by IS NULL)`
+
+func cancelledByConsole(alias string) string {
+	return strings.ReplaceAll(cancelledByConsoleSQL, "$A", alias)
+}
+
+// queueDueRestoreTests queues tests for jobs not tested within the interval,
+// while the job's backup window (if it has one) is open (MED 9).
 func (s *Store) queueDueRestoreTests(ctx context.Context, now time.Time) ([]int64, error) {
 	x := s.restoreTestSettings(ctx)
 	if !x.Enabled {
 		return nil, nil
 	}
-	rows, err := s.db.Query(ctx, `SELECT j.id FROM jobs j WHERE j.enabled
+	rows, err := s.db.Query(ctx, `SELECT j.id FROM jobs j WHERE j.enabled AND NOT `+jobWindowClosed(2)+`
 		AND EXISTS (SELECT 1 FROM runs b WHERE b.job_id=j.id AND b.kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log')
 			AND b.status IN ('success','warning') AND b.snapshot_id<>'' AND NOT b.expired)
-		AND NOT EXISTS (SELECT 1 FROM runs v WHERE v.job_id=j.id AND v.kind='verify' AND v.queued_at > $1)`,
-		now.Add(-x.interval()))
+		AND NOT EXISTS (SELECT 1 FROM runs v WHERE v.job_id=j.id AND v.kind='verify' AND v.queued_at > $1 AND NOT `+cancelledByConsole("v")+`)`,
+		now.Add(-x.interval()), now.Hour())
 	if err != nil {
 		return nil, err
 	}

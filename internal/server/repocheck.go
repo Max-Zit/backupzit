@@ -80,14 +80,16 @@ func (s *Store) queueDueRepoChecks(ctx context.Context, now time.Time) ([]int64,
 	// repository checked again and again while the old pair stayed due.
 	// The job's agent checks it: the run's may be a further VMware proxy that
 	// was removed since (a check queued there would never start, C10).
+	// Checks are queued while the job's backup window (if any) is open, and
+	// one the console cancelled itself does not count as done (MED 9).
 	rows, err := s.db.Query(ctx, `SELECT DISTINCT ON (r.target_id, r.repo_url) r.job_id, j.agent_id, r.target_id, r.repo_url FROM runs r
 		JOIN jobs j ON j.id=r.job_id JOIN storage_targets t ON t.id=r.target_id
-		WHERE j.enabled AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log')
+		WHERE j.enabled AND NOT `+jobWindowClosed(3)+` AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log')
 		AND r.status IN ('success','warning') AND r.repo_url<>''
 		AND ($1 OR t.kind NOT IN ('s3','azure'))
-		AND NOT EXISTS (SELECT 1 FROM runs c WHERE c.kind='repo-check' AND c.target_id=r.target_id AND c.repo_url=r.repo_url AND c.queued_at > $2)
+		AND NOT EXISTS (SELECT 1 FROM runs c WHERE c.kind='repo-check' AND c.target_id=r.target_id AND c.repo_url=r.repo_url AND c.queued_at > $2 AND NOT `+cancelledByConsole("c")+`)
 		AND EXISTS (SELECT 1 FROM runs o WHERE o.target_id=r.target_id AND o.repo_url=r.repo_url AND o.status IN ('success','warning') AND o.finished_at < $2)
-		ORDER BY r.target_id, r.repo_url, r.finished_at DESC`, x.CheckCloud, now.Add(-every))
+		ORDER BY r.target_id, r.repo_url, r.finished_at DESC`, x.CheckCloud, now.Add(-every), now.Hour())
 	if err != nil {
 		return nil, err
 	}

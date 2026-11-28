@@ -99,9 +99,11 @@ type JobOptions struct {
 	// RPOHours is the recovery point objective: the newest good backup
 	// should not be older (0 = none).
 	RPOHours int `json:"rpo_hours,omitempty"`
-	// Window limits when scheduled and chained runs may start: from
-	// WindowFrom to WindowTo o'clock (console time; may span midnight).
-	// Runs that could not start in time are cancelled when it closes.
+	// Window limits when scheduled and chained backups and copies may
+	// start: from WindowFrom to WindowTo o'clock (console time; may span
+	// midnight). Those that could not start in time are cancelled when it
+	// closes. Restore tests and data checks are queued only while it is
+	// open; SQL log backups and replicas ignore it (MED 9).
 	Window     bool `json:"window,omitempty"`
 	WindowFrom int  `json:"window_from,omitempty"`
 	WindowTo   int  `json:"window_to,omitempty"`
