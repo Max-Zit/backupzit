@@ -29,6 +29,36 @@
       "sr": "Skladišta, ključevi za oporavak, dodavanje agenata i VMware proxy agenata, kodovi za oporavak",
       "tr": "Depolama hedefleri, kurtarma anahtarları, aracı ve VMware proxy aracısı ekleme, kurtarma kodları",
       "zh": "存储目标、恢复密钥、添加代理和 VMware 备份代理、恢复码"
+    },
+    "Retention is paused after a suspicious backup: resume it on the job's page before these backups are deleted.": {
+      "cs": "Uchovávání je pozastaveno po podezřelé záloze: obnovte ho na stránce úlohy, než budou tyto zálohy smazány.",
+      "de": "Die Aufbewahrung ist nach einer verdächtigen Sicherung pausiert: setzen Sie sie auf der Seite des Auftrags fort, bevor diese Sicherungen gelöscht werden.",
+      "es": "La retención está en pausa tras una copia sospechosa: reanúdela en la página del trabajo antes de eliminar estas copias.",
+      "fr": "La rétention est suspendue après une sauvegarde suspecte : reprenez-la sur la page de la tâche avant de supprimer ces sauvegardes.",
+      "it": "La conservazione è sospesa dopo un backup sospetto: riprendila nella pagina del job prima di eliminare questi backup.",
+      "ja": "不審なバックアップの後で保持が一時停止しています。これらのバックアップを削除する前に、ジョブのページで再開してください。",
+      "nl": "Het bewaarbeleid is gepauzeerd na een verdachte back-up: hervat het op de pagina van de taak voordat deze back-ups worden verwijderd.",
+      "pl": "Przechowywanie jest wstrzymane po podejrzanej kopii: wznów je na stronie zadania, zanim te kopie zostaną usunięte.",
+      "pt": "A retenção está pausada após um backup suspeito: retome-a na página da tarefa antes de excluir estes backups.",
+      "ru": "Хранение приостановлено после подозрительной копии: возобновите его на странице задания, прежде чем эти копии будут удалены.",
+      "sr": "Čuvanje je pauzirano posle sumnjivog bekapa: nastavite ga na stranici posla pre nego što se ovi bekapi obrišu.",
+      "tr": "Saklama, şüpheli bir yedekten sonra duraklatıldı: bu yedekler silinmeden önce işin sayfasında devam ettirin.",
+      "zh": "保留因可疑备份而已暂停：请先在作业页面恢复保留，然后再删除这些备份。"
+    },
+    "A VM runs from a backup in the same repository (instant recovery): finish or discard it on its run page before these backups are deleted.": {
+      "cs": "Ze zálohy ve stejném repozitáři běží VM (okamžitá obnova): dokončete ho nebo zahoďte na stránce jeho běhu, než budou tyto zálohy smazány.",
+      "de": "Eine VM läuft aus einer Sicherung im selben Repository (sofortige Wiederherstellung): schließen Sie sie auf der Seite ihres Laufs ab oder verwerfen Sie sie, bevor diese Sicherungen gelöscht werden.",
+      "es": "Una VM se ejecuta desde una copia del mismo repositorio (recuperación instantánea): finalícela o descártela en la página de su ejecución antes de eliminar estas copias.",
+      "fr": "Une VM tourne depuis une sauvegarde du même dépôt (restauration instantanée) : terminez-la ou abandonnez-la sur la page de son exécution avant de supprimer ces sauvegardes.",
+      "it": "Una VM è in esecuzione da un backup nello stesso repository (ripristino istantaneo): completala o scartala nella pagina della sua esecuzione prima di eliminare questi backup.",
+      "ja": "同じリポジトリ内のバックアップから VM が実行されています（インスタント リカバリ）。これらのバックアップを削除する前に、その実行のページで完了するか破棄してください。",
+      "nl": "Er draait een VM vanuit een back-up in dezelfde repository (direct herstel): voltooi of verwerp die op de pagina van de uitvoering voordat deze back-ups worden verwijderd.",
+      "pl": "Maszyna działa z kopii w tym samym repozytorium (natychmiastowe odzyskiwanie): zakończ ją lub odrzuć na stronie jej uruchomienia, zanim te kopie zostaną usunięte.",
+      "pt": "Uma VM está rodando a partir de um backup no mesmo repositório (recuperação instantânea): conclua ou descarte-a na página da execução antes de excluir estes backups.",
+      "ru": "ВМ работает из копии в том же репозитории (мгновенное восстановление): завершите или отмените её на странице запуска, прежде чем эти копии будут удалены.",
+      "sr": "VM radi iz bekapa u istom repozitorijumu (trenutni oporavak): završite ga ili odbacite na stranici njegovog pokretanja pre nego što se ovi bekapi obrišu.",
+      "tr": "Aynı depodaki bir yedekten bir VM çalışıyor (anında kurtarma): bu yedekler silinmeden önce onu çalıştırma sayfasında tamamlayın veya atın.",
+      "zh": "有虚拟机正在从同一存储库中的备份运行（即时恢复）：请先在其运行页面上完成或丢弃它，然后再删除这些备份。"
     }
   },
   "remove": [

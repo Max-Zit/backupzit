@@ -352,6 +352,10 @@ func (s *Server) handleAgentDelete(w http.ResponseWriter, r *http.Request, user 
 		return
 	}
 	if o.Backups != removeKeepBackups {
+		if err := s.removalBlocked(r.Context(), a.ID); err != nil {
+			redirectErr(w, r, back, errors.New(l.T(err.Error())))
+			return
+		}
 		if err := s.confirmIdentity(r); err != nil {
 			redirectErr(w, r, back, errors.New(l.T(err.Error())))
 			return
@@ -372,6 +376,13 @@ func (s *Server) handleAgentDelete(w http.ResponseWriter, r *http.Request, user 
 // itself (it is removed when it reports). It returns the message for the
 // user (an English catalog key).
 func (s *Server) startAgentRemoval(ctx context.Context, a Agent, o removalOpts, by, remote string) (string, error) {
+	// Checked here too for an approval carried out later, and before the
+	// agent uninstalls itself (U4).
+	if o.Backups != removeKeepBackups {
+		if err := s.removalBlocked(ctx, a.ID); err != nil {
+			return "", err
+		}
+	}
 	if o.Uninstall && canUninstall(a) {
 		rid, err := s.store.queueAgentUninstall(ctx, a.ID)
 		if err != nil {
@@ -404,6 +415,14 @@ func (s *Server) completeAgentRemoval(ctx context.Context, a Agent, backups, by,
 	repos, err := s.store.agentRepos(ctx, a.ID)
 	if err != nil {
 		return err
+	}
+	if backups != removeKeepBackups {
+		// After an uninstall things may have changed since the request: the
+		// agent goes, its backups stay (U4).
+		if err := s.removalBlocked(ctx, a.ID); err != nil {
+			_, _ = s.store.AppendAudit(ctx, by, "agent.backups", fmt.Sprintf("%s (agent %d): backups kept: %v", a.Hostname, a.ID, err), remote)
+			backups = removeKeepBackups
+		}
 	}
 	// The parts a further VMware proxy backed up belong to the connection
 	// and stay restorable: such an agent is always kept as history (runs
@@ -441,6 +460,25 @@ func (s *Server) completeAgentRemoval(ctx context.Context, a Agent, backups, by,
 	return nil
 }
 
+// removalBlocked says why the agent's backups must not be deleted now (nil:
+// they may), for each repository the console would delete in, as on the
+// storage page (U4, M-N13).
+func (s *Server) removalBlocked(ctx context.Context, agentID int64) error {
+	repos, err := s.store.agentRepos(ctx, agentID)
+	if err != nil {
+		return err
+	}
+	for _, x := range repos {
+		if t, err := s.store.GetTarget(ctx, x.TargetID); err != nil || vmDeleteRefusal(t) != "" {
+			continue // the console deletes nothing there
+		}
+		if err := s.store.deleteBlocked(ctx, x.TargetID, x.URL); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // agentUninstalled finishes a pending removal when the agent reported its
 // uninstall run.
 func (s *Server) agentUninstalled(ctx context.Context, a Agent, runID int64, res api.RunResult) {
@@ -473,6 +511,10 @@ func (s *Server) cleanupRepo(ctx context.Context, x agentRepo, mode string) (str
 	}
 	if t.AgentsOnly { // instead of waiting for a connection that times out (#63)
 		return "not deleted: the storage is reachable by agents only; delete the folder there", nil
+	}
+	// Once more right before: an instant VM may have started since (U4).
+	if err := s.store.deleteBlocked(ctx, x.TargetID, x.URL); err != nil {
+		return "not deleted: " + err.Error(), nil
 	}
 	s.cache.drop(x.URL)
 	be, err := backend.Open(ctx, x.URL, backend.Options{

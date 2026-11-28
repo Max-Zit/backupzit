@@ -344,3 +344,109 @@ func TestAgentRemoveKeepsHistoryAndAdopt(t *testing.T) {
 		t.Error("removed agent still listed after connecting")
 	}
 }
+
+// U4, M-N13(a): an agent's backups are not deleted while retention of a job
+// in its repositories is paused after a suspicious backup, or while a VM
+// runs from a backup there (instant recovery), also not when a four-eyes
+// approval is carried out later. Keeping them still works.
+func TestAgentRemoveRefusedWhileHeldOrInstant(t *testing.T) {
+	x := newRemoveEnv(t, "test")
+	ctx := x.e.ctx
+	remove := func(backups string) string {
+		_, loc, _ := x.admin.do("POST", fmt.Sprintf("/agents/%d/delete", x.agentID), url.Values{"backups": {backups}, "confirm": {x.host}, "reauth_password": {"admin-pass-123"}})
+		return loc
+	}
+	x.e.pool.Exec(ctx, `UPDATE jobs SET retention_hold=true WHERE agent_id=$1`, x.agentID)
+	for _, b := range []string{"last", "all"} {
+		if loc := remove(b); !strings.Contains(loc, "err=Retention+is+paused") || !x.agentExists() {
+			t.Errorf("%s while retention is paused: %s", b, loc)
+		}
+	}
+	x.e.pool.Exec(ctx, `UPDATE jobs SET retention_hold=false WHERE agent_id=$1`, x.agentID)
+
+	var targetID int64
+	var snap string
+	x.e.pool.QueryRow(ctx, `SELECT target_id, snapshot_id FROM runs WHERE agent_id=$1 AND snapshot_id<>'' ORDER BY id DESC LIMIT 1`, x.agentID).Scan(&targetID, &snap)
+	var instantID int64
+	if err := x.e.pool.QueryRow(ctx, `INSERT INTO runs(agent_id, kind, trigger, repo_url, target_id, snapshot_id, status)
+		VALUES($1,'vm-instant','manual',$2,$3,$4,'running') RETURNING id`, x.agentID, x.repoURL, targetID, snap).Scan(&instantID); err != nil {
+		t.Fatal(err)
+	}
+	if loc := remove("all"); !strings.Contains(loc, "err=") || !strings.Contains(loc, "instant+recovery") || !x.agentExists() {
+		t.Errorf("deleted while a VM runs from a backup: %s", loc)
+	}
+	x.e.pool.Exec(ctx, `UPDATE runs SET status='success', details='{"state":"discarded"}' WHERE id=$1`, instantID)
+
+	// Four-eyes: retention is paused after the request, before the approval.
+	const pw = "correct-horse-9"
+	x.admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {"admin2"}, "role": {"admin"}, "password": {pw}, "password2": {pw}})
+	if _, loc, _ := x.admin.do("POST", "/settings/four-eyes", url.Values{"four_eyes": {"on"}}); !strings.Contains(loc, "msg=") {
+		t.Fatalf("four-eyes: %s", loc)
+	}
+	if loc := remove("last"); !strings.Contains(loc, "msg=Waiting") {
+		t.Fatalf("not held: %s", loc)
+	}
+	x.e.pool.Exec(ctx, `UPDATE jobs SET retention_hold=true WHERE agent_id=$1`, x.agentID)
+	var id int64
+	x.e.pool.QueryRow(ctx, `SELECT id FROM approvals WHERE status='pending' ORDER BY id DESC LIMIT 1`).Scan(&id)
+	admin2 := newClient(t, x.e)
+	admin2.login("admin2", pw)
+	if _, loc, _ := admin2.do("POST", fmt.Sprintf("/approvals/%d/approve", id), url.Values{"reauth_password": {pw}}); !strings.Contains(loc, "err=") || !x.agentExists() {
+		t.Errorf("approved removal carried out while retention is paused: %s", loc)
+	}
+	time.Sleep(300 * time.Millisecond)
+	if n := x.snapshots(t); n != 3 {
+		t.Errorf("backups: %d, want 3", n)
+	}
+	// Keeping the backups is not refused (it waits for approval as before).
+	if _, loc, _ := x.admin.do("POST", fmt.Sprintf("/agents/%d/delete", x.agentID), url.Values{"backups": {"keep"}}); !strings.Contains(loc, "msg=Waiting") {
+		t.Errorf("remove and keep the backups: %s", loc)
+	}
+}
+
+// An agent that uninstalls itself is removed when it reports; if a VM was
+// started from one of its backups meanwhile, its backups are kept (U4).
+func TestAgentRemoveUninstallKeepsBackupsOfInstantVM(t *testing.T) {
+	x := newRemoveEnv(t, "0.42.7")
+	ctx := x.e.ctx
+	if _, loc, _ := x.admin.do("POST", fmt.Sprintf("/agents/%d/delete", x.agentID), url.Values{"uninstall": {"on"}, "backups": {"all"}, "confirm": {x.host}, "reauth_password": {"admin-pass-123"}}); !strings.Contains(loc, "msg=") {
+		t.Fatalf("remove: %s", loc)
+	}
+	var pr api.PollResponse
+	x.call("POST", api.PathPoll, api.PollRequest{Hostname: "PC-17", OS: "Windows 11", Arch: "amd64", Version: "0.42.7"}, &pr)
+	if pr.Run == nil || pr.Run.Kind != api.KindAgentUninstall {
+		t.Fatalf("poll: %+v", pr.Run)
+	}
+	// A VM of another node starts from a backup in its repository.
+	token, _, _ := x.e.store.CreateEnrollmentToken(ctx, time.Hour)
+	if _, err := agent.Enroll(ctx, x.e.ts.URL, token, x.e.fp, "test"); err != nil {
+		t.Fatal(err)
+	}
+	var nodeID int64
+	x.e.pool.QueryRow(ctx, `SELECT id FROM agents WHERE id<>$1 ORDER BY id DESC LIMIT 1`, x.agentID).Scan(&nodeID)
+	if _, err := x.e.pool.Exec(ctx, `INSERT INTO runs(agent_id, kind, trigger, repo_url, target_id, snapshot_id, status)
+		SELECT $1,'vm-instant','manual',repo_url,target_id,snapshot_id,'queued' FROM runs WHERE agent_id=$2 AND snapshot_id<>'' LIMIT 1`, nodeID, x.agentID); err != nil {
+		t.Fatal(err)
+	}
+	if c := x.call("POST", fmt.Sprintf("%s%d/finish", api.PathRunsPrefix, pr.Run.ID), api.RunResult{Status: api.StatusSuccess, Message: "uninstalling"}, nil); c != 200 {
+		t.Fatalf("finish: %d", c)
+	}
+	if x.agentExists() {
+		t.Fatal("agent not removed after uninstalling")
+	}
+	time.Sleep(300 * time.Millisecond)
+	if n := x.snapshots(t); n != 3 {
+		t.Errorf("backups: %d, want 3", n)
+	}
+	found := false
+	entries, _ := x.e.store.ListAudit(ctx, 20)
+	for _, a := range entries {
+		found = found || (a.Action == "agent.backups" && strings.Contains(a.Detail, "backups kept") && strings.Contains(a.Detail, "instant recovery"))
+	}
+	if !found {
+		t.Errorf("the audit log does not say why the backups were kept: %+v", entries)
+	}
+	if runs, _ := x.e.store.ListRuns(ctx, server.RunFilter{AgentID: x.agentID}); len(runs) == 0 {
+		t.Error("the kept backups are not in Activity")
+	}
+}

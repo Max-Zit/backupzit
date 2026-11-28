@@ -46,6 +46,9 @@ type storedPoint struct {
 	Others     int      // other VMs in the same backup: not deleted alone
 	OtherVMs   []string // their names
 	JobGone    bool     // its job was deleted: no retention removes it any more
+	// Held: retention of its job (of a copy: of the source job) is paused
+	// after a suspicious backup, so it is not deleted here either (U4).
+	Held bool
 }
 
 // CanDelete reports whether the point can be deleted from the page: it
@@ -103,7 +106,8 @@ func jobSelects(paths, excludes []string, vmid int) bool {
 func (s *Store) storageVMs(ctx context.Context, targetID int64) ([]storedVM, error) {
 	rows, err := s.db.Query(ctx, `SELECT r.id, r.kind, r.repo_url, r.snapshot_id, COALESCE(r.finished_at, r.started_at, r.queued_at),
 			r.details, COALESCE(j.name, NULLIF(r.job_name,''), ''), `+agentNameSQL+`,
-			sel.id IS NOT NULL, COALESCE(sel.kind,''), COALESCE(sel.paths,'{}'), COALESCE(sel.excludes,'{}'), j.id IS NULL
+			sel.id IS NOT NULL, COALESCE(sel.kind,''), COALESCE(sel.paths,'{}'), COALESCE(sel.excludes,'{}'), j.id IS NULL,
+			COALESCE(j.retention_hold, false) OR COALESCE(sel.retention_hold, false)
 		FROM runs r JOIN agents a ON a.id=r.agent_id LEFT JOIN jobs j ON j.id=r.job_id
 			LEFT JOIN jobs sel ON sel.id = CASE WHEN r.kind='copy' THEN j.source_job_id ELSE j.id END
 		WHERE r.target_id=$1 AND r.status IN ('success','warning') AND r.snapshot_id<>'' AND NOT r.expired
@@ -121,11 +125,11 @@ func (s *Store) storageVMs(ctx context.Context, targetID int64) ([]storedVM, err
 		hasJob              bool
 		selKind             string
 		selPaths, selExcl   []string
-		jobGone             bool
+		jobGone, held       bool
 	}
 	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (row, error) {
 		var x row
-		err := r.Scan(&x.id, &x.kind, &x.repoURL, &x.snap, &x.at, &x.details, &x.job, &x.host, &x.hasJob, &x.selKind, &x.selPaths, &x.selExcl, &x.jobGone)
+		err := r.Scan(&x.id, &x.kind, &x.repoURL, &x.snap, &x.at, &x.details, &x.job, &x.host, &x.hasJob, &x.selKind, &x.selPaths, &x.selExcl, &x.jobGone, &x.held)
 		return x, err
 	})
 	if err != nil {
@@ -157,7 +161,7 @@ func (s *Store) storageVMs(ctx context.Context, targetID int64) ([]storedVM, err
 				v.NoJob = false
 			}
 			v.Points = append(v.Points, storedPoint{RunID: x.id, Time: x.at, SnapshotID: x.snap, Repo: x.repoURL, Copy: x.kind == "copy",
-				JobName: x.job, Stored: g.Stored, Others: len(guests) - 1, OtherVMs: others, JobGone: x.jobGone})
+				JobName: x.job, Stored: g.Stored, Others: len(guests) - 1, OtherVMs: others, JobGone: x.jobGone, Held: x.held})
 		}
 	}
 	out := make([]storedVM, 0, len(order))
@@ -330,10 +334,45 @@ func (s *Server) handleTargetVMsDelete(w http.ResponseWriter, r *http.Request, u
 	redirectMsg(w, r, back, l.T("The restore points are being deleted on the storage; the audit log shows the result."))
 }
 
+// Deleting backups is refused like retention and repair refuse it (U4,
+// M-N13): while retention is paused after a suspicious backup the older
+// backups are the clean ones to keep, and while a VM runs from a backup
+// (instant recovery) it reads the repository without a lock, so neither its
+// restore point nor the space freed after deleting others may go. The texts
+// are English catalog keys.
+var (
+	errDeleteHold    = errors.New("Retention is paused after a suspicious backup: resume it on the job's page before these backups are deleted.")
+	errDeleteInstant = errors.New("A VM runs from a backup in the same repository (instant recovery): finish or discard it on its run page before these backups are deleted.")
+)
+
+// instantRepo reports whether a VM runs from a backup in the repository
+// (instant recovery; a failed check counts as yes).
+func (s *Store) instantRepo(ctx context.Context, targetID int64, repoURL string) bool {
+	var in bool
+	if err := s.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM runs WHERE target_id=$1 AND repo_url=$2 AND `+instantRunning+`)`,
+		targetID, repoURL).Scan(&in); err != nil {
+		return true
+	}
+	return in
+}
+
+// deleteBlocked says why backups in a repository must not be deleted now
+// (nil: they may).
+func (s *Store) deleteBlocked(ctx context.Context, targetID int64, repoURL string) error {
+	if s.repoRetentionHold(ctx, targetID, repoURL) {
+		return errDeleteHold
+	}
+	if s.instantRepo(ctx, targetID, repoURL) {
+		return errDeleteInstant
+	}
+	return nil
+}
+
 // vmDeletePoints checks a deletion: every run is a VM backup (or a copy
 // of one) on this target, still kept, holding only the one VM or made by
-// a job that is gone. It returns the snapshots to remove per repository
-// and the names of all VMs whose backups go.
+// a job that is gone, and neither held nor in use by an instant VM (U4).
+// It returns the snapshots to remove per repository and the names of all
+// VMs whose backups go. It runs again when an approval is carried out.
 func (s *Store) vmDeletePoints(ctx context.Context, targetID int64, d vmDelete) (map[string][]string, string, error) {
 	vms, err := s.storageVMs(ctx, targetID)
 	if err != nil {
@@ -357,6 +396,14 @@ func (s *Store) vmDeletePoints(ctx context.Context, targetID int64, d vmDelete) 
 		p, ok := alone[id]
 		if !ok {
 			return nil, "", errors.New("a restore point is no longer there, or it also holds other VMs: it is removed with the job's retention")
+		}
+		if p.Held {
+			return nil, "", errDeleteHold
+		}
+		if _, checked := out[p.Repo]; !checked {
+			if err := s.deleteBlocked(ctx, targetID, p.Repo); err != nil {
+				return nil, "", err
+			}
 		}
 		out[p.Repo] = append(out[p.Repo], p.SnapshotID)
 		for _, n := range append([]string{p.vm}, p.OtherVMs...) {
@@ -383,7 +430,14 @@ func (s *Server) startVMDelete(ctx context.Context, t Target, d vmDelete, by, re
 		cctx, cancel := context.WithTimeout(context.Background(), 12*time.Hour)
 		defer cancel()
 		for url, ids := range repos {
-			detail, removed := s.deleteSnapshots(cctx, t, url, ids)
+			// Once more right before: an instant VM may have started since.
+			var detail string
+			var removed []string
+			if err := s.store.deleteBlocked(cctx, t.ID, url); err != nil {
+				detail = "not deleted: " + err.Error()
+			} else {
+				detail, removed = s.deleteSnapshots(cctx, t, url, ids)
+			}
 			if len(removed) > 0 {
 				s.store.expireTargetSnapshots(cctx, t.ID, url, removed)
 			}

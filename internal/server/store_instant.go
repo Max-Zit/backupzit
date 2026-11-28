@@ -69,11 +69,15 @@ func (s *Store) RunningInstantVMs(ctx context.Context) ([]InstantVM, error) {
 	return out, rows.Err()
 }
 
+// instantRunning selects the vm-instant runs whose VM runs from its backup
+// (or is about to, or is being finished).
+const instantRunning = `kind='vm-instant' AND snapshot_id <> ''
+		AND (status IN ('queued','running') OR (status='success' AND details->>'state'='running'))`
+
 // instantSnapshots are the backups VMs run from (or are about to): retention
 // must keep them.
 func (s *Store) instantSnapshots(ctx context.Context) ([]string, error) {
-	rows, err := s.db.Query(ctx, `SELECT DISTINCT snapshot_id FROM runs WHERE kind='vm-instant' AND snapshot_id <> ''
-		AND (status IN ('queued','running') OR (status='success' AND details->>'state'='running'))`)
+	rows, err := s.db.Query(ctx, `SELECT DISTINCT snapshot_id FROM runs WHERE `+instantRunning)
 	if err != nil {
 		return nil, err
 	}

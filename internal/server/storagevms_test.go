@@ -269,3 +269,218 @@ func TestStorageVMs(t *testing.T) {
 		t.Error("the shared point of the existing job went too")
 	}
 }
+
+// vmPointsEnv is a Proxmox VM job with three single-VM restore points on
+// S3 storage.
+type vmPointsEnv struct {
+	e        *env
+	s3Host   string
+	agentID  int64
+	targetID int64
+	jobID    int64
+	repoURL  string
+	runs     []string
+	snaps    []string
+	admin    *client
+}
+
+func newVMPointsEnv(t *testing.T) *vmPointsEnv {
+	e := setup(t)
+	ctx := e.ctx
+	s3, err := testutil.StartS3Server("backups")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s3.Close)
+	x := &vmPointsEnv{e: e, s3Host: s3.Host}
+	x.targetID, err = e.store.CreateTarget(ctx, server.Target{Name: "offsite", Kind: "s3", URL: "s3://" + s3.Host + "/backups/vms?tls=false", S3AccessKey: "AK", S3SecretKey: "SK"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	if _, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "0.62.0"); err != nil {
+		t.Fatal(err)
+	}
+	agents, _ := e.store.ListAgents(ctx)
+	x.agentID = agents[0].ID
+	inv := `{"platform":"proxmox","node":"pve1","guests":[{"vmid":101,"name":"web","type":"qemu","node":"pve1"}],"storage":["local"]}`
+	if err := e.store.TouchAgent(ctx, x.agentID, api.PollRequest{Hostname: "pve1", OS: "Proxmox VE 8", Hypervisor: json.RawMessage(inv)}, ""); err != nil {
+		t.Fatal(err)
+	}
+	x.jobID, err = e.store.CreateJob(ctx, server.Job{AgentID: x.agentID, TargetID: x.targetID, Name: "web vm", Kind: server.JobVM, Paths: []string{"101"}, Enabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var r *repo.Repository
+	web := repo.Guest{Platform: "proxmox", Type: "qemu", VMID: 101, Name: "web"}
+	for i := 0; i < 3; i++ {
+		runID, _ := e.store.QueueBackup(ctx, x.jobID, "manual")
+		run, err := e.store.ClaimRun(ctx, x.agentID)
+		if err != nil || run == nil || run.ID != runID {
+			t.Fatalf("claim: %+v %v", run, err)
+		}
+		if r == nil {
+			x.repoURL = run.RepoURL
+			be, err := backend.Open(ctx, run.RepoURL, backend.Options{S3AccessKey: "AK", S3SecretKey: "SK"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if r, err = repo.Init(ctx, be, repo.Password("")); err != nil {
+				t.Fatal(err)
+			}
+		}
+		data, _, err := r.SaveBlob(ctx, repo.DataBlob, []byte(strings.Repeat(fmt.Sprintf("disk %d ", i), 4000)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		tree, err := r.SaveTree(ctx, &repo.Tree{Nodes: []repo.Node{{Name: "disk", Type: repo.NodeFile, Size: 1, Content: []repo.ID{data}}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := r.Flush(ctx); err != nil {
+			t.Fatal(err)
+		}
+		sn := &repo.Snapshot{Time: time.Now(), Hostname: "pve1", Tree: tree, Guests: []repo.Guest{web}, Tags: []string{fmt.Sprintf("job:%d", x.jobID)}}
+		if _, err := r.SaveSnapshot(ctx, sn); err != nil {
+			t.Fatal(err)
+		}
+		if err := e.store.FinishRun(ctx, x.agentID, runID, api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Details: runinfo.Guests(sn)}); err != nil {
+			t.Fatal(err)
+		}
+		x.runs, x.snaps = append(x.runs, fmt.Sprint(runID)), append(x.snaps, sn.ID.String())
+		time.Sleep(10 * time.Millisecond)
+	}
+	_ = r.Close()
+	x.admin = newClient(t, e)
+	x.admin.login("admin", "admin-pass-123")
+	return x
+}
+
+// del asks to delete one restore point on a target and returns the kind
+// ("err" or "msg") and the text of the answer.
+func (x *vmPointsEnv) del(t *testing.T, target int64, run string) (kind, text string) {
+	t.Helper()
+	_, loc, _ := x.admin.do("POST", fmt.Sprintf("/targets/%d/vms/delete", target), url.Values{"run": {run}, "reauth_password": {"admin-pass-123"}})
+	u, _ := url.Parse(loc)
+	if m := u.Query().Get("err"); m != "" {
+		return "err", m
+	}
+	return "msg", u.Query().Get("msg")
+}
+
+func (x *vmPointsEnv) expired(run string) bool {
+	var v bool
+	x.e.pool.QueryRow(x.e.ctx, `SELECT expired FROM runs WHERE id=$1::bigint`, run).Scan(&v)
+	return v
+}
+
+// vmBackupsResult waits for the audit entry with the result of a deletion
+// in the repository.
+func (x *vmPointsEnv) vmBackupsResult(t *testing.T, after int) string {
+	t.Helper()
+	for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+		entries, _ := x.e.store.ListAudit(x.e.ctx, 100)
+		n := 0
+		for i := len(entries) - 1; i >= 0; i-- {
+			if entries[i].Action == "storage.vm_backups" {
+				if n++; n > after {
+					return entries[i].Detail
+				}
+			}
+		}
+	}
+	t.Fatal("no result of the deletion in the audit log")
+	return ""
+}
+
+// U4, M-N13(a): restore points are not deleted from the storage page while
+// retention is paused after a suspicious backup (of the job, or of the
+// source job of a copy) or while a VM runs from a backup in the same
+// repository (instant recovery), also not when a four-eyes approval is
+// carried out later.
+func TestStorageVMsDeleteRefusals(t *testing.T) {
+	x := newVMPointsEnv(t)
+	e, ctx := x.e, x.e.ctx
+
+	// Retention paused after a suspicious backup.
+	e.pool.Exec(ctx, `UPDATE jobs SET retention_hold=true WHERE id=$1`, x.jobID)
+	if kind, text := x.del(t, x.targetID, x.runs[0]); kind != "err" || !strings.Contains(text, "Retention is paused") {
+		t.Errorf("deleted while retention is paused: %s %q", kind, text)
+	}
+	e.pool.Exec(ctx, `UPDATE jobs SET retention_hold=false WHERE id=$1`, x.jobID)
+
+	// A VM runs from the newest point: no point of the repository goes,
+	// since the prune after it could take data the VM still reads.
+	var instantID int64
+	if err := e.pool.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, snapshot_id, status, details, finished_at)
+		VALUES($1,$2,'vm-instant','manual',$3,$4,$5,'success','{"state":"running"}',now()) RETURNING id`, x.agentID, x.jobID, x.repoURL, x.targetID, x.snaps[2]).Scan(&instantID); err != nil {
+		t.Fatal(err)
+	}
+	for _, run := range []string{x.runs[2], x.runs[0]} {
+		if kind, text := x.del(t, x.targetID, run); kind != "err" || !strings.Contains(text, "instant recovery") {
+			t.Errorf("deleted while a VM runs from the repository: %s %q", kind, text)
+		}
+	}
+	e.pool.Exec(ctx, `UPDATE runs SET details='{"state":"finished"}' WHERE id=$1`, instantID)
+
+	// With four-eyes approval on, the check runs again when the request is
+	// approved: retention was paused in between.
+	const pw = "correct-horse-9"
+	x.admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {"admin2"}, "role": {"admin"}, "password": {pw}, "password2": {pw}})
+	if _, loc, _ := x.admin.do("POST", "/settings/four-eyes", url.Values{"four_eyes": {"on"}}); !strings.Contains(loc, "msg=") {
+		t.Fatalf("four-eyes: %s", loc)
+	}
+	if kind, text := x.del(t, x.targetID, x.runs[0]); kind != "msg" || !strings.Contains(text, "Waiting") {
+		t.Fatalf("not held for approval: %s %q", kind, text)
+	}
+	e.pool.Exec(ctx, `UPDATE jobs SET retention_hold=true WHERE id=$1`, x.jobID)
+	var apID int64
+	e.pool.QueryRow(ctx, `SELECT id FROM approvals WHERE status='pending' ORDER BY id DESC LIMIT 1`).Scan(&apID)
+	admin2 := newClient(t, e)
+	admin2.login("admin2", pw)
+	if _, loc, _ := admin2.do("POST", fmt.Sprintf("/approvals/%d/approve", apID), url.Values{"reauth_password": {pw}}); !strings.Contains(loc, "err=") {
+		t.Errorf("approved deletion carried out while retention is paused: %s", loc)
+	}
+	var status, note string
+	e.pool.QueryRow(ctx, `SELECT status, note FROM approvals WHERE id=$1`, apID).Scan(&status, &note)
+	if status != "failed" || !strings.Contains(note, "Retention is paused") {
+		t.Errorf("approval %s %q", status, note)
+	}
+	time.Sleep(300 * time.Millisecond)
+	if x.expired(x.runs[0]) {
+		t.Fatal("a held restore point was deleted")
+	}
+
+	// A copy of a VM backup on another storage: its source job's retention
+	// is paused, so the copy stays too.
+	copyTarget, err := e.store.CreateTarget(ctx, server.Target{Name: "copies", Kind: "s3", URL: "s3://" + x.s3Host + "/backups/copies?tls=false", S3AccessKey: "AK", S3SecretKey: "SK"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, loc, _ := x.admin.do("POST", "/jobs", url.Values{"name": {"vm copy"}, "kind": {"copy"}, "source_job": {fmt.Sprint(x.jobID)},
+		"target_id": {fmt.Sprint(copyTarget)}, "sched_kind": {"manual"}, "keep_last": {"2"}}); !strings.Contains(loc, "msg=") {
+		t.Fatalf("copy job: %s", loc)
+	}
+	var copyRun string
+	if err := e.pool.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, snapshot_id, status, details, finished_at)
+		SELECT agent_id, (SELECT id FROM jobs WHERE name='vm copy'), 'copy', 'manual', 'copy-repo', $1, $2, 'success', details, now() FROM runs WHERE id=$3::bigint
+		RETURNING id::text`, copyTarget, strings.Repeat("c", 64), x.runs[1]).Scan(&copyRun); err != nil {
+		t.Fatal(err)
+	}
+	if kind, text := x.del(t, copyTarget, copyRun); kind != "err" || !strings.Contains(text, "Retention is paused") {
+		t.Errorf("a copy deleted while its source job's retention is paused: %s %q", kind, text)
+	}
+
+	// Resumed: the request goes through as before.
+	e.pool.Exec(ctx, `UPDATE jobs SET retention_hold=false WHERE id=$1`, x.jobID)
+	if kind, text := x.del(t, x.targetID, x.runs[0]); kind != "msg" || !strings.Contains(text, "Waiting") {
+		t.Fatalf("not held for approval: %s %q", kind, text)
+	}
+	e.pool.QueryRow(ctx, `SELECT id FROM approvals WHERE status='pending' ORDER BY id DESC LIMIT 1`).Scan(&apID)
+	if _, loc, _ := admin2.do("POST", fmt.Sprintf("/approvals/%d/approve", apID), url.Values{"reauth_password": {pw}}); !strings.Contains(loc, "msg=") {
+		t.Fatalf("approve: %s", loc)
+	}
+	if res := x.vmBackupsResult(t, 0); !strings.Contains(res, "deleted 1 restore points") || !x.expired(x.runs[0]) {
+		t.Errorf("the approved deletion: %q", res)
+	}
+}
