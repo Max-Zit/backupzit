@@ -4,12 +4,9 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"os"
@@ -25,6 +22,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/update"
 )
 
 // Installing agents from the console: the console connects to the machine
@@ -172,24 +170,47 @@ func (s *Server) handleDeployDownload(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, f.path)
 }
 
-// agentPackage picks the newest agent package of a format (deb, rpm, msi,
-// legacy-msi) from the downloads.
-func (s *Server) agentPackage(format string) (path, sum string, err error) {
+// deployName is the only shape of package name that goes into the
+// installation script and its download link (MED 12).
+var deployName = regexp.MustCompile(`^backupzit-agent[A-Za-z0-9._-]+$`)
+
+// minStdinCodeVersion is the first agent that reads an enrollment code given
+// as "--code -" from its input (MED 15a).
+const minStdinCodeVersion = "0.63.0"
+
+// agentPkg is the agent package chosen for an installation.
+type agentPkg struct {
+	path, name, sum string
+	version         string // "" when the name has none (a development build)
+	signed          bool   // listed with this checksum in its release's signed list
+}
+
+// agentPackage picks the agent package of a format (deb, rpm, msi,
+// legacy-msi) of the newest version in the downloads and checks it against
+// the signed list of the agent installers of that version, as agent updates
+// do (MED 12: before, the newest file by date was taken, checked only
+// against its own checksum). A console without such a list (older or
+// development packages) still installs the package, checked by its
+// checksum only; the installation log says so.
+func (s *Server) agentPackage(format string) (agentPkg, error) {
 	if s.DistDir == "" {
-		return "", "", errors.New("no agent packages are offered (downloads folder not set)")
+		return agentPkg{}, errors.New("no agent packages are offered (downloads folder not set)")
 	}
 	entries, err := os.ReadDir(s.DistDir)
 	if err != nil {
-		return "", "", err
+		return agentPkg{}, err
 	}
 	type cand struct {
-		name string
-		mod  time.Time
+		name      string
+		v         [3]int
+		versioned bool
+		mod       time.Time
+		size      int64
 	}
 	var cands []cand
 	for _, e := range entries {
 		n := strings.ToLower(e.Name())
-		if !strings.HasPrefix(n, "backupzit-agent") {
+		if !strings.HasPrefix(n, "backupzit-agent") || !deployName.MatchString(e.Name()) {
 			continue
 		}
 		var f string
@@ -206,25 +227,74 @@ func (s *Server) agentPackage(format string) (path, sum string, err error) {
 		if f != format {
 			continue
 		}
-		if fi, err := e.Info(); err == nil && fi.Mode().IsRegular() {
-			cands = append(cands, cand{e.Name(), fi.ModTime()})
+		fi, err := e.Info()
+		if err != nil || !fi.Mode().IsRegular() {
+			continue
 		}
+		c := cand{name: e.Name(), mod: fi.ModTime(), size: fi.Size()}
+		if m := pkgVersionRe.FindStringSubmatch(n); m != nil {
+			c.v, c.versioned = parseVersion(m[1] + "." + m[2] + "." + m[3])
+		}
+		cands = append(cands, c)
 	}
 	if len(cands) == 0 {
-		return "", "", fmt.Errorf("no %s agent package in the downloads folder", format)
+		return agentPkg{}, fmt.Errorf("no %s agent package in the downloads folder", format)
 	}
-	sort.Slice(cands, func(i, j int) bool { return cands[i].mod.After(cands[j].mod) })
-	path = filepath.Join(s.DistDir, cands[0].name)
-	fh, err := os.Open(path) // #nosec G304 -- file of the console's own data or installer directory, not named by a request
+	// The newest version; a package without a version only when there is
+	// no other, and among those the newest file.
+	sort.Slice(cands, func(i, j int) bool {
+		a, b := cands[i], cands[j]
+		if a.versioned != b.versioned {
+			return a.versioned
+		}
+		if a.v != b.v {
+			return versionLess(b.v, a.v)
+		}
+		return a.mod.After(b.mod)
+	})
+	c := cands[0]
+	p := agentPkg{path: filepath.Join(s.DistDir, c.name), name: c.name}
+	if p.sum, err = s.fileSHA256(p.path); err != nil {
+		return agentPkg{}, err
+	}
+	if !c.versioned {
+		return p, nil
+	}
+	p.version = fmt.Sprintf("%d.%d.%d", c.v[0], c.v[1], c.v[2])
+	mpath := filepath.Join(s.DistDir, update.AgentManifestName(p.version))
+	raw, err := os.ReadFile(mpath) // #nosec G304 -- a file of the console's own installer folder
+	if errors.Is(err, os.ErrNotExist) {
+		return p, nil
+	}
 	if err != nil {
-		return "", "", err
+		return agentPkg{}, err
 	}
-	defer fh.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, fh); err != nil {
-		return "", "", err
+	sig, err := os.ReadFile(mpath + ".sig") // #nosec G304 -- a file of the console's own installer folder
+	if err != nil {
+		return agentPkg{}, fmt.Errorf("the signature of the list of agent installers is missing: %w", err)
 	}
-	return path, hex.EncodeToString(h.Sum(nil)), nil
+	f, err := update.VerifyAgentInstaller(raw, string(sig), nil, p.version, p.name)
+	if err != nil {
+		return agentPkg{}, fmt.Errorf("agent package %s: %w", p.name, err)
+	}
+	if f.Kind != "agent" && f.Kind != "agent-legacy" {
+		return agentPkg{}, fmt.Errorf("%s is not an agent installer in the signed list of %s", p.name, p.version)
+	}
+	if !strings.EqualFold(f.SHA256, p.sum) || (f.Size > 0 && f.Size != c.size) {
+		return agentPkg{}, fmt.Errorf("agent package %s on the console is not the one of release %s (checksum mismatch): it was changed or damaged; install the console package again", p.name, p.version)
+	}
+	p.signed = true
+	return p, nil
+}
+
+// logPackage notes in the installation log which package goes to the
+// machine and how it was checked.
+func (d *deployment) logPackage(p agentPkg, sudo bool) {
+	how := "listed in the signed list of release " + p.version
+	if !p.signed {
+		how = "no signed list of agent installers on the console: checked by its SHA-256 only"
+	}
+	d.logf("installing %s (SHA-256 %s…, %s)%s", p.name, p.sum[:16], how, map[bool]string{true: " with sudo", false: ""}[sudo])
 }
 
 func (q *deployRequest) validate() error {
@@ -462,16 +532,16 @@ func (s *Server) deployLinux(ctx context.Context, d *deployment, q deployRequest
 		uuid = "" // the answer is an error message (a wrong sudo password, for one), not an enrollment
 	}
 	known := s.knownAgent(ctx, d, uuid)
-	enroll := "backupzit-agent enroll --force --code '" + code + "'"
-	if known {
-		enroll = "true"
-	}
-	path, sum, err := s.agentPackage(format)
+	pkg, err := s.agentPackage(format)
 	if err != nil {
 		return "", err
 	}
-	tok := s.deployState().offerFile(path)
-	name := filepath.Base(path)
+	enroll := linuxEnroll(code, pkg.version)
+	if known {
+		enroll = "true"
+	}
+	tok := s.deployState().offerFile(pkg.path)
+	name, sum := pkg.name, pkg.sum
 	url := strings.TrimRight(consoleURL, "/") + "/api/deploy/" + tok + "/" + name
 	install := `dpkg -i "$t/` + name + `" || (DEBIAN_FRONTEND=noninteractive apt-get install -f -y && dpkg -i "$t/` + name + `")`
 	if format == "rpm" {
@@ -490,7 +560,7 @@ echo "package installed"
 systemctl restart backupzit-agent
 echo "agent started"
 `
-	d.logf("installing %s (SHA-256 %s…)%s", name, sum[:16], map[bool]string{true: " with sudo", false: ""}[uid != "0"])
+	d.logPackage(pkg, uid != "0")
 	out, err := asRoot(script)
 	for _, l := range strings.Split(out, "\n") {
 		if l = strings.TrimSpace(l); l != "" && !strings.Contains(l, code) {
@@ -504,6 +574,20 @@ echo "agent started"
 		return "", fmt.Errorf("installation failed: %v", err)
 	}
 	return hostname, nil
+}
+
+// linuxEnroll is the script line that enrolls the agent just installed. The
+// code goes to the agent's input (a here-document of the script, which runs
+// from the shell's input or a file only root reads), not onto its command
+// line, where any local user could read it in /proc while it runs (MED
+// 15a). The package installed first is the one of version, so it knows
+// "--code -" from 0.63 on; older and unversioned packages get the argument
+// as before.
+func linuxEnroll(code, version string) string {
+	if version != "" && !update.Newer(minStdinCodeVersion, version) {
+		return "backupzit-agent enroll --force --code - <<'BZCODE'\n" + code + "\nBZCODE"
+	}
+	return "backupzit-agent enroll --force --code '" + code + "'"
 }
 
 // lockedOutput collects a command's stdout and stderr in one buffer. It has
@@ -662,12 +746,12 @@ Restart-Service backupzit-agent
 	if n, _ := strconv.Atoi(major); n < 10 {
 		format = "legacy-msi" // Windows 7, Server 2008 R2, 2012 R2
 	}
-	path, sum, err := s.agentPackage(format)
+	pkg, err := s.agentPackage(format)
 	if err != nil {
 		return "", err
 	}
-	tok := s.deployState().offerFile(path)
-	name := filepath.Base(path)
+	tok := s.deployState().offerFile(pkg.path)
+	name, sum := pkg.name, pkg.sum
 	url := strings.TrimRight(consoleURL, "/") + "/api/deploy/" + tok + "/" + name
 	ps := `$ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -683,7 +767,7 @@ Remove-Item $f
 if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) { throw ('msiexec exit code ' + $p.ExitCode + ', see ' + $log) }
 'package installed'
 ` + reenroll
-	d.logf("installing %s (SHA-256 %s…)", name, sum[:16])
+	d.logPackage(pkg, false)
 	out, errOut, rc, err := c.RunPSWithContextWithString(ctx, ps, "")
 	for _, l := range strings.Split(out, "\n") {
 		if l = strings.TrimSpace(l); l != "" {

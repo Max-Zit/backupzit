@@ -298,3 +298,37 @@ func TestFetchSSHHostKey(t *testing.T) {
 		t.Errorf("install with the confirmed key: %v", err)
 	}
 }
+
+// MED 15a: with a 0.63 package the enrollment code reaches the new agent on
+// its input (a here-document in the root script), not on its command line.
+func TestDeployLinuxCodeOnInput(t *testing.T) {
+	dist := t.TempDir()
+	os.WriteFile(filepath.Join(dist, "backupzit-agent_0.63.0_amd64.deb"), []byte("deb"), 0o644)
+	s := &Server{DistDir: dist}
+	f := &fakeSSH{t: t, uid: "0"}
+	host, port, _ := net.SplitHostPort(f.serve(t))
+	q := deployRequest{Host: host, OS: "linux", User: "root", Password: "pw-1"}
+	q.Port, _ = strconv.Atoi(port)
+	if err := q.validate(); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	if _, err := s.deployLinux(ctx, &deployment{secrets: q.secrets()}, q, "https://console:8443", "BZ1-CODE123"); err != nil {
+		t.Fatal(err)
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var script string
+	for _, r := range f.runs {
+		if strings.Contains(r.cmd, "BZ1-CODE123") {
+			t.Errorf("the code in a command line: %q", r.cmd)
+		}
+		if strings.Contains(r.stdin, "package installed") {
+			script = r.stdin
+		}
+	}
+	if !strings.Contains(script, "backupzit-agent enroll --force --code - <<'BZCODE'\nBZ1-CODE123\nBZCODE\n") || strings.Contains(script, "--code 'BZ1-CODE123'") {
+		t.Errorf("the code is not given on the agent's input:\n%s", script)
+	}
+}

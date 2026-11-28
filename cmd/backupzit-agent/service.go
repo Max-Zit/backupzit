@@ -32,9 +32,16 @@ func cmdEnroll(ctx context.Context, args []string) error {
 	cfgPath := fs.String("config", agent.DefaultConfigPath(), "agent configuration file")
 	force := fs.Bool("force", false, "replace an existing enrollment")
 	ifNot := fs.Bool("if-not-enrolled", false, "do nothing if the agent is already enrolled (used by installers)")
-	code := fs.String("code", "", "enrollment code from the console (BZ1-...), instead of --server/--token/--fingerprint")
+	code := fs.String("code", "", "enrollment code from the console (BZ1-...), instead of --server/--token/--fingerprint; - reads it from the input")
 	pending := fs.Bool("pending-ok", false, "if the console cannot be reached now, keep the code and let the service retry (used by installers)")
 	_ = fs.Parse(args)
+	if *code == "-" {
+		c, err := readEnrollCode(os.Stdin)
+		if err != nil {
+			return err
+		}
+		*code = c
+	}
 	if *code != "" {
 		s, t, f, err := api.DecodeEnrollCode(*code)
 		if err != nil {
@@ -98,6 +105,22 @@ func cmdEnroll(ctx context.Context, args []string) error {
 	}
 	fmt.Printf("enrolled as agent %s, configuration saved to %s\n", cfg.AgentUUID, *cfgPath)
 	return nil
+}
+
+// readEnrollCode reads an enrollment code given as "--code -" from in: a
+// script (the console's push-install) passes it this way so that it is not
+// on the command line, which other users of the machine can read while the
+// program runs (MED 15a).
+func readEnrollCode(in io.Reader) (string, error) {
+	b, err := io.ReadAll(io.LimitReader(in, 64<<10))
+	if err != nil {
+		return "", fmt.Errorf("read the enrollment code: %w", err)
+	}
+	c := strings.TrimSpace(string(b))
+	if c == "" {
+		return "", errors.New("--code -: no enrollment code in the input")
+	}
+	return c, nil
 }
 
 // program adapts the agent loop to the service manager.
