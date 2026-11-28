@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -143,5 +144,38 @@ func TestLinuxEnrollCommand(t *testing.T) {
 		if got := linuxEnroll("BZ1-abc", v); got != "backupzit-agent enroll --force --code 'BZ1-abc'" {
 			t.Errorf("%q: %q", v, got)
 		}
+	}
+}
+
+// LOW: an installation that ended keeps its log and result but drops the
+// passwords; finished installations are forgotten after a day, and expired
+// confirmations go without waiting for the next one.
+func TestDeploySecretsDropped(t *testing.T) {
+	q := deployRequest{Password: "login-pw-1", SudoPassword: "sudo-pw-2"}
+	d := &deployment{ID: "a", secrets: q.secrets()}
+	if msg := d.finish(errors.New("sudo: wrong password sudo-pw-2")); strings.Contains(msg, "sudo-pw-2") {
+		t.Errorf("error not hidden: %q", msg)
+	}
+	v := d.view()
+	if d.secrets != nil || !v.Done || !strings.Contains(v.Err, "[hidden]") || !strings.Contains(v.Log[len(v.Log)-1], "FAILED") {
+		t.Fatalf("after the end: secrets %v, view %+v", d.secrets, v)
+	}
+	running := &deployment{ID: "b", secrets: []string{"x"}}
+	old := &deployment{ID: "c", done: true, ended: time.Now().Add(-25 * time.Hour)}
+	dp := &deployer{runs: map[string]*deployment{"a": d, "b": running, "c": old}}
+	dp.prune(time.Now())
+	if _, ok := dp.runs["c"]; ok || len(dp.runs) != 2 {
+		t.Errorf("after pruning: %v", dp.runs)
+	}
+
+	ps := &pendingStore{m: map[string]*pendingConnect{}}
+	id := ps.add(&pendingConnect{By: "admin", Deploy: &q})
+	other := ps.add(&pendingConnect{By: "admin", Deploy: &q})
+	ps.m[id].Expires = time.Now().Add(-time.Second)
+	if _, err := ps.take(other, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	if len(ps.m) != 0 {
+		t.Errorf("an expired confirmation is kept: %d", len(ps.m))
 	}
 }

@@ -81,8 +81,12 @@ type deployment struct {
 	err      string
 	hostname string
 	agentID  int64
-	secrets  []string // set before the installation starts, read-only afterwards
+	secrets  []string // set before the installation starts, dropped when it ends
+	ended    time.Time
 }
+
+// deployKeep is how long the page of a finished installation stays.
+const deployKeep = 24 * time.Hour
 
 // logf adds a line to the installation log, with every password and
 // passphrase of the request hidden.
@@ -90,6 +94,34 @@ func (d *deployment) logf(format string, a ...any) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.log = append(d.log, time.Now().Format("15:04:05")+"  "+redact(fmt.Sprintf(format, a...), d.secrets))
+}
+
+// finish ends the installation and returns its error message, hidden like
+// the log. The result stays for the page; the passwords do not (LOW: they
+// stayed in the console's memory until it restarted). Go cannot wipe a
+// string, so this only drops the references to them.
+func (d *deployment) finish(err error) string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	msg := ""
+	if err != nil {
+		msg = redact(err.Error(), d.secrets)
+		d.log = append(d.log, time.Now().Format("15:04:05")+"  FAILED: "+msg)
+	}
+	d.done, d.err, d.secrets, d.ended = true, msg, nil, time.Now()
+	return msg
+}
+
+// prune forgets installations that ended over deployKeep ago. dp.mu is held.
+func (dp *deployer) prune(now time.Time) {
+	for id, d := range dp.runs {
+		d.mu.Lock()
+		old := d.done && now.Sub(d.ended) > deployKeep
+		d.mu.Unlock()
+		if old {
+			delete(dp.runs, id)
+		}
+	}
 }
 
 // deployView is a snapshot for the page.
@@ -339,23 +371,15 @@ func (s *Server) startDeploy(q deployRequest, consoleURL string) (*deployment, e
 	d := &deployment{ID: randomID(9), Host: q.Host, OS: q.OS, By: q.By, Started: time.Now(), secrets: q.secrets()}
 	dp := s.deployState()
 	dp.mu.Lock()
+	dp.prune(time.Now())
 	dp.runs[d.ID] = d
 	dp.mu.Unlock()
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 		defer cancel()
 		err := s.deploy(ctx, d, q, consoleURL)
-		msg := ""
-		if err != nil {
-			msg = redact(err.Error(), d.secrets)
-		}
-		d.mu.Lock()
-		d.done = true
-		d.err = msg
-		d.mu.Unlock()
-		if err != nil {
+		if msg := d.finish(err); err != nil {
 			s.log.Warn("agent installation failed", "host", q.Host, "err", msg)
-			d.logf("FAILED: %s", msg)
 		}
 	}()
 	return d, nil

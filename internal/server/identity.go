@@ -52,26 +52,39 @@ func (s *Server) pendings() *pendingStore {
 	return s.pending
 }
 
-// add keeps p and returns its ID.
+// add keeps p and returns its ID. It is dropped when it expires, also when
+// nobody confirms it and no other is added (LOW: an abandoned confirmation
+// kept its passwords in memory until the next one).
 func (ps *pendingStore) add(p *pendingConnect) string {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 	now := time.Now()
+	ps.purge(now)
+	id := randomID(12)
+	p.Expires = now.Add(pendingTTL)
+	ps.m[id] = p
+	time.AfterFunc(pendingTTL+time.Second, func() {
+		ps.mu.Lock()
+		defer ps.mu.Unlock()
+		ps.purge(time.Now())
+	})
+	return id
+}
+
+// purge drops the expired confirmations. ps.mu is held.
+func (ps *pendingStore) purge(now time.Time) {
 	for k, x := range ps.m {
 		if now.After(x.Expires) {
 			delete(ps.m, k)
 		}
 	}
-	id := randomID(12)
-	p.Expires = now.Add(pendingTTL)
-	ps.m[id] = p
-	return id
 }
 
 // take removes and returns the pending connection id of user by.
 func (ps *pendingStore) take(id, by string) (*pendingConnect, error) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
+	ps.purge(time.Now())
 	p, ok := ps.m[id]
 	if !ok || p.By != by || time.Now().After(p.Expires) {
 		return nil, errors.New("the confirmation expired; enter the details again")
