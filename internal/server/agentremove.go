@@ -44,6 +44,12 @@ type agentRepo struct {
 	URL        string
 	Jobs       []string
 	Backups    int
+	// Others counts the restore points other agents stored in the same
+	// repository (further proxies of a vCenter connection, nodes of a
+	// cluster), OtherAgents names them: deleting the agent's backups deletes
+	// theirs the same way (HIGH 3).
+	Others      int
+	OtherAgents []string
 }
 
 // Local reports whether the repository is on a disk of the agent's own
@@ -59,7 +65,10 @@ func (x agentRepo) Local() bool { return x.TargetKind == "local" || x.TargetKind
 func (s *Store) agentRepos(ctx context.Context, agentID int64) ([]agentRepo, error) {
 	rows, err := s.db.Query(ctx, `SELECT r.target_id, t.name, t.kind, r.repo_url,
 			COALESCE(array_agg(DISTINCT COALESCE(j.name, NULLIF(r.job_name,''))) FILTER (WHERE COALESCE(j.name, NULLIF(r.job_name,'')) IS NOT NULL), '{}'),
-			count(*) FILTER (WHERE r.status IN ('success','warning') AND r.snapshot_id<>'' AND NOT r.expired)
+			count(*) FILTER (WHERE r.status IN ('success','warning') AND r.snapshot_id<>'' AND NOT r.expired),
+			(SELECT count(*) FROM runs o WHERE o.target_id=r.target_id AND o.repo_url=r.repo_url AND o.agent_id<>$1 AND `+otherPointSQL+`),
+			(SELECT COALESCE(array_agg(DISTINCT COALESCE(NULLIF(oa.display_name,''), oa.hostname)), '{}') FROM runs o JOIN agents oa ON oa.id=o.agent_id
+				WHERE o.target_id=r.target_id AND o.repo_url=r.repo_url AND o.agent_id<>$1 AND `+otherPointSQL+`)
 		FROM runs r JOIN storage_targets t ON t.id=r.target_id LEFT JOIN jobs j ON j.id=r.job_id
 		WHERE r.agent_id=$1 AND r.repo_url<>'' AND r.kind IN ('backup','image-backup','vm-backup','system-backup','sql-backup','sql-log')
 			AND (r.vmware_host_id IS NULL OR j.agent_id = r.agent_id)
@@ -69,11 +78,17 @@ func (s *Store) agentRepos(ctx context.Context, agentID int64) ([]agentRepo, err
 	}
 	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (agentRepo, error) {
 		var x agentRepo
-		err := r.Scan(&x.TargetID, &x.TargetName, &x.TargetKind, &x.URL, &x.Jobs, &x.Backups)
+		err := r.Scan(&x.TargetID, &x.TargetName, &x.TargetKind, &x.URL, &x.Jobs, &x.Backups, &x.Others, &x.OtherAgents)
 		sort.Strings(x.Jobs)
+		sort.Strings(x.OtherAgents)
 		return x, err
 	})
 }
+
+// otherPointSQL selects the restore points of runs "o" (backups and copies
+// that are still kept).
+const otherPointSQL = `o.kind IN ('backup','image-backup','vm-backup','system-backup','sql-backup','sql-log','copy')
+	AND o.status IN ('success','warning') AND o.snapshot_id<>'' AND NOT o.expired`
 
 // softRemoveAgent keeps a removed agent as history of its backups: queued
 // runs are dropped, its jobs deleted (runs keep the job's name) and it can
@@ -120,9 +135,11 @@ func (s *Store) hasConnectionParts(ctx context.Context, agentID int64) bool {
 	return ok
 }
 
-// expireSnapshots marks the runs of deleted backups.
-func (s *Store) expireSnapshots(ctx context.Context, agentID int64, ids []string) {
-	_, _ = s.db.Exec(ctx, `UPDATE runs SET expired=true WHERE agent_id=$1 AND snapshot_id = ANY($2)`, agentID, ids)
+// expireRepository marks every restore point of a deleted repository, of
+// whichever agent (the parts of further VMware proxies too).
+func (s *Store) expireRepository(ctx context.Context, targetID int64, url string) {
+	_, _ = s.db.Exec(ctx, `UPDATE runs SET expired=true WHERE target_id=$1 AND repo_url=$2 AND NOT expired
+		AND snapshot_id<>'' AND kind IN ('backup','image-backup','vm-backup','system-backup','sql-backup','sql-log','copy')`, targetID, url)
 }
 
 // removedAgent is a removed agent kept for its backups.
@@ -284,6 +301,9 @@ type agentRemoveData struct {
 	// proxy of: its parts stay in their repositories.
 	FurtherProxyOf []string
 	Immutable      []string
+	// SharedWith are the other agents with restore points in its repositories:
+	// deleting its backups deletes theirs the same way (HIGH 3).
+	SharedWith []string
 }
 
 func (s *Server) handleAgentRemovePage(w http.ResponseWriter, r *http.Request, user string) {
@@ -314,6 +334,14 @@ func (s *Server) handleAgentRemovePage(w http.ResponseWriter, r *http.Request, u
 			}
 		}
 	}
+	for _, x := range repos {
+		for _, n := range x.OtherAgents {
+			if !slices.Contains(d.SharedWith, n) {
+				d.SharedWith = append(d.SharedWith, n)
+			}
+		}
+	}
+	sort.Strings(d.SharedWith)
 	seen := map[int64]bool{}
 	for _, x := range repos {
 		if seen[x.TargetID] {
@@ -449,9 +477,15 @@ func (s *Server) completeAgentRemoval(ctx context.Context, a Agent, backups, by,
 		cctx, cancel := context.WithTimeout(context.Background(), 12*time.Hour)
 		defer cancel()
 		for _, x := range repos {
-			detail, removed := s.cleanupRepo(cctx, x, backups)
-			if len(removed) > 0 {
-				s.store.expireSnapshots(cctx, a.ID, removed)
+			detail, removed, gone := s.cleanupRepo(cctx, x, backups)
+			// By repository, not by agent: further proxies of a vCenter
+			// connection stored their parts there too, under their own agent
+			// (HIGH 3); those restore points are gone just the same.
+			switch {
+			case gone:
+				s.store.expireRepository(cctx, x.TargetID, x.URL)
+			case len(removed) > 0:
+				s.store.expireTargetSnapshots(cctx, x.TargetID, x.URL, removed)
 			}
 			_, _ = s.store.AppendAudit(cctx, by, "agent.backups", fmt.Sprintf("%s, %s on %s: %s", a.Hostname, x.URL, x.TargetName, detail), remote)
 			s.log.Info("backups of a removed agent", "agent", a.Hostname, "repo", x.URL, "result", detail)
@@ -497,24 +531,25 @@ func (s *Server) agentUninstalled(ctx context.Context, a Agent, runID int64, res
 }
 
 // cleanupRepo deletes backups of a removed agent in one repository and
-// describes the outcome.
-func (s *Server) cleanupRepo(ctx context.Context, x agentRepo, mode string) (string, []string) {
+// describes the outcome: the IDs of the backups deleted, or gone when the
+// whole repository was deleted.
+func (s *Server) cleanupRepo(ctx context.Context, x agentRepo, mode string) (detail string, removed []string, gone bool) {
 	if x.Local() {
-		return "not deleted: the storage is a disk of the agent's computer", nil
+		return "not deleted: the storage is a disk of the agent's computer", nil, false
 	}
 	t, err := s.store.GetTarget(ctx, x.TargetID)
 	if err != nil {
-		return "not deleted: the storage target was removed", nil
+		return "not deleted: the storage target was removed", nil, false
 	}
 	if t.SFTPKey != "" {
-		return "not deleted: the console cannot use SSH key sign-in to the storage; delete the folder there", nil
+		return "not deleted: the console cannot use SSH key sign-in to the storage; delete the folder there", nil, false
 	}
 	if t.AgentsOnly { // instead of waiting for a connection that times out (#63)
-		return "not deleted: the storage is reachable by agents only; delete the folder there", nil
+		return "not deleted: the storage is reachable by agents only; delete the folder there", nil, false
 	}
 	// Once more right before: an instant VM may have started since (U4).
 	if err := s.store.deleteBlocked(ctx, x.TargetID, x.URL); err != nil {
-		return "not deleted: " + err.Error(), nil
+		return "not deleted: " + err.Error(), nil, false
 	}
 	s.cache.drop(x.URL)
 	be, err := backend.Open(ctx, x.URL, backend.Options{
@@ -525,25 +560,27 @@ func (s *Server) cleanupRepo(ctx context.Context, x agentRepo, mode string) (str
 		AzureKey: t.AzureKey, AzureSAS: t.AzureSAS,
 	})
 	if err != nil {
-		return "not deleted: " + err.Error(), nil
+		return "not deleted: " + err.Error(), nil, false
 	}
 	defer be.Close()
 	if mode == removeAllBackups {
-		return deleteRepository(ctx, be), nil
+		detail, gone = deleteRepository(ctx, be)
+		return detail, nil, gone
 	}
 	r, err := repo.Open(ctx, be, repo.Password(t.RecoveryKey))
 	if err != nil {
-		return "not deleted: " + err.Error(), nil
+		return "not deleted: " + err.Error(), nil, false
 	}
-	return keepNewestBackups(ctx, r)
+	detail, removed = keepNewestBackups(ctx, r)
+	return detail, removed, false
 }
 
 // deleteRepository removes every object of a repository (immutable storage
-// refuses what is still locked).
-func deleteRepository(ctx context.Context, be backend.Backend) string {
+// refuses what is still locked); gone reports that all of them went.
+func deleteRepository(ctx context.Context, be backend.Backend) (detail string, gone bool) {
 	names, err := be.List(ctx, "")
 	if err != nil {
-		return "not deleted: " + err.Error()
+		return "not deleted: " + err.Error(), false
 	}
 	var failed int
 	var first error
@@ -559,9 +596,9 @@ func deleteRepository(ctx context.Context, be backend.Backend) string {
 		_ = dr.RemoveDirs(ctx)
 	}
 	if failed > 0 {
-		return fmt.Sprintf("deleted %d of %d files; %d could not be deleted (immutable storage keeps them until the lock expires): %v", len(names)-failed, len(names), failed, first)
+		return fmt.Sprintf("deleted %d of %d files; %d could not be deleted (immutable storage keeps them until the lock expires): %v", len(names)-failed, len(names), failed, first), false
 	}
-	return fmt.Sprintf("repository deleted (%d files)", len(names))
+	return fmt.Sprintf("repository deleted (%d files)", len(names)), true
 }
 
 // keepNewestBackups keeps the newest backup of each job (of each part of a

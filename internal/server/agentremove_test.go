@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"net/http"
 	"net/url"
 	"os"
@@ -448,5 +449,135 @@ func TestAgentRemoveUninstallKeepsBackupsOfInstantVM(t *testing.T) {
 	}
 	if runs, _ := x.e.store.ListRuns(ctx, server.RunFilter{AgentID: x.agentID}); len(runs) == 0 {
 		t.Error("the kept backups are not in Activity")
+	}
+}
+
+// HIGH 3(a): the parts further proxies of a vCenter connection back up are
+// stored in the connection's repository too, under their own agent. When
+// the connection's proxy is removed and its backups deleted, theirs go the
+// same way: the removal page counts and names them, and their runs are
+// marked as deleted with the repository ("delete all") or with the older
+// backups of each part ("keep only the newest").
+func TestAgentRemoveConnectionProxy(t *testing.T) {
+	for _, mode := range []string{"last", "all"} {
+		t.Run(mode, func(t *testing.T) { testRemoveConnectionProxy(t, mode) })
+	}
+}
+
+func testRemoveConnectionProxy(t *testing.T, mode string) {
+	e := setup(t)
+	ctx := e.ctx
+	s3, err := testutil.StartS3Server("backups")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s3.Close)
+	opts := backend.Options{S3AccessKey: "AK", S3SecretKey: "SK"}
+	targetID, err := e.store.CreateTarget(ctx, server.Target{Name: "s3", Kind: "s3", URL: "s3://" + s3.Host + "/backups/vms?tls=false", S3AccessKey: "AK", S3SecretKey: "SK"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	enroll := func(host string) int64 {
+		token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+		cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var id int64
+		if err := e.pool.QueryRow(ctx, `UPDATE agents SET hostname=$2 WHERE uuid=$1 RETURNING id`, cfg.AgentUUID, host).Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	pa, pb := enroll("proxy-a"), enroll("proxy-b")
+	hostID, err := e.store.CreateVMwareHost(ctx, server.VMwareHost{Name: "vc1", Address: "vc1.example", Username: "administrator@vsphere.local", Password: "x",
+		ProxyAgentID: &pa, RepoDir: "esxi-vc1_0001", Version: "8.0.3", APIWrites: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	jobID, err := e.store.CreateJob(ctx, server.Job{Kind: server.JobVM, AgentID: pa, TargetID: targetID, Name: "vc vms", Paths: []string{"*"}, Enabled: true, VMwareHostID: &hostID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repoURL := "s3://" + s3.Host + "/backups/vms/esxi-vc1_0001?tls=false"
+	be, err := backend.Open(ctx, repoURL, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := repo.Init(ctx, be, repo.Password(""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Two starts, each with a part of each proxy: runs[agent] oldest first.
+	runs := map[int64][]int64{}
+	for i := 0; i < 2; i++ {
+		for _, p := range []int64{pa, pb} {
+			data, _, err := r.SaveBlob(ctx, repo.DataBlob, []byte(strings.Repeat(fmt.Sprintf("disk %d of %d ", i, p), 4000)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			tree, err := r.SaveTree(ctx, &repo.Tree{Nodes: []repo.Node{{Name: "disk", Type: repo.NodeFile, Size: 1, Content: []repo.ID{data}}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := r.Flush(ctx); err != nil {
+				t.Fatal(err)
+			}
+			part := fmt.Sprintf("proxy:%d", p)
+			sn := &repo.Snapshot{Time: time.Now(), Hostname: "vc1", Tree: tree, Tags: []string{fmt.Sprintf("job:%d", jobID), part}}
+			if _, err := r.SaveSnapshot(ctx, sn); err != nil {
+				t.Fatal(err)
+			}
+			var id int64
+			if err := e.pool.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, status, snapshot_id, vmware_host_id, part, finished_at)
+				VALUES($1,$2,'vm-backup','manual',$3,$4,'success',$5,$6,$7,now()) RETURNING id`, p, jobID, repoURL, targetID, sn.ID.String(), hostID, part).Scan(&id); err != nil {
+				t.Fatal(err)
+			}
+			runs[p] = append(runs[p], id)
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	_ = r.Close()
+	admin := newClient(t, e)
+	admin.login("admin", "admin-pass-123")
+	_, _, page := admin.do("GET", fmt.Sprintf("/agents/remove/%d", pa), nil)
+	page = html.UnescapeString(page)
+	if !strings.Contains(page, "+2 restore points of other agents") || !strings.Contains(page, "proxy-b. Deleting backups here deletes theirs the same way") {
+		t.Errorf("the removal page does not count or name the further proxy's restore points")
+	}
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/agents/%d/delete", pa), url.Values{"backups": {mode}, "confirm": {"proxy-a"}, "reauth_password": {"admin-pass-123"}}); !strings.Contains(loc, "msg=") {
+		t.Fatalf("remove: %s", loc)
+	}
+	var result string
+	for deadline := time.Now().Add(30 * time.Second); result == "" && time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+		entries, _ := e.store.ListAudit(ctx, 20)
+		for _, a := range entries {
+			if a.Action == "agent.backups" {
+				result = a.Detail
+			}
+		}
+	}
+	expired := func(id int64) bool {
+		var x bool
+		e.pool.QueryRow(ctx, `SELECT expired FROM runs WHERE id=$1`, id).Scan(&x)
+		return x
+	}
+	switch mode {
+	case "all":
+		if !strings.Contains(result, "repository deleted") {
+			t.Fatalf("result %q", result)
+		}
+		for _, id := range runs[pb] {
+			if !expired(id) {
+				t.Errorf("run %d of the further proxy is still a restore point after its repository was deleted", id)
+			}
+		}
+	case "last":
+		if !strings.Contains(result, "deleted 2 older backups") {
+			t.Fatalf("result %q", result)
+		}
+		if !expired(runs[pb][0]) || expired(runs[pb][1]) || !expired(runs[pa][0]) || expired(runs[pa][1]) {
+			t.Errorf("expired: proxy-a %v %v, proxy-b %v %v; want the older of each", expired(runs[pa][0]), expired(runs[pa][1]), expired(runs[pb][0]), expired(runs[pb][1]))
+		}
 	}
 }

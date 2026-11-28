@@ -59,6 +59,37 @@
       "sr": "VM radi iz bekapa u istom repozitorijumu (trenutni oporavak): završite ga ili odbacite na stranici njegovog pokretanja pre nego što se ovi bekapi obrišu.",
       "tr": "Aynı depodaki bir yedekten bir VM çalışıyor (anında kurtarma): bu yedekler silinmeden önce onu çalıştırma sayfasında tamamlayın veya atın.",
       "zh": "有虚拟机正在从同一存储库中的备份运行（即时恢复）：请先在其运行页面上完成或丢弃它，然后再删除这些备份。"
+    },
+    "+%d restore points of other agents": {
+      "en": "+%d restore point of other agents|+%d restore points of other agents",
+      "cs": "+%d bod obnovy jiných agentů|+%d body obnovy jiných agentů|+%d bodů obnovy jiných agentů",
+      "de": "+%d Wiederherstellungspunkt anderer Agenten|+%d Wiederherstellungspunkte anderer Agenten",
+      "es": "+%d punto de restauración de otros agentes|+%d puntos de restauración de otros agentes",
+      "fr": "+%d point de restauration d'autres agents|+%d points de restauration d'autres agents",
+      "it": "+%d punto di ripristino di altri agenti|+%d punti di ripristino di altri agenti",
+      "ja": "他のエージェントの復元ポイント +%d 件",
+      "nl": "+%d herstelpunt van andere agents|+%d herstelpunten van andere agents",
+      "pl": "+%d punkt przywracania innych agentów|+%d punkty przywracania innych agentów|+%d punktów przywracania innych agentów",
+      "pt": "+%d ponto de restauração de outros agentes|+%d pontos de restauração de outros agentes",
+      "ru": "+%d точка восстановления других агентов|+%d точки восстановления других агентов|+%d точек восстановления других агентов",
+      "sr": "+%d tačka vraćanja drugih agenata|+%d tačke vraćanja drugih agenata|+%d tačaka vraćanja drugih agenata",
+      "tr": "diğer aracıların +%d geri yükleme noktası|diğer aracıların +%d geri yükleme noktası",
+      "zh": "其他代理的恢复点 +%d 个"
+    },
+    "Other agents stored restore points in the same repositories (further proxies of a vCenter connection, nodes of a cluster): %v. Deleting backups here deletes theirs the same way.": {
+      "cs": "Jiní agenti uložili body obnovy do stejných repozitářů (další agenti proxy připojení vCenter, uzly clusteru): %v. Smazání záloh zde stejně smaže i jejich.",
+      "de": "Andere Agenten haben Wiederherstellungspunkte in denselben Repositorys gespeichert (weitere Proxys einer vCenter-Verbindung, Knoten eines Clusters): %v. Wer hier Sicherungen löscht, löscht ihre genauso.",
+      "es": "Otros agentes guardaron puntos de restauración en los mismos repositorios (proxies adicionales de una conexión de vCenter, nodos de un clúster): %v. Eliminar copias aquí elimina las suyas del mismo modo.",
+      "fr": "D'autres agents ont enregistré des points de restauration dans les mêmes dépôts (proxys supplémentaires d'une connexion vCenter, nœuds d'un cluster) : %v. Supprimer des sauvegardes ici supprime les leurs de la même façon.",
+      "it": "Altri agenti hanno salvato punti di ripristino negli stessi repository (proxy aggiuntivi di una connessione vCenter, nodi di un cluster): %v. Eliminare i backup qui elimina allo stesso modo anche i loro.",
+      "ja": "他のエージェント（vCenter 接続の追加プロキシ、クラスターのノード）が同じリポジトリに復元ポイントを保存しています: %v。ここでバックアップを削除すると、それらも同じように削除されます。",
+      "nl": "Andere agents hebben herstelpunten in dezelfde repository's opgeslagen (extra proxy's van een vCenter-verbinding, nodes van een cluster): %v. Back-ups hier verwijderen verwijdert die van hen op dezelfde manier.",
+      "pl": "Inni agenci zapisali punkty przywracania w tych samych repozytoriach (dodatkowe proxy połączenia vCenter, węzły klastra): %v. Usunięcie kopii tutaj usuwa w ten sam sposób także ich kopie.",
+      "pt": "Outros agentes guardaram pontos de restauração nos mesmos repositórios (proxies adicionais de uma conexão vCenter, nós de um cluster): %v. Excluir backups aqui exclui os deles da mesma forma.",
+      "ru": "Другие агенты сохранили точки восстановления в тех же репозиториях (дополнительные прокси подключения vCenter, узлы кластера): %v. Удаление копий здесь так же удаляет и их копии.",
+      "sr": "Drugi agenti su sačuvali tačke vraćanja u istim repozitorijumima (dodatni proxy agenti vCenter veze, čvorovi klastera): %v. Brisanje bekapa ovde na isti način briše i njihove.",
+      "tr": "Başka aracılar aynı depolara geri yükleme noktaları kaydetti (bir vCenter bağlantısının ek proxy'leri, bir kümenin düğümleri): %v. Burada yedekleri silmek onlarınkini de aynı şekilde siler.",
+      "zh": "其他代理在相同的存储库中保存了恢复点（vCenter 连接的其他备份代理、集群的节点）：%v。在这里删除备份也会以同样方式删除它们的备份。"
     }
   },
   "remove": [

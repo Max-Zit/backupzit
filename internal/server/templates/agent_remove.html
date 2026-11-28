@@ -21,7 +21,7 @@
   {{with .Data.Repos}}
   <div class="table-wrap"><table>
     <tr><th>{{T "Storage"}}</th><th>{{T "Jobs"}}</th><th>{{T "Backups"}}</th></tr>
-    {{range .}}<tr><td>{{.TargetName}}{{if .Local}} <span class="badge">{{T "disk of the computer"}}</span>{{end}}<br><span class="mono small muted wrap-any">{{.URL}}</span></td><td>{{range $i, $j := .Jobs}}{{if $i}}, {{end}}{{$j}}{{else}}—{{end}}</td><td>{{.Backups}}</td></tr>{{end}}
+    {{range .}}<tr><td>{{.TargetName}}{{if .Local}} <span class="badge">{{T "disk of the computer"}}</span>{{end}}<br><span class="mono small muted wrap-any">{{.URL}}</span></td><td>{{range $i, $j := .Jobs}}{{if $i}}, {{end}}{{$j}}{{else}}—{{end}}</td><td>{{.Backups}}{{if .Others}}<br><span class="muted small">{{T "+%d restore points of other agents" .Others}}</span>{{end}}</td></tr>{{end}}
   </table></div>
   {{else}}
   <p class="muted">{{T "This agent has no backups on storage."}}</p>
@@ -30,6 +30,7 @@
   <label class="check"><input type="radio" name="backups" value="last" {{if $a.RemovedAt}}checked{{end}}> <b>{{T "Keep only the newest backup of each job"}}</b> <small>{{T "each backup is complete (deduplicated), so the newest one restores everything as of its date; database jobs keep the logs that belong to it"}}</small></label>
   <label class="check"><input type="radio" name="backups" value="all"> <b>{{T "Delete all backups of this agent"}}</b> <small>{{T "cannot be undone"}}</small></label>
   {{with .Data.FurtherProxyOf}}<div class="flash ok mt">{{template "icon" "shield"}}<span>{{T "This agent is a further proxy of %v. The VMs it backed up for that connection stay in its repository: removing this agent does not delete them." (join . ", ")}}</span></div>{{end}}
+  {{with .Data.SharedWith}}<div class="flash err mt">{{template "icon" "warn"}}<span>{{T "Other agents stored restore points in the same repositories (further proxies of a vCenter connection, nodes of a cluster): %v. Deleting backups here deletes theirs the same way." (join . ", ")}}</span></div>{{end}}
   {{with .Data.ProxyJobs}}<div class="flash err mt">{{template "icon" "warn"}}<span>{{T "This agent also backs up other systems; deleting its backups deletes theirs too:"}} {{range $i, $j := .}}{{if $i}}, {{end}}{{$j}}{{end}}</span></div>{{end}}
   {{with .Data.Immutable}}<p class="muted small">{{T "Immutable storage keeps locked data until its lock expires, also when it is deleted:"}} {{range $i, $j := .}}{{if $i}}, {{end}}{{$j}}{{end}}</p>{{end}}
   <p class="muted small">{{T "Copies made by copy jobs on other storage are kept. Backups on a disk of the computer itself cannot be deleted from the console."}}</p>
