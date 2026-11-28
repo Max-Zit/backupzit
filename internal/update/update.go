@@ -62,7 +62,9 @@ func AgentManifestName(version string) string { return "agent-manifest-" + versi
 // VerifyAgentInstaller checks a signed agent list (raw, sig) against keys
 // (TrustedKeys when nil) and returns the entry of the installer name of
 // the given version: the size and SHA-256 an agent must find in the
-// download.
+// download. Only agent installers count: the list also names the
+// repository server's packages, which an agent must not install as its
+// own update (security review MED 14).
 func VerifyAgentInstaller(raw []byte, sig string, keys []string, version, name string) (File, error) {
 	m, err := Verify(raw, sig, keys)
 	if err != nil {
@@ -72,7 +74,7 @@ func VerifyAgentInstaller(raw []byte, sig string, keys []string, version, name s
 		return File{}, fmt.Errorf("the signed list is for %s, not %s", m.Version, version)
 	}
 	for _, f := range m.Files {
-		if f.Name == name && (f.Kind == "agent" || f.Kind == "agent-legacy" || f.Kind == "repo") {
+		if f.Name == name && (f.Kind == "agent" || f.Kind == "agent-legacy") {
 			return f, nil
 		}
 	}

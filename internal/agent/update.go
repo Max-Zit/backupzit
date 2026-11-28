@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/max-zit/backupzit/internal/api"
@@ -147,5 +148,24 @@ func signedInstaller(run api.Run, own string) (update.File, error) {
 	if err != nil {
 		return update.File{}, fmt.Errorf("the update was refused: %w", err)
 	}
+	if err := forThisAgent(f, runtime.GOOS, runtime.GOARCH); err != nil {
+		return update.File{}, fmt.Errorf("the update was refused: %w", err)
+	}
 	return f, nil
+}
+
+// agentFormats are the installer formats of the agent of each system.
+var agentFormats = map[string][]string{"windows": {"msi"}, "linux": {"deb", "rpm"}, "darwin": {"pkg"}}
+
+// forThisAgent checks that a signed agent installer is one for this
+// agent's system and processor (MED 14): the signed list holds the
+// installers of every system, and the console only names the file.
+func forThisAgent(f update.File, goos, goarch string) error {
+	if !slices.Contains(agentFormats[goos], f.Format) {
+		return fmt.Errorf("%s is a %s package, not an agent installer for %s", f.Name, f.Format, goos)
+	}
+	if f.Arch != "" && f.Arch != goarch && (goos != "darwin" || f.Arch != "universal") {
+		return fmt.Errorf("%s is for %s processors, this agent runs on %s", f.Name, f.Arch, goarch)
+	}
+	return nil
 }
