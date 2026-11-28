@@ -30,6 +30,12 @@ func (c *cutShort) Load(ctx context.Context, name string) ([]byte, error) {
 	return b, err
 }
 
+// LoadMax goes through Load: the data check reads packs with a size limit
+// (MED 5, 0.63), and the LoadMax of Local would bypass the fault.
+func (c *cutShort) LoadMax(ctx context.Context, name string, _ int64) ([]byte, error) {
+	return c.Load(ctx, name)
+}
+
 // R-1 (0.55): a pack that only arrives short counts as unreadable from this
 // agent, never as damaged, so repair leaves it alone; a pack that is really
 // shorter on the storage is damaged.
@@ -121,6 +127,10 @@ func (d *down) Load(ctx context.Context, name string) ([]byte, error) {
 		return nil, os.ErrDeadlineExceeded
 	}
 	return d.Local.Load(ctx, name)
+}
+
+func (d *down) LoadMax(ctx context.Context, name string, _ int64) ([]byte, error) {
+	return d.Load(ctx, name)
 }
 
 func (d *down) LoadRange(ctx context.Context, name string, off int64, n int) ([]byte, error) {
@@ -286,6 +296,10 @@ func (v *vanished) Load(ctx context.Context, name string) ([]byte, error) {
 		return nil, fmt.Errorf("%s: %w", name, backend.ErrNotFound)
 	}
 	return v.Local.Load(ctx, name)
+}
+
+func (v *vanished) LoadMax(ctx context.Context, name string, _ int64) ([]byte, error) {
+	return v.Load(ctx, name)
 }
 
 // B4 (0.59): packs the storage just listed and that are gone when the data

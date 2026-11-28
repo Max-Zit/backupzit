@@ -30,6 +30,10 @@ type Result struct {
 	// tries while the storage holds them (a download cut short, timeouts):
 	// it may be the network path, so repair leaves them alone (#38).
 	Unreadable []repo.ID
+	// TooLarge lists indexed packs larger than BackupZit ever writes a pack
+	// (repo.ErrPackTooLarge): not read, so not verified, and not damaged
+	// either, so repair leaves them alone (MED 5, 0.63).
+	TooLarge []repo.ID `json:",omitempty"`
 	// DamagedIndex lists the index files that could not be read: their
 	// packs were taken from the pack headers; repair writes a new index.
 	DamagedIndex []string `json:",omitempty"`
@@ -72,7 +76,7 @@ type streak struct {
 func (s *streak) add(err error) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err == nil || errors.Is(err, repo.ErrPackDamaged) {
+	if err == nil || errors.Is(err, repo.ErrPackDamaged) || errors.Is(err, repo.ErrPackTooLarge) {
 		s.n = 0 // the storage answered
 		return false
 	}
@@ -418,6 +422,11 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 					// A pack no backup uses (taken out by a repair, left over
 					// from an interrupted backup): the next cleanup removes it.
 					res.Warnings = append(res.Warnings, fmt.Sprintf("%v (not in the index: no backup uses it, the next cleanup removes it)", v.err))
+				case errors.Is(v.err, repo.ErrPackTooLarge):
+					// Not a verdict on the data (MED 5, 0.63): reported on its own,
+					// never taken out by repair.
+					errf("%v; repair leaves it alone, check the file on the storage", v.err)
+					res.TooLarge = append(res.TooLarge, onDisk[i])
 				case errors.Is(v.err, repo.ErrPackDamaged):
 					errf("%v", v.err)
 					damaged(onDisk[i])

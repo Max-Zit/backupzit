@@ -78,6 +78,13 @@ func (t *throttled) Save(ctx context.Context, name string, data []byte) error {
 	return t.Backend.Save(ctx, name, data)
 }
 
+// LoadMax keeps the size limit of the backend below (B7): the embedded
+// interface does not carry it, so LoadMax would load the whole object
+// before refusing it, on every agent (the agent wraps each storage).
+func (t *throttled) LoadMax(ctx context.Context, name string, max int64) ([]byte, error) {
+	return LoadMax(ctx, t.Backend, name, max)
+}
+
 type throttledRetainer struct {
 	*throttled
 	Retainer

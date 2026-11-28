@@ -759,11 +759,28 @@ func (r *Repository) VerifyPack(ctx context.Context, pack ID) (int, error) {
 	return len(blobs), err
 }
 
+// ErrPackTooLarge marks a pack file larger than maxPackFile. It is not read
+// whole, so it is not verified; it is no verdict either (never wrapped with
+// ErrPackDamaged): repair never takes a pack out, nor prune deletes one,
+// for its size alone.
+var ErrPackTooLarge = errors.New("larger than BackupZit ever writes a pack")
+
+// maxPackFile bounds a whole-pack read (data check, prune and the index
+// rebuild verify packs that way, MED 5, 0.63): a file planted under data/
+// must not exhaust the memory of the agent or the console. A pack is at
+// most maxPackSize plus its last blob; 512 MiB leaves room for a large
+// folder list as that last blob. A pack's own header is bounded separately
+// (maxPackHeader). A variable so that tests can lower it.
+var maxPackFile int64 = 2 * maxPackSize
+
 // verifyPack is VerifyPack that returns the blobs of the pack's own header.
 func (r *Repository) verifyPack(ctx context.Context, pack ID) ([]PackedBlob, error) {
-	data, err := r.be.Load(ctx, packName(pack))
+	data, err := backend.LoadMax(ctx, r.be, packName(pack), maxPackFile)
 	if errors.Is(err, backend.ErrNotFound) {
 		return nil, fmt.Errorf("pack %s: %w: %w", pack.Short(), ErrPackGone, ErrPackDamaged)
+	}
+	if errors.Is(err, backend.ErrTooLarge) {
+		return nil, fmt.Errorf("pack %s is %w (more than %d MiB): it was not read, so its data is not verified, and it does not count as damaged", pack.Short(), ErrPackTooLarge, maxPackFile>>20)
 	}
 	if err != nil {
 		return nil, err // a read problem (network, timeout), no verdict on the pack

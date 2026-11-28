@@ -244,6 +244,10 @@ func (r *Repository) RebuildIndexWith(ctx context.Context, o RebuildOptions) (*R
 			return nil, untouched(fmt.Errorf("pack %s was listed but is gone now: the storage changed during the repair or a folder went away", p.Short()))
 		case err == nil:
 			verified[p] = blobs
+		case errors.Is(err, ErrPackTooLarge):
+			// Neither verified nor proven damaged (MED 5, 0.63): trying again
+			// does not help, the file has to be looked at.
+			return nil, untouched(fmt.Errorf("%w; no BackupZit pack is that large: check this file on the storage and move it out of the data folder if it is not one, then repair again", err))
 		case errors.Is(err, ErrPackDamaged) && everyTryDamaged:
 			skip[p] = true
 			res.Left = append(res.Left, p)

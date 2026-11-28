@@ -53,6 +53,10 @@ func (a *Agent) repoCheck(ctx context.Context, run api.Run) api.RunResult {
 		if n := len(res.DamagedIndex); n > 0 {
 			out.Message += fmt.Sprintf(". %s damaged: Repair writes a new index", count(n, "index file", "index files"))
 		}
+		if n := len(res.TooLarge); n > 0 {
+			// Not read and not counted as damaged (MED 5, 0.63).
+			out.Message += fmt.Sprintf(". %s larger than BackupZit ever writes a pack: not read and not counted as damaged (repair leaves them alone; check those files on the storage)", count(n, "data pack is", "data packs are"))
+		}
 		return out
 	}
 	out.Message = fmt.Sprintf("Checked %d backups and read all %d data packs (%d blocks): no errors", res.Snapshots, res.PacksRead, res.BlobsRead)
