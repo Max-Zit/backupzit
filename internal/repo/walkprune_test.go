@@ -312,8 +312,12 @@ func TestPruneKeepsUnreadablePacks(t *testing.T) {
 					}
 				}
 				be.mu.Unlock()
-				if tried > repackGiveUp+r.Concurrency() {
-					t.Errorf("%d unreadable packs tried, want it to stop after %d", tried, repackGiveUp)
+				// Reads already under way when prune gives up finish: each
+				// worker can have one in progress and the one that reported
+				// the last failure may have started its next (the race
+				// detector widens that window).
+				if limit := repackGiveUp + 2*r.Concurrency(); tried > limit || tried == len(candidates) && len(candidates) > limit {
+					t.Errorf("%d of %d unreadable packs tried, want it to stop after %d", tried, len(candidates), repackGiveUp)
 				}
 			}
 			if !all {
