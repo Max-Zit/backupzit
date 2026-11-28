@@ -300,12 +300,49 @@ func parentsBelow(dir, root string) []string {
 	return out
 }
 
-// classify names licenses compatible with distribution under AGPLv3.
+// restricted are phrases of licenses that are not free software or that
+// restrict selling or commercial use: source-available licenses and riders
+// on a permissive license. A text with one of them fails even when it also
+// holds a permissive license (the Commons Clause on top of the Apache
+// License, a Business Source License naming Apache or the MPL as the license
+// it changes to later).
+var restricted = []string{
+	"business source license", "busl-1", "server side public license", "server-side public license", "sspl-1",
+	"commons clause", "the right to sell the software", "elastic license", "functional source license",
+	"fair source", "polyform", "confluent community license", "sustainable use license",
+	"shall be used for good, not evil", "hippocratic license", "non-commercial", "noncommercial",
+}
+
+// gnu are phrases of the GNU licenses (GPL, LGPL, AGPL). Such a text is
+// checked by hand, also when it names a permissive license too (dual
+// licensing, a file combining MIT and GPL code): GPLv2-only code cannot be
+// distributed with AGPLv3 code.
+var gnu = []string{"general public license", "gpl"}
+
+// mplSecondary is the definition in the MPL 2.0 that names the GNU licenses
+// MPL code may be combined with; it puts nothing under them.
+const mplSecondary = `"secondary license" means either the gnu general public license, version 2.0, the gnu lesser general public license, version 2.1, the gnu affero general public license, version 3.0, or any later versions of those licenses.`
+
+// classify names licenses compatible with distribution under AGPLv3. It
+// returns "" for anything else, also for a permissive text combined with a
+// restriction or a GNU license.
 func classify(t string) string {
 	t = strings.ToLower(strings.Join(strings.Fields(t), " "))
+	for _, p := range restricted {
+		if strings.Contains(t, p) {
+			return ""
+		}
+	}
+	g := t
+	if strings.Contains(g, "mozilla public license") {
+		g = strings.ReplaceAll(g, mplSecondary, "")
+	}
+	for _, p := range gnu {
+		if strings.Contains(g, p) {
+			return ""
+		}
+	}
 	switch {
-	case strings.Contains(t, "business source license"), strings.Contains(t, "server side public license"), strings.Contains(t, "commons clause"):
-		return ""
 	case strings.Contains(t, "apache license"):
 		return "Apache License 2.0"
 	case strings.Contains(t, "mozilla public license"):
