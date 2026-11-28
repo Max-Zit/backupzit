@@ -80,6 +80,7 @@ type Repository struct {
 	pack           *packBuilder
 	pending        map[BlobHandle]struct{}
 	unindexed      []indexPack // packs uploaded since the last index write
+	unindexedBlobs int         // blob entries in unindexed
 	stats          WriteStats
 	noCompress     bool // store new blobs uncompressed (SetCompression("off"))
 	vmBlockSizeKiB int  // session option; zero keeps the historical 1 MiB
@@ -572,8 +573,11 @@ func (r *Repository) packUploadedLocked(ctx context.Context, packID ID, blobs []
 		delete(r.pending, BlobHandle{Type: b.Type, ID: b.ID})
 	}
 	r.unindexed = append(r.unindexed, indexPack{ID: packID, Blobs: blobs})
+	r.unindexedBlobs += len(blobs)
 	r.stats.PacksUploaded++
-	if len(r.unindexed) >= indexFlushPacks {
+	// Many small blobs (mail, source trees) fill an index file long before
+	// 32 packs: it is written at maxIndexFileBlobs entries too.
+	if len(r.unindexed) >= indexFlushPacks || r.unindexedBlobs >= maxIndexFileBlobs {
 		return r.writeIndexLocked(ctx)
 	}
 	return nil
@@ -602,12 +606,14 @@ func (r *Repository) writeIndexLocked(ctx context.Context) error {
 	if len(r.unindexed) == 0 {
 		return nil
 	}
-	name, err := r.saveIndexFile(ctx, r.unindexed)
+	names, err := r.saveIndexFiles(ctx, r.unindexed)
+	for _, n := range names {
+		r.noteIndexFile(n)
+	}
 	if err != nil {
 		return err
 	}
-	r.noteIndexFile(name)
-	r.unindexed = nil
+	r.unindexed, r.unindexedBlobs = nil, 0
 	return nil
 }
 
@@ -1091,11 +1097,63 @@ func (r *Repository) refreshIndex(ctx context.Context) error {
 // Size limits of the repository's own small files when they are read
 // (B7, 0.62): a planted huge file must not exhaust memory. BackupZit writes
 // far less: a config of a few hundred bytes, locks of about 100 bytes,
-// index files for 256 packs, snapshots of up to a few megabytes (VM jobs
-// with many guests and their configurations).
+// snapshots of up to a few megabytes (VM jobs with many guests and their
+// configurations), index files of at most maxIndexFileBlobs entries (about
+// 55 MiB, see splitIndexPacks).
 const (
 	maxConfigSize   = 64 << 10
 	maxLockSize     = 64 << 10
-	maxIndexSize    = 128 << 20
 	maxSnapshotSize = 128 << 20
 )
+
+// maxIndexSize is the read limit of one index file. Up to 0.62.2 prune,
+// repair and the index recovery wrote 256 packs per file with no bound on
+// the entries (about 111 bytes each): with many small blobs such a file
+// passes 128 MiB, the limit 0.62.0 brought in, and the repository could no
+// longer be opened (U1, 0.63). 1 GiB still opens files written by those
+// versions down to an average stored blob of about 450 bytes, and needs no
+// more memory than versions before 0.62 did. A variable so that tests can
+// lower it.
+var maxIndexSize int64 = 1 << 30
+
+// Every writer splits index files at maxIndexFilePacks packs or
+// maxIndexFileBlobs blob entries, whichever comes first: about 55 MiB at
+// most, far below maxIndexSize. Agents of every version read any number of
+// index files. maxIndexFileBlobs is a variable so that tests can lower it.
+const maxIndexFilePacks = indexFlushPacks * 8
+
+var maxIndexFileBlobs = 500_000
+
+// splitIndexPacks cuts packs into the groups of one index file each. A pack
+// is never split: a single pack with more entries than maxIndexFileBlobs
+// gets a file of its own (its header is bounded by maxPackHeader).
+func splitIndexPacks(packs []indexPack) [][]indexPack {
+	var out [][]indexPack
+	start, blobs := 0, 0
+	for i, p := range packs {
+		if i > start && (i-start >= maxIndexFilePacks || blobs+len(p.Blobs) > maxIndexFileBlobs) {
+			out = append(out, packs[start:i])
+			start, blobs = i, 0
+		}
+		blobs += len(p.Blobs)
+	}
+	if start < len(packs) {
+		out = append(out, packs[start:])
+	}
+	return out
+}
+
+// saveIndexFiles writes packs as index files of bounded size
+// (splitIndexPacks) and returns the names written, also those written
+// before an error.
+func (r *Repository) saveIndexFiles(ctx context.Context, packs []indexPack) ([]string, error) {
+	var names []string
+	for _, part := range splitIndexPacks(packs) {
+		name, err := r.saveIndexFile(ctx, part)
+		if err != nil {
+			return names, err
+		}
+		names = append(names, name)
+	}
+	return names, nil
+}

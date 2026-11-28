@@ -390,13 +390,12 @@ func (r *Repository) Prune(ctx context.Context, opts PruneOptions) (*PruneStats,
 	// Index files are named by their content, so a new file can have the
 	// same name as an old one; those must not be deleted below.
 	written := map[string]bool{}
-	for start := 0; start < len(keep); start += indexFlushPacks * 8 {
-		end := min(start+indexFlushPacks*8, len(keep))
-		name, err := r.saveIndexFile(ctx, keep[start:end])
-		if err != nil {
-			return nil, err
-		}
-		written[name] = true
+	names, err := r.saveIndexFiles(ctx, keep)
+	if err != nil {
+		return nil, err
+	}
+	for _, n := range names {
+		written[n] = true
 	}
 	for _, n := range oldIndexes {
 		if written[n] {

@@ -216,13 +216,12 @@ func (r *Repository) DropDamagedPacks(ctx context.Context, packs []ID) (*RepairR
 		list = append(list, indexPack{ID: p, Blobs: blobs})
 	}
 	written := map[string]bool{}
-	for start := 0; start < len(list); start += indexFlushPacks * 8 {
-		end := min(start+indexFlushPacks*8, len(list))
-		name, err := r.saveIndexFile(ctx, list[start:end])
-		if err != nil {
-			return nil, err
-		}
-		written[name] = true
+	names, err := r.saveIndexFiles(ctx, list)
+	if err != nil {
+		return nil, err
+	}
+	for _, n := range names {
+		written[n] = true
 	}
 	for _, n := range oldIndexes {
 		if written[n] {
