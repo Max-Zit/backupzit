@@ -1026,7 +1026,9 @@ func (s *Store) claimRun(ctx context.Context, agentID int64, onlyUpdate bool) (*
 }
 
 // claimRunIdle is claimRun for an agent that is idle or already runs
-// something (then no agent update, which restarts the agent).
+// something (then no agent update, which restarts the agent, and no
+// uninstall, which stops it in the middle of its runs: LOW, agents that
+// run several jobs at once).
 func (s *Store) claimRunIdle(ctx context.Context, agentID int64, onlyUpdate, idle bool) (*Run, error) {
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
@@ -1043,7 +1045,7 @@ func (s *Store) claimRunIdle(ctx context.Context, agentID int64, onlyUpdate, idl
 	var id int64
 	err = tx.QueryRow(ctx, `UPDATE runs SET status='running', started_at=now()
 		WHERE id = (SELECT r.id FROM runs r LEFT JOIN jobs j ON j.id=r.job_id WHERE r.agent_id=$1 AND r.status='queued' AND (NOT $2 OR r.kind='agent-update')
-			AND ($3 OR r.kind<>'agent-update') AND NOT `+windowClosed(4)+` AND NOT `+vmwareBusySQL+`
+			AND ($3 OR r.kind NOT IN ('agent-update','agent-uninstall')) AND NOT `+windowClosed(4)+` AND NOT `+vmwareBusySQL+`
 			ORDER BY r.kind IN ('verify','repo-check'), r.queued_at LIMIT 1 FOR UPDATE OF r SKIP LOCKED)
 		RETURNING id`, agentID, onlyUpdate, idle, time.Now().Hour()).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {

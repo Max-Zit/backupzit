@@ -119,7 +119,7 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 		s.failOrphanedRuns(r.Context(), a, req.Runs)
 	}
 	// A busy agent may take another run if it can run several at once
-	// (MaxRuns); agent updates wait until it is idle.
+	// (MaxRuns); agent updates and uninstalls wait until it is idle.
 	free := !req.Busy || (req.Parallel && req.Running < max(a.MaxRuns, 1) && !held)
 	if req.Busy {
 		resp.Cancel = s.store.cancelRequests(r.Context(), a.ID)
