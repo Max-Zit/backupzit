@@ -442,7 +442,11 @@ func (s *Server) startVMDelete(ctx context.Context, t Target, d vmDelete, by, re
 				s.store.expireTargetSnapshots(cctx, t.ID, url, removed)
 			}
 			_, _ = s.store.AppendAudit(cctx, by, "storage.vm_backups", fmt.Sprintf("%s, %s on %s: %s", d.VM, url, t.Name, detail), remote)
-			s.log.Info("restore points of a VM deleted", "vm", d.VM, "repo", url, "result", detail)
+			if len(removed) == 0 {
+				s.log.Warn("restore points of a VM not deleted", "vm", d.VM, "repo", url, "result", detail)
+			} else {
+				s.log.Info("restore points of a VM deleted", "vm", d.VM, "repo", url, "result", detail)
+			}
 		}
 		s.forgetNoJobCache()
 	}()
@@ -465,6 +469,10 @@ func (s *Server) deleteSnapshots(ctx context.Context, t Target, url string, ids 
 		return "not deleted: " + err.Error(), nil
 	}
 	r, err := repo.Open(ctx, be, repo.Password(t.RecoveryKey))
+	if errors.Is(err, repo.ErrNotInitialized) {
+		defer be.Close()
+		return goneRepository(ctx, be, ids)
+	}
 	if err != nil {
 		_ = be.Close()
 		return "not deleted: " + err.Error(), nil
@@ -497,6 +505,26 @@ func (s *Server) deleteSnapshots(ctx context.Context, t Target, url string, ids 
 		return fmt.Sprintf("deleted %d restore points; freeing the space failed: %v", len(removed), err), removed
 	}
 	return fmt.Sprintf("deleted %d restore points, freed %s", len(removed), humanBytes(st.BytesFreed)), removed
+}
+
+// goneRepository handles a deletion in a repository that is no longer
+// there (#79 follow-up: removed by hand on the storage). With nothing left
+// at its location the restore points exist nowhere and only the console
+// still lists them, so they are removed from the console (all ids are
+// returned). With files there but no repository, that is not for the
+// console to judge: nothing changes.
+func goneRepository(ctx context.Context, be backend.Backend, ids []string) (string, []string) {
+	names, err := be.List(ctx, "")
+	if errors.Is(err, backend.ErrNotFound) {
+		names, err = nil, nil
+	}
+	switch {
+	case err != nil:
+		return "not deleted: the repository is not on the storage, and its location cannot be listed: " + err.Error(), nil
+	case len(names) > 0:
+		return fmt.Sprintf("not deleted: the repository is not on the storage, but its location holds %d other files; nothing was changed", len(names)), nil
+	}
+	return fmt.Sprintf("the repository is no longer on the storage: %d restore points removed from the console", len(ids)), ids
 }
 
 // expireTargetSnapshots marks the runs of removed snapshots of one

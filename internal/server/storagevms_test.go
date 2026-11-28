@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 	"testing"
@@ -482,5 +483,53 @@ func TestStorageVMsDeleteRefusals(t *testing.T) {
 	}
 	if res := x.vmBackupsResult(t, 0); !strings.Contains(res, "deleted 1 restore points") || !x.expired(x.runs[0]) {
 		t.Errorf("the approved deletion: %q", res)
+	}
+}
+
+// #79 follow-up (K): the repository of VM restore points was removed by
+// hand. With files left at its location but no repository, nothing is
+// changed; with nothing left, deleting the points removes them from the
+// console. A deletion that removed nothing is logged as a warning.
+func TestStorageVMsDeleteRemovedRepository(t *testing.T) {
+	x := newVMPointsEnv(t)
+	ctx := x.e.ctx
+	logs := &logBuffer{}
+	x.e.srv.SetLog(slog.New(slog.NewTextHandler(logs, nil)))
+	be, err := backend.Open(ctx, x.repoURL, backend.Options{S3AccessKey: "AK", S3SecretKey: "SK"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer be.Close()
+	// Only the repository's config is gone: files are left.
+	if err := be.Remove(ctx, "config"); err != nil {
+		t.Fatal(err)
+	}
+	if kind, text := x.del(t, x.targetID, x.runs[0]); kind != "msg" {
+		t.Fatalf("delete: %s %q", kind, text)
+	}
+	if res := x.vmBackupsResult(t, 0); !strings.Contains(res, "not deleted") || !strings.Contains(res, "nothing was changed") || x.expired(x.runs[0]) {
+		t.Errorf("files without a repository: %q, expired %v", res, x.expired(x.runs[0]))
+	}
+	if l := logs.String(); !strings.Contains(l, "level=WARN") || !strings.Contains(l, "restore points of a VM not deleted") {
+		t.Errorf("log: %s", l)
+	}
+	// Nothing is left at the location.
+	names, err := be.List(ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range names {
+		if err := be.Remove(ctx, n); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if kind, text := x.del(t, x.targetID, x.runs[0]); kind != "msg" {
+		t.Fatalf("delete: %s %q", kind, text)
+	}
+	if res := x.vmBackupsResult(t, 1); res == "" || !strings.Contains(res, "the repository is no longer on the storage: 1 restore points removed from the console") {
+		t.Errorf("result %q", res)
+	}
+	if !x.expired(x.runs[0]) || x.expired(x.runs[1]) {
+		t.Errorf("expired: %v %v, want only the deleted point", x.expired(x.runs[0]), x.expired(x.runs[1]))
 	}
 }
