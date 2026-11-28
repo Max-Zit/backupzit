@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -119,12 +120,18 @@ func (s *Store) listLeftovers(ctx context.Context, now time.Time) []Leftover {
 			for _, it := range items {
 				l := Leftover{Key: fmt.Sprintf("a%d|%s", x.id, it.Key()), AgentID: x.id, Agent: x.name, Item: it}
 				if it.Platform == leftover.VMware {
-					if h, ok := byAddr[strings.ToLower(it.Host)]; ok {
+					// Only an agent that is a proxy of the connection gets its
+					// credentials for a clean-up (U3): any agent can report an
+					// item with any address. Another agent's item (a former
+					// proxy's) is shown with the address only, without a run, and
+					// does not hide the same snapshot found in the inventory, which
+					// the current proxy can remove.
+					if h, ok := byAddr[strings.ToLower(it.Host)]; ok && h.hasProxy(x.id) {
 						l.HostID, l.Host = h.ID, h.Name
+						seen[strings.ToLower(it.Host+"|"+it.VM+"|"+it.Name)] = true
 					} else {
 						l.Host = it.Host
 					}
-					seen[strings.ToLower(it.Host+"|"+it.VM+"|"+it.Name)] = true
 				}
 				out = append(out, l)
 			}
@@ -240,6 +247,12 @@ func (s *Store) queueLeftoverCleanup(ctx context.Context, agentID int64, hostID 
 	return id, err
 }
 
+// hasProxy reports whether the agent is the connection's proxy or one of its
+// further proxies: only they get the connection's credentials (U3).
+func (h VMwareHost) hasProxy(agentID int64) bool {
+	return (h.ProxyAgentID != nil && *h.ProxyAgentID == agentID) || slices.Contains(h.ExtraProxies, agentID)
+}
+
 // cleanupRun fills in a clean-up run for the agent.
 func (s *Server) cleanupRun(ctx context.Context, run *Run) (*api.Run, error) {
 	ar := &api.Run{ID: run.ID, Kind: run.Kind}
@@ -248,7 +261,19 @@ func (s *Server) cleanupRun(ctx context.Context, run *Run) (*api.Run, error) {
 			ar.Cleanup = append(ar.Cleanup, leftover.Item{Kind: leftover.KindSnapshot, VM: vm, Name: name})
 		}
 	}
-	return ar, s.addVMware(ctx, run, ar)
+	h, err := s.store.vmwareHostOfRun(ctx, run.ID)
+	if err != nil {
+		return nil, err
+	}
+	if h != nil {
+		// Checked again when the credentials go out (U3): the agent may no
+		// longer be a proxy of the connection since the run was queued.
+		if !h.hasProxy(run.AgentID) {
+			return nil, fmt.Errorf("this agent is not a proxy of %s: it gets no credentials of the connection", h.Name)
+		}
+		ar.VMware = h.apiHost()
+	}
+	return ar, nil
 }
 
 // handleLeftoverClean serves POST /leftovers/clean (Remove now on the
@@ -274,11 +299,7 @@ func (s *Server) handleLeftoverClean(w http.ResponseWriter, r *http.Request, _ s
 			redirectMsg(w, r, "/", l.T("VMware host not found."))
 			return
 		}
-		ok := h.ProxyAgentID != nil && *h.ProxyAgentID == agentID
-		for _, p := range h.ExtraProxies {
-			ok = ok || p == agentID
-		}
-		if !ok {
+		if !h.hasProxy(agentID) {
 			redirectMsg(w, r, "/", l.T("%s is not a proxy of %s.", a.Name(), h.Name))
 			return
 		}

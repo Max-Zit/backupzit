@@ -156,6 +156,104 @@ func TestLeftovers(t *testing.T) {
 	}
 }
 
+// U3: any agent can report a leftover with any address. Only a proxy of
+// the connection gets a clean-up with the host's credentials: an item of
+// another agent is shown without a run, and a clean-up run that reaches an
+// agent that is not (or no longer) a proxy fails without the credentials.
+func TestLeftoverOfAnotherAgent(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	type ag struct {
+		cfg *agent.Config
+		id  int64
+	}
+	enroll := func(name string) ag {
+		token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+		cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "0.56.0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		agents, _ := e.store.ListAgents(ctx)
+		for _, a := range agents {
+			if a.UUID == cfg.AgentUUID {
+				return ag{cfg, a.ID}
+			}
+		}
+		t.Fatal(name, "not enrolled")
+		return ag{}
+	}
+	poll := func(a ag, items []leftover.Item) *api.Run {
+		t.Helper()
+		req := api.PollRequest{Hostname: fmt.Sprintf("agent%d", a.id), OS: "Linux", Arch: "amd64", Version: "0.56.0"}
+		if items != nil {
+			req.Leftovers, _ = json.Marshal(items)
+		}
+		b, _ := json.Marshal(req)
+		hr, _ := http.NewRequest("POST", e.ts.URL+api.PathPoll, bytes.NewReader(b))
+		hr.Header.Set("Authorization", "Bearer "+a.cfg.AgentUUID+":"+a.cfg.Secret)
+		resp, err := e.ts.Client().Do(hr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		var pr api.PollResponse
+		_ = json.NewDecoder(resp.Body).Decode(&pr)
+		return pr.Run
+	}
+	proxy, other := enroll("proxy"), enroll("other")
+	hostID, err := e.store.CreateVMwareHost(ctx, server.VMwareHost{Name: "esx1", Address: "esx1.example", Username: "root", Password: "secret-esx-pw",
+		ProxyAgentID: &proxy.id, RepoDir: "esxi-esx1_0001", Version: "8.0.3", APIWrites: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := leftover.Item{Platform: leftover.VMware, Kind: leftover.KindSnapshot, Host: "ESX1.example", VM: "50211111-2222-3333-4444-555555555555",
+		VMName: "web", Name: "backupzit_1763600000", Created: time.Now().Add(-2 * time.Hour)}
+	poll(other, []leftover.Item{item})
+	poll(proxy, []leftover.Item{})
+	cleanups := func(agentID int64) int {
+		var n int
+		e.pool.QueryRow(ctx, `SELECT count(*) FROM runs WHERE agent_id=$1 AND kind='leftover-cleanup'`, agentID).Scan(&n)
+		return n
+	}
+	e.store.AutoLeftoverCleanup(ctx, time.Now())
+	if n := cleanups(other.id); n != 0 {
+		t.Fatalf("%d clean-up runs queued for an agent that is not a proxy of the host", n)
+	}
+	admin := newClient(t, e)
+	if !admin.login("admin", "admin-pass-123") {
+		t.Fatal("login")
+	}
+	_, _, page := admin.do("GET", "/", nil)
+	page = html.UnescapeString(page)
+	if !strings.Contains(page, "backupzit_1763600000 left on ESX1.example") || strings.Contains(page, fmt.Sprintf("agent=%d&host=%d", other.id, hostID)) {
+		t.Error("the other agent's item: not shown with its address, or offered with the host")
+	}
+	q := url.Values{"agent": {fmt.Sprint(other.id)}, "host": {fmt.Sprint(hostID)}}
+	if _, loc, _ := admin.do("POST", "/leftovers/clean?"+q.Encode(), url.Values{}); strings.HasPrefix(loc, "/runs/") {
+		t.Error("Remove now queued a clean-up with the host for an agent that is not its proxy")
+	}
+	// A run queued while it was a proxy (or by an older console) reaches it
+	// after the proxy changed: it fails, without the credentials.
+	var runID int64
+	if err := e.pool.QueryRow(ctx, `INSERT INTO runs(agent_id, kind, trigger, repo_url, notified, chat_notified, vmware_host_id, paths)
+		VALUES($1,'leftover-cleanup','auto','',true,true,$2,'{}') RETURNING id`, other.id, hostID).Scan(&runID); err != nil {
+		t.Fatal(err)
+	}
+	if run := poll(other, nil); run != nil {
+		t.Fatalf("the other agent got a clean-up run of the host: %+v", run)
+	}
+	if r, _ := e.store.GetRun(ctx, runID); r.Status != api.StatusFailed || !strings.Contains(r.Message, "not a proxy of esx1") {
+		t.Errorf("clean-up run of a non-proxy: %s %q", r.Status, r.Message)
+	}
+	// The proxy's own item is cleaned up automatically, with the host.
+	poll(proxy, []leftover.Item{item})
+	e.store.AutoLeftoverCleanup(ctx, time.Now())
+	run := poll(proxy, nil)
+	if run == nil || run.Kind != api.KindLeftoverCleanup || run.VMware == nil || run.VMware.Password != "secret-esx-pw" {
+		t.Fatalf("the proxy's clean-up run: %+v", run)
+	}
+}
+
 // Each leftover that stays is notified once; one the agent will remove
 // right away (no failed try, younger than an hour) is not.
 func TestLeftoverAlertsOnce(t *testing.T) {

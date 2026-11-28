@@ -106,3 +106,8 @@ var (
 func (s *Store) CreateSingleUseToken(ctx context.Context, ttl time.Duration) (string, error) {
 	return s.createSingleUseToken(ctx, ttl)
 }
+
+// AutoLeftoverCleanup is autoLeftoverCleanup for tests.
+func (s *Store) AutoLeftoverCleanup(ctx context.Context, now time.Time) {
+	s.autoLeftoverCleanup(ctx, now)
+}
