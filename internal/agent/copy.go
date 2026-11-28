@@ -147,6 +147,10 @@ func (a *Agent) copyRun(ctx context.Context, run api.Run) api.RunResult {
 	if older > 0 {
 		res.Message += fmt.Sprintf("; %s of the source not copied (older than what this job's retention keeps)", count(older, "backup", "backups"))
 	}
+	if len(st.Unreadable) > 0 {
+		noteUnreadable(&res, st.Unreadable)
+		a.log.Warn("copy: source backups not readable, left out", "run", run.ID, "backups", len(st.Unreadable))
+	}
 	if source == 0 {
 		res.Message = "The source job has no backups yet"
 	}
@@ -155,6 +159,21 @@ func (a *Agent) copyRun(ctx context.Context, run api.Run) api.RunResult {
 	// withRetention extends the locks of every copy the job keeps, the ones
 	// just copied included (they carry the job's tag).
 	return a.withRetention(ctx, dst, run, res)
+}
+
+// noteUnreadable turns a copy that left out unreadable source backups (the
+// others copied, MED 11a) into a warning that names them, instead of the
+// failure that blocked every newer copy until the source's retention
+// removed the damaged one.
+func noteUnreadable(res *api.RunResult, unreadable []string) {
+	n := len(unreadable)
+	res.Status = api.StatusWarning
+	verb := "were"
+	if n == 1 {
+		verb = "was"
+	}
+	res.Message += fmt.Sprintf("; %s of the source could not be read and %s not copied: check the source job's storage (data check, repair)", count(n, "backup", "backups"), verb)
+	res.Errors = append(res.Errors, unreadable...)
 }
 
 // mbPerSecond is a rate for the log, 0 when the time is not known.

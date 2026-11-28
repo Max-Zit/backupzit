@@ -32,6 +32,9 @@ type CopyStats struct {
 	ReadSeconds  float64 `json:"read_seconds,omitempty"`
 	WriteSeconds float64 `json:"write_seconds,omitempty"`
 	Seconds      float64 `json:"seconds,omitempty"`
+	// Unreadable names the source backups that could not be read and were
+	// left out, with the reason (MED 11a); the caller reports them.
+	Unreadable []string `json:"-"`
 }
 
 // Add adds the numbers of another part of the same copy.
@@ -46,6 +49,7 @@ func (s *CopyStats) Add(o *CopyStats) {
 	s.ReadSeconds += o.ReadSeconds
 	s.WriteSeconds += o.WriteSeconds
 	s.Seconds += o.Seconds
+	s.Unreadable = append(s.Unreadable, o.Unreadable...)
 }
 
 // The phases a copy reports.
@@ -78,7 +82,8 @@ type CopyOptions struct {
 // Only blobs missing in dst are transferred, so repeated copies upload just
 // the new data. Snapshots already copied earlier are skipped. Copies get
 // tags (replacing the source's) plus "copy-of:<id>". The caller holds
-// locks on both repositories.
+// locks on both repositories. A snapshot that cannot be read is left out
+// (CopyStats.Unreadable); the error is returned only when none can be.
 //
 // First the blobs each snapshot needs and dst lacks are found (each with
 // the first snapshot that needs it), which gives the exact amount to copy.
@@ -125,9 +130,14 @@ func Copy(ctx context.Context, src, dst *Repository, sns []*Snapshot, tags []str
 		}
 	}
 
-	// Plan. A snapshot that cannot be read ends the plan there: the ones
-	// before it are still copied, and its error is returned after them.
-	plan := make([][]copyBlob, len(todo))
+	// Plan. A snapshot that cannot be read (damaged or missing data in the
+	// source) is left out and the others are still copied: one damaged old
+	// backup must not block the copy of every newer one until the source's
+	// retention removes it, which with monthly or yearly retention takes
+	// years (MED 11a). Its error goes to CopyStats.Unreadable; only when no
+	// snapshot to copy can be read does Copy return an error.
+	plan := make([][]copyBlob, 0, len(todo))
+	planned := make([]*Snapshot, 0, len(todo))
 	assigned := map[BlobHandle]bool{}
 	var planErr error
 	p.Phase = CopyPlanning
@@ -137,6 +147,7 @@ func Copy(ctx context.Context, src, dst *Repository, sns []*Snapshot, tags []str
 		}
 		p.Snapshot, p.Time = i+1, sn.Time
 		report()
+		var need []copyBlob
 		blobs, err := src.BlobsOf(ctx, []*Snapshot{sn})
 		if err == nil {
 			for h := range blobs {
@@ -148,22 +159,35 @@ func Copy(ctx context.Context, src, dst *Repository, sns []*Snapshot, tags []str
 					err = fmt.Errorf("blob %s not found in index", h.ID.Short())
 					break
 				}
-				assigned[h] = true
-				plan[i] = append(plan[i], copyBlob{h: h, loc: loc})
-				p.Total += uint64(loc.Length)
+				need = append(need, copyBlob{h: h, loc: loc})
 			}
 		}
 		if err != nil {
-			planErr = fmt.Errorf("snapshot %s: %w", sn.ID.Short(), err)
-			for _, b := range plan[i] { // not copied: not counted
-				p.Total -= uint64(b.loc.Length)
+			if cerr := ctx.Err(); cerr != nil {
+				return st, nil, cerr
 			}
-			todo, plan = todo[:i], plan[:i]
-			p.Snapshots = len(todo)
-			break
+			if planErr == nil {
+				planErr = fmt.Errorf("snapshot %s: %w", sn.ID.Short(), err)
+			}
+			st.Unreadable = append(st.Unreadable, fmt.Sprintf("backup %s of %s not copied, it cannot be read: %v",
+				sn.ID.Short(), sn.Time.Local().Format("2006-01-02 15:04"), err))
+			continue
 		}
+		// Assigned only once the snapshot is planned completely: a blob of
+		// one left out is still copied with the next snapshot that needs it.
+		for _, b := range need {
+			assigned[b.h] = true
+			p.Total += uint64(b.loc.Length)
+		}
+		planned = append(planned, sn)
+		plan = append(plan, need)
 	}
 	assigned = nil
+	todo = planned
+	p.Snapshots = len(todo)
+	if len(todo) > 0 {
+		planErr = nil // the others are copied; the caller reports Unreadable
+	}
 
 	var copied []*Snapshot
 	before := dst.Stats()
