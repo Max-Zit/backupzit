@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -132,7 +133,25 @@ func New(store *Store, log *slog.Logger) (*Server, error) {
 	return s, nil
 }
 
+// releaseVersion is a version number of a release ("0.63.0"), which has a
+// tag in the repository; development builds ("dev", "0.63.0-3-gabc") do not.
+var releaseVersion = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
+
+// sourceURL is where the source code of console version v is: the tag of
+// the release, or the repository for a development build (AGPLv3, plan
+// item I).
+func sourceURL(v string) string {
+	const repo = "https://github.com/Max-Zit/backupzit"
+	if releaseVersion.MatchString(v) {
+		return repo + "/tree/v" + v
+	}
+	return repo
+}
+
 var funcs = template.FuncMap{
+	// sourceurl links the footer's licence to the source code of the
+	// running version.
+	"sourceurl": sourceURL,
 	// zone names the console server's time zone, e.g. "CEST, UTC+02:00".
 	"zone": func() string { return time.Now().Format("MST, UTC-07:00") },
 	// clock is the console server's current time for the sidebar clock;

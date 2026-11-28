@@ -59,7 +59,37 @@
       "sr": "Posao je obrisan. Postojeći bekapi ostaju na skladištu. Poslovi koji su se pokretali posle njega više ne počinju: izaberite im drugi posao (spisak je pod Zahteva pažnju na kontrolnoj tabli).",
       "tr": "İş silindi. Mevcut yedekler depolama hedefinde kalır. Bundan sonra çalışan işler artık başlamaz: onlar için başka bir iş seçin (panodaki İlgi gerekiyor bölümü bunları listeler).",
       "zh": "作业已删除。现有备份仍保留在存储目标上。在它之后运行的作业将不再开始：请为它们选择其他作业（仪表板上的“需要关注”会列出它们）。"
+    },
+    "self-hosted": {
+      "cs": "vlastní hostování",
+      "de": "selbst gehostet",
+      "es": "autoalojado",
+      "fr": "auto-hébergé",
+      "it": "self-hosted",
+      "ja": "セルフホスト",
+      "nl": "zelf gehost",
+      "pl": "samodzielnie hostowane",
+      "pt": "auto-hospedado",
+      "ru": "на своём сервере",
+      "sr": "na sopstvenom serveru",
+      "tr": "kendi sunucunuzda",
+      "zh": "自托管"
+    },
+    "Source code of this version (GNU AGPLv3)": {
+      "cs": "Zdrojový kód této verze (GNU AGPLv3)",
+      "de": "Quellcode dieser Version (GNU AGPLv3)",
+      "es": "Código fuente de esta versión (GNU AGPLv3)",
+      "fr": "Code source de cette version (GNU AGPLv3)",
+      "it": "Codice sorgente di questa versione (GNU AGPLv3)",
+      "ja": "このバージョンのソースコード (GNU AGPLv3)",
+      "nl": "Broncode van deze versie (GNU AGPLv3)",
+      "pl": "Kod źródłowy tej wersji (GNU AGPLv3)",
+      "pt": "Código-fonte desta versão (GNU AGPLv3)",
+      "ru": "Исходный код этой версии (GNU AGPLv3)",
+      "sr": "Izvorni kod ove verzije (GNU AGPLv3)",
+      "tr": "Bu sürümün kaynak kodu (GNU AGPLv3)",
+      "zh": "此版本的源代码 (GNU AGPLv3)"
     }
   },
-  "remove": []
+  "remove": ["AGPLv3 · self-hosted"]
 }

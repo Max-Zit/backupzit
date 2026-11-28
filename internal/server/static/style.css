@@ -64,6 +64,7 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
 .side-foot .bug-link { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 7px 10px; border-radius: 8px; color: var(--side-text); font-size: 13px; font-weight: 500; }
 .side-foot .bug-link:hover { background: var(--side-hover); text-decoration: none; }
 .side-foot .bug-link .ic { width: 16px; height: 16px; color: var(--side-muted); }
+.side-foot .license-link { color: var(--side-text); text-decoration: underline dotted; text-underline-offset: 2px; }
 
 .shell { margin-left: 240px; min-height: 100vh; display: flex; flex-direction: column; }
 .topbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 14px; height: 60px; padding: 0 28px; background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
