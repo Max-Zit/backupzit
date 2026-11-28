@@ -172,6 +172,10 @@ type checkpointInfo struct {
 	Disks []vmDisk `json:"disks"`
 }
 
+// ambiguousCheckpoint starts the error of recoveryScript when more than one
+// new recovery checkpoint appeared (MED 13a).
+const ambiguousCheckpoint = "recovery checkpoint ambiguous"
+
 // recoveryScript creates a recovery checkpoint (the checkpoint type backup
 // applications use; it switches on Resilient Change Tracking of the disks)
 // with the given consistency level (1 application, 2 crash), names it and
@@ -192,13 +196,18 @@ if ($r.ReturnValue -eq 4096) {
     if ($job.JobState -ne 7) { throw ("recovery checkpoint: " + $job.ErrorDescription) }
 } elseif ($r.ReturnValue -ne 0) { throw ("recovery checkpoint: error " + $r.ReturnValue) }
 # The new checkpoint appears in the list shortly after the job (of a VM
-# that is off it took several seconds in the lab).
-$s = $null
-for ($i = 0; $i -lt 120 -and -not $s; $i++) {
-    $s = Get-VMSnapshot -VM $v | Where-Object { $before -notcontains $_.Id } | Select-Object -First 1
-    if (-not $s) { Start-Sleep -Milliseconds 500 }
+# that is off it took several seconds in the lab). Only a recovery
+# checkpoint that was not there before counts, and only if there is
+# exactly one: another backup program, a scheduled or a user's checkpoint
+# made at the same time must be neither renamed nor backed up (MED 13a).
+$new = @()
+for ($i = 0; $i -lt 120 -and $new.Count -eq 0; $i++) {
+    $new = @(Get-VMSnapshot -VM $v | Where-Object { $before -notcontains $_.Id -and "$($_.SnapshotType)" -eq 'Recovery' })
+    if ($new.Count -eq 0) { Start-Sleep -Milliseconds 500 }
 }
-if (-not $s) { throw "recovery checkpoint not found" }
+if ($new.Count -eq 0) { throw "recovery checkpoint not found" }
+if ($new.Count -gt 1) { throw ("` + ambiguousCheckpoint + `: " + $new.Count) }
+$s = $new[0]
 try { Rename-VMSnapshot -VMSnapshot $s -NewName $name } catch { Remove-VMSnapshot -VMSnapshot $s; throw }
 [pscustomobject]@{ type = "Recovery"; state = "$($s.State)"; disks = @(Get-VMHardDiskDrive -VMSnapshot $s | ForEach-Object { [pscustomobject]@{ type = "$($_.ControllerType)"; num = $_.ControllerNumber; loc = $_.ControllerLocation; path = $_.Path } }) } | ConvertTo-Json -Depth 4 -Compress`
 
@@ -298,6 +307,11 @@ func createCheckpoint(ctx, run context.Context, vm vmInfo, name string, requireA
 		}
 		if err == nil {
 			err = errors.New("no disks in the recovery checkpoint")
+		}
+		if strings.Contains(err.Error(), ambiguousCheckpoint) {
+			// Not BackupZit's to choose: no other attempt, no production
+			// checkpoint, and none of them is renamed or removed (MED 13a).
+			return ci, "", false, warns, fmt.Errorf("another recovery checkpoint appeared on VM %s while BackupZit created its own (another backup program or a scheduled checkpoint at the same time?); BackupZit cannot tell which one is its own, so it backs up and removes none of them. Its own has Hyper-V's default name: check Get-VMSnapshot -VMName '%s' -SnapshotType Recovery and remove it when the other program is done, then run the backup again", vm.Name, vm.Name)
 		}
 		if off {
 			return ci, "", false, warns, fmt.Errorf("recovery checkpoint of the VM that is off: %w", err)
