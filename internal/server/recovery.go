@@ -99,6 +99,8 @@ func (s *Server) handleRecoveryToken(w http.ResponseWriter, r *http.Request, use
 		s.serverError(w, err)
 		return
 	}
+	// The code itself is a secret and stays out of the log.
+	s.audit(r, "recovery.code", "recovery code created, valid until %s", exp.UTC().Format(time.RFC3339))
 	s.recoveryPage(w, r, user, tok, exp)
 }
 

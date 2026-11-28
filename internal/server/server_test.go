@@ -1189,6 +1189,42 @@ func TestUsersAndRoles(t *testing.T) {
 	if _, _, body := op.do("GET", "/recovery", nil); strings.Contains(body, `action="/recovery/access-package"`) {
 		t.Error("operator sees the access package form")
 	}
+	// U2: a recovery code enrolls a full agent for 30 days, and an agent
+	// gets the storage credentials and recovery key of what it backs up or
+	// restores: the same permission as an enrollment token.
+	for _, p := range []string{"/recovery/token", "/recovery/recovery.json"} {
+		if code, _, _ := op.do("POST", p, url.Values{"token": {"x"}}); code != http.StatusForbidden {
+			t.Errorf("operator POST %s: %d, want 403", p, code)
+		}
+	}
+	if _, _, body := op.do("GET", "/recovery", nil); strings.Contains(body, `action="/recovery/token"`) || strings.Contains(body, `action="/recovery/recovery.json"`) {
+		t.Error("operator is offered to create a recovery code")
+	}
+	rcode, _, rpage := admin.do("POST", "/recovery/token", url.Values{})
+	i := strings.Index(rpage, `id="rtok">`)
+	if rcode != 200 || i < 0 {
+		t.Fatalf("admin recovery code: %d", rcode)
+	}
+	rtok := rpage[i+len(`id="rtok">`):]
+	rtok = rtok[:strings.Index(rtok, "<")]
+	if code, _, body := admin.do("POST", "/recovery/recovery.json", url.Values{"token": {rtok}}); code != 200 || !strings.Contains(body, rtok) {
+		t.Errorf("admin recovery.json: %d", code)
+	}
+	audited := false
+	entries, _ := e.store.ListAudit(ctx, 50)
+	for _, a := range entries {
+		if strings.Contains(a.Detail, rtok) {
+			t.Errorf("the recovery code is in the audit log: %+v", a)
+		}
+		audited = audited || (a.Action == "recovery.code" && a.Username == "admin" && strings.Contains(a.Detail, "valid until"))
+	}
+	if !audited {
+		t.Error("creating a recovery code is not in the audit log")
+	}
+	// Codes made before keep working: it is an enrollment token as before.
+	if _, err := agent.EnrollRecovery(ctx, e.ts.URL, rtok, e.fp, "test"); err != nil {
+		t.Errorf("recovery code: %v", err)
+	}
 
 	// The last local administrator cannot be removed or demoted.
 	users, _ := e.store.ListUsers(ctx)

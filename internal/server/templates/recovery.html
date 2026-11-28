@@ -30,13 +30,13 @@
       <dt>{{T "Fingerprint"}}</dt><dd class="mono">{{.Data.Fingerprint}}</dd>
       <dt>{{T "Valid until"}}</dt><dd>{{ts .Data.Expires}}</dd>
     </dl>
-    {{if $.Me.Can "agents"}}<form method="post" action="/recovery/recovery.json" class="mt">
+    {{if $.Me.Can "storage"}}<form method="post" action="/recovery/recovery.json" class="mt">
       <input type="hidden" name="token" value="{{.Data.Token}}">
       <button class="secondary">{{T "Download recovery.json"}}</button>
     </form>{{end}}
     {{else}}
     <p class="muted">{{T "A recovery code lets recovery media connect to this server. It is valid for 30 days and is shown only once."}}</p>
-    {{if $.Me.Can "agents"}}<form method="post" action="/recovery/token"><button>{{T "Create recovery code"}}</button></form>{{end}}
+    {{if $.Me.Can "storage"}}<form method="post" action="/recovery/token"><button>{{T "Create recovery code"}}</button></form>{{end}}
     <p class="muted mt">{{T "Fingerprint to compare on the recovery screen:"}} <span class="mono">{{.Data.Fingerprint}}</span></p>
     {{end}}
   </div>

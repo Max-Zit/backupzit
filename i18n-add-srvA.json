@@ -1,0 +1,38 @@
+{
+  "add": {
+    "Manages jobs and schedules, runs backups and restores, updates and removes agents. Cannot add agents or VMware proxies or create recovery codes (they receive storage credentials), see storage credentials or recovery keys, or change users and settings.": {
+      "cs": "Spravuje úlohy a rozvrhy, spouští zálohy a obnovy, aktualizuje a odebírá agenty. Nemůže přidávat agenty ani agenty proxy VMware ani vytvářet kódy obnovy (dostávají přihlašovací údaje k úložištím), nevidí přihlašovací údaje k úložištím ani klíče obnovy a nemění uživatele ani nastavení.",
+      "de": "Verwaltet Aufträge und Zeitpläne, führt Sicherungen und Wiederherstellungen aus, aktualisiert und entfernt Agenten. Kann keine Agenten oder VMware-Proxy-Agenten hinzufügen und keine Wiederherstellungscodes erstellen (sie erhalten Speicher-Zugangsdaten), sieht keine Speicher-Zugangsdaten oder Wiederherstellungsschlüssel und ändert keine Benutzer und Einstellungen.",
+      "es": "Gestiona trabajos y programaciones, ejecuta copias y restauraciones, actualiza y quita agentes. No puede añadir agentes ni agentes proxy de VMware ni crear códigos de recuperación (reciben credenciales de almacenamiento), ver credenciales de almacenamiento ni claves de recuperación, ni cambiar usuarios ni configuración.",
+      "fr": "Gère les tâches et les planifications, lance sauvegardes et restaurations, met à jour et supprime les agents. Ne peut pas ajouter d'agents ni d'agents proxy VMware ni créer de codes de récupération (ils reçoivent des identifiants de stockage), ne voit ni les identifiants de stockage ni les clés de récupération, et ne modifie ni les utilisateurs ni les paramètres.",
+      "it": "Gestisce job e pianificazioni, esegue backup e ripristini, aggiorna e rimuove agenti. Non può aggiungere agenti né agenti proxy VMware né creare codici di ripristino (ricevono le credenziali di storage), vedere credenziali di storage o chiavi di ripristino, né modificare utenti e impostazioni.",
+      "ja": "ジョブとスケジュールを管理し、バックアップとリストアを実行し、エージェントを更新・削除します。エージェントや VMware プロキシエージェントの追加とリカバリ コードの作成（ストレージの認証情報を受け取るため）、ストレージの認証情報やリカバリ キーの閲覧、ユーザーと設定の変更はできません。",
+      "nl": "Beheert taken en schema's, voert back-ups en herstel uit, werkt agents bij en verwijdert ze. Kan geen agents of VMware-proxyagents toevoegen en geen herstelcodes maken (die krijgen opslaggegevens), ziet geen opslaggegevens of herstelsleutels en wijzigt geen gebruikers en instellingen.",
+      "pl": "Zarządza zadaniami i harmonogramami, uruchamia kopie i przywracanie, aktualizuje i usuwa agentów. Nie może dodawać agentów ani agentów proxy VMware ani tworzyć kodów odzyskiwania (otrzymują poświadczenia magazynów), nie widzi poświadczeń magazynów ani kluczy odzyskiwania i nie zmienia użytkowników ani ustawień.",
+      "pt": "Gerencia tarefas e agendamentos, executa backups e restaurações, atualiza e remove agentes. Não pode adicionar agentes nem agentes proxy VMware nem criar códigos de recuperação (eles recebem credenciais de armazenamento), ver credenciais de armazenamento ou chaves de recuperação, nem alterar usuários e configurações.",
+      "ru": "Управляет заданиями и расписаниями, запускает копирование и восстановление, обновляет и удаляет агенты. Не может добавлять агенты и агенты-прокси VMware и создавать коды восстановления (они получают учётные данные хранилищ), не видит учётные данные хранилищ и ключи восстановления и не меняет пользователей и настройки.",
+      "sr": "Upravlja poslovima i rasporedima, pokreće bekape i vraćanja, ažurira i uklanja agente. Ne može da dodaje agente ni VMware proxy agente niti da pravi kodove za oporavak (oni dobijaju pristupne podatke skladišta), ne vidi pristupne podatke skladišta ni ključeve za oporavak i ne menja korisnike i podešavanja.",
+      "tr": "İşleri ve zamanlamaları yönetir, yedekleme ve geri yükleme çalıştırır, aracıları günceller ve kaldırır. Aracı veya VMware proxy aracısı ekleyemez ve kurtarma kodu oluşturamaz (bunlar depolama kimlik bilgilerini alır), depolama kimlik bilgilerini veya kurtarma anahtarlarını göremez, kullanıcıları ve ayarları değiştiremez.",
+      "zh": "管理作业和计划，运行备份和还原，更新和移除代理。不能添加代理或 VMware 备份代理，也不能创建恢复码（它们会获得存储凭据），看不到存储凭据和恢复密钥，也不能更改用户和设置。"
+    },
+    "Storage targets, recovery keys, adding agents and VMware proxies, recovery codes": {
+      "cs": "Cílová úložiště, klíče obnovy, přidávání agentů a agentů proxy VMware, kódy obnovy",
+      "de": "Speicherziele, Wiederherstellungsschlüssel, Hinzufügen von Agenten und VMware-Proxy-Agenten, Wiederherstellungscodes",
+      "es": "Destinos de almacenamiento, claves de recuperación, añadir agentes y agentes proxy de VMware, códigos de recuperación",
+      "fr": "Cibles de stockage, clés de récupération, ajout d'agents et d'agents proxy VMware, codes de récupération",
+      "it": "Destinazioni di archiviazione, chiavi di ripristino, aggiunta di agenti e di agenti proxy VMware, codici di ripristino",
+      "ja": "ストレージ先、リカバリーキー、エージェントと VMware プロキシエージェントの追加、リカバリ コード",
+      "nl": "Opslagdoelen, herstelsleutels, agents en VMware-proxyagents toevoegen, herstelcodes",
+      "pl": "Magazyny docelowe, klucze odzyskiwania, dodawanie agentów i agentów proxy VMware, kody odzyskiwania",
+      "pt": "Destinos de armazenamento, chaves de recuperação, adicionar agentes e agentes proxy VMware, códigos de recuperação",
+      "ru": "Хранилища, ключи восстановления, добавление агентов и агентов-прокси VMware, коды восстановления",
+      "sr": "Skladišta, ključevi za oporavak, dodavanje agenata i VMware proxy agenata, kodovi za oporavak",
+      "tr": "Depolama hedefleri, kurtarma anahtarları, aracı ve VMware proxy aracısı ekleme, kurtarma kodları",
+      "zh": "存储目标、恢复密钥、添加代理和 VMware 备份代理、恢复码"
+    }
+  },
+  "remove": [
+    "Manages jobs and schedules, runs backups and restores, updates and removes agents. Cannot add agents or VMware proxies (they receive storage credentials), see storage credentials or recovery keys, or change users and settings.",
+    "Storage targets, recovery keys, adding agents and VMware proxies"
+  ]
+}

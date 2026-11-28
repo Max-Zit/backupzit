@@ -700,6 +700,21 @@ func TestVCenterConnection(t *testing.T) {
 	if _, _, body := admin.do("GET", "/agents", nil); !strings.Contains(body, fmt.Sprintf(`action="/vmware/%d/certificate"`, id)) {
 		t.Error("agents page offers no way to accept the new certificate")
 	}
+	// U2: the next connection sends the password to whoever presents the
+	// accepted certificate, so a backup operator can neither see nor use it.
+	if _, err := e.store.CreateUser(ctx, server.User{Username: "op1", DisplayName: "Operator", Role: "operator"}, "operator-pass-123"); err != nil {
+		t.Fatal(err)
+	}
+	op := newClient(t, e)
+	if !op.login("op1", "operator-pass-123") {
+		t.Fatal("operator login")
+	}
+	if _, _, body := op.do("GET", "/agents", nil); strings.Contains(body, fmt.Sprintf(`action="/vmware/%d/certificate"`, id)) {
+		t.Error("an operator is offered to accept the new certificate")
+	}
+	if code, _, _ := op.do("POST", fmt.Sprintf("/vmware/%d/certificate", id), url.Values{"thumbprint": {real}}); code != http.StatusForbidden {
+		t.Errorf("operator accepted a certificate: %d, want 403", code)
+	}
 	if _, loc, _ := admin.do("POST", fmt.Sprintf("/vmware/%d/certificate", id), url.Values{"thumbprint": {"SHA256:" + strings.Repeat("B", 43)}}); !strings.Contains(loc, "err=") {
 		t.Errorf("other fingerprint accepted: %s", loc)
 	}

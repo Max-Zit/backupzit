@@ -498,7 +498,9 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /vmware/{id}/hotadd", s.ui(PermAgents, s.handleVMwareHotAdd))
 	mux.HandleFunc("POST /vmware/{id}/connection", s.ui(PermStorage, s.handleVMwareConnection))
 	mux.HandleFunc("POST /vmware/{id}/proxies", s.ui(PermStorage, s.handleVMwareProxies))
-	mux.HandleFunc("POST /vmware/{id}/certificate", s.ui(PermAgents, s.handleVMwareCertificate))
+	// Accepting a changed certificate decides where the vCenter/ESXi
+	// password goes next (U2): the storage permission's, like adding hosts.
+	mux.HandleFunc("POST /vmware/{id}/certificate", s.ui(PermStorage, s.handleVMwareCertificate))
 	mux.HandleFunc("POST /vmware/{id}/delete", s.ui(PermAgents, s.handleVMwareDelete))
 	mux.HandleFunc("GET /targets", s.ui(PermView, s.handleTargets))
 	mux.HandleFunc("POST /targets", s.ui(PermStorage, s.handleTargetCreate))
@@ -609,8 +611,11 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /settings/four-eyes", s.ui(PermSettings, s.handleSettingsFourEyes))
 	mux.HandleFunc("GET /approvals", s.ui(PermView, s.handleApprovals))
 	mux.HandleFunc("POST /approvals/{id}/{decision}", s.ui(PermView, s.handleApprovalDecision))
-	mux.HandleFunc("POST /recovery/token", s.ui(PermAgents, s.handleRecoveryToken))
-	mux.HandleFunc("POST /recovery/recovery.json", s.ui(PermAgents, s.handleRecoveryJSON))
+	// A recovery code enrolls an agent for 30 days, and an agent receives the
+	// storage credentials and recovery key of what it backs up or restores
+	// (U2): the same permission as adding agents (H-N2).
+	mux.HandleFunc("POST /recovery/token", s.ui(PermStorage, s.handleRecoveryToken))
+	mux.HandleFunc("POST /recovery/recovery.json", s.ui(PermStorage, s.handleRecoveryJSON))
 	mux.HandleFunc("POST /recovery/access-package", s.ui(PermStorage, s.handleAccessPackage))
 	mux.HandleFunc("POST /recovery/access-packages/forget", s.ui(PermStorage, s.handleAccessPackagesForget))
 
