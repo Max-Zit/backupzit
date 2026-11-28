@@ -109,14 +109,14 @@ func TestStore(t *testing.T) {
 
 	// Keep extends files that would expire within the period.
 	now = now.Add(3 * 24 * time.Hour)
-	if n, err := s.Keep([]string{"pc1/data/ab/abcd", "pc1/snapshots/s1"}); n != 2 || err != nil {
-		t.Errorf("keep: %d %v", n, err)
+	if n, missing, err := s.Keep([]string{"pc1/data/ab/abcd", "pc1/snapshots/s1"}); n != 2 || len(missing) != 0 || err != nil {
+		t.Errorf("keep: %d %v %v", n, missing, err)
 	}
-	if n, _ := s.Keep([]string{"pc1/data/ab/abcd"}); n != 0 {
+	if n, _, _ := s.Keep([]string{"pc1/data/ab/abcd"}); n != 0 {
 		t.Error("kept twice")
 	}
-	if _, err := s.Keep([]string{"pc1/missing"}); !errors.Is(err, ErrNotFound) {
-		t.Errorf("keep missing: %v", err)
+	if n, missing, err := s.Keep([]string{"pc1/missing"}); n != 0 || len(missing) != 1 || missing[0] != "pc1/missing" || err != nil {
+		t.Errorf("keep missing: %d %v %v", n, missing, err)
 	}
 
 	// After the retention ends, deleted files are removed for real.

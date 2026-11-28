@@ -44,7 +44,16 @@ type KeepRequest struct {
 
 type KeepResponse struct {
 	Extended int `json:"extended"`
+	// Missing counts the names asked for that are not on the repository;
+	// MissingNames are the first of them (0.63, L-24). Servers before 0.63
+	// answered 404 for the whole request instead and extended only the
+	// files before the missing one; clients before 0.63 ignore the fields.
+	Missing      int      `json:"missing,omitempty"`
+	MissingNames []string `json:"missing_names,omitempty"`
 }
+
+// maxMissingNames is how many missing names a keep answer lists.
+const maxMissingNames = 10
 
 // MaxFileSize bounds a single upload (packs are ~16-24 MiB).
 const MaxFileSize = 4 << 30
@@ -248,13 +257,20 @@ func (s *Server) handleKeep(w http.ResponseWriter, r *http.Request, k Key) {
 	if s.limited(w, r, k) {
 		return
 	}
-	n, err := s.Store.Keep(req.Names)
+	n, missing, err := s.Store.Keep(req.Names)
 	s.lim.count(k.Name, func(st *keyState) { st.keeps++; st.extended += int64(n) })
 	if err != nil {
 		s.fail(w, r, k, err)
 		return
 	}
-	writeJSON(w, KeepResponse{Extended: n})
+	resp := KeepResponse{Extended: n, Missing: len(missing)}
+	if len(missing) > 0 {
+		// Files a backup needs that are not here: worth a line in the log of
+		// the repository server too.
+		s.Log.Warn("keep: files asked for are not on the repository", "key", k.Name, "missing", len(missing), "first", missing[0])
+		resp.MissingNames = missing[:min(len(missing), maxMissingNames)]
+	}
+	writeJSON(w, resp)
 }
 
 func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {

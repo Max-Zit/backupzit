@@ -298,6 +298,10 @@ func (h *Hardened) KeepLocked(ctx context.Context, names []string) (int, error) 
 	// (the next run tries again); the other batches are extended anyway.
 	var failed, inARow int
 	var firstErr error
+	// Files that are not on the repository: since 0.63 the service extends
+	// the others of the batch and names these (L-24); an older service
+	// answers 404 for the whole batch, which counts as failed.
+	missing, firstMissing := 0, ""
 	for len(names) > 0 {
 		batch := names[:min(len(names), 2000)]
 		names = names[len(batch):]
@@ -307,7 +311,9 @@ func (h *Hardened) KeepLocked(ctx context.Context, names []string) (int, error) 
 		}
 		body, _ := json.Marshal(map[string][]string{"names": full})
 		var kr struct {
-			Extended int `json:"extended"`
+			Extended     int      `json:"extended"`
+			Missing      int      `json:"missing"`
+			MissingNames []string `json:"missing_names"`
 		}
 		err := retryS3(ctx, func() error {
 			resp, err := h.do(ctx, http.MethodPost, "keep", body, map[string]string{"Content-Type": "application/json"})
@@ -336,9 +342,23 @@ func (h *Hardened) KeepLocked(ctx context.Context, names []string) (int, error) 
 		}
 		inARow = 0
 		total += kr.Extended
+		if kr.Missing > 0 {
+			missing += kr.Missing
+			if firstMissing == "" && len(kr.MissingNames) > 0 {
+				firstMissing = strings.TrimPrefix(kr.MissingNames[0], h.prefix+"/")
+			}
+		}
 	}
+	var errs []error
 	if failed > 0 {
-		return total, fmt.Errorf("the lock of %d of %d files could not be extended (they keep their current lock; the next run tries again): %w", failed, all, firstErr)
+		errs = append(errs, fmt.Errorf("the lock of %d of %d files could not be extended (they keep their current lock; the next run tries again): %w", failed, all, firstErr))
 	}
-	return total, nil
+	if missing > 0 {
+		what := ""
+		if firstMissing != "" {
+			what = " (first: " + firstMissing + ")"
+		}
+		errs = append(errs, fmt.Errorf("%d of %d files the backups need are not on the hardened repository%s; the locks of the others were extended", missing, all, what))
+	}
+	return total, errors.Join(errs...)
 }

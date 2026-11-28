@@ -335,16 +335,19 @@ func (s *Store) Remove(name string) error {
 // Keep makes sure the named files stay retained for at least the
 // immutability period from now. Extended files get 50% extra time so that
 // data shared by daily backups is not touched on every run. It returns the
-// number of extended files.
-func (s *Store) Keep(names []string) (int, error) {
+// number of extended files and the names that are not there. A missing
+// file does not end the call (L-24, 0.63): it used to, and the files after
+// it in the request (up to 2,000) kept their old retention.
+func (s *Store) Keep(names []string) (int, []string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.reloadLogLocked()
 	need := s.now().Add(s.period())
 	n := 0
+	var missing []string
 	for _, name := range names {
 		if !ValidName(name) {
-			return n, ErrInvalidName
+			return n, missing, ErrInvalidName
 		}
 		if isLockFile(name) || !s.visibleLocked(name, 0) {
 			continue
@@ -352,20 +355,21 @@ func (s *Store) Keep(names []string) (int, error) {
 		p := s.path(name)
 		fi, err := os.Lstat(p)
 		if errors.Is(err, fs.ErrNotExist) {
-			return n, fmt.Errorf("%s: %w", name, ErrNotFound)
+			missing = append(missing, name)
+			continue
 		}
 		if err != nil {
-			return n, err
+			return n, missing, err
 		}
 		if !fi.ModTime().Before(need) {
 			continue
 		}
 		if err := s.retainLocked(p, need.Add(s.period()/2)); err != nil {
-			return n, err
+			return n, missing, err
 		}
 		n++
 	}
-	return n, nil
+	return n, missing, nil
 }
 
 // Sweep removes hidden files whose retention ended and stale temporary
