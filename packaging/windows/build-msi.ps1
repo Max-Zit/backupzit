@@ -8,6 +8,10 @@
   maintenance-fee EULA):
     dotnet tool install --global wix --version 5.0.2
     wix extension add -g WixToolset.Util.wixext/5.0.2
+    wix extension add -g WixToolset.UI.wixext/5.0.2
+  The MSI carries WiX parts of both extensions (dialogs, utilca.dll); they
+  are listed in THIRD_PARTY_LICENSES.txt (tools/licenses), which needs an
+  update when the WiX version or the extensions used here change.
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Version,
