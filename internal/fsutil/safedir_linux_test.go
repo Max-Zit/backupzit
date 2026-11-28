@@ -1,10 +1,14 @@
 package fsutil
 
 import (
+	"encoding/binary"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"golang.org/x/sys/unix"
 )
 
 // A link of root in a folder others may write to (not sticky) is not
@@ -138,5 +142,67 @@ func TestLinkFromChecksTheFile(t *testing.T) {
 	}
 	if _, err := os.Lstat(filepath.Join(base, "third")); err == nil {
 		t.Fatal("third exists")
+	}
+}
+
+// aclXattr encodes POSIX ACL entries (tag, permissions, id) as the value of
+// system.posix_acl_access.
+func aclXattr(entries [][3]uint32) []byte {
+	b := binary.LittleEndian.AppendUint32(nil, 2) // POSIX_ACL_XATTR_VERSION
+	for _, e := range entries {
+		b = binary.LittleEndian.AppendUint16(b, uint16(e[0]))
+		b = binary.LittleEndian.AppendUint16(b, uint16(e[1]))
+		b = binary.LittleEndian.AppendUint32(b, e[2])
+	}
+	return b
+}
+
+// LOW 9 (0.63): a group-writable folder of root's group counted as
+// protected without a look at its ACL. With a named entry (user:bob:rwx)
+// the group bits are the ACL mask and bob may add, remove and rename
+// entries there, so a link in it is not trusted.
+func TestGroupWritableFolderWithACL(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Chmod(dir, 0o775); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	fd := int(f.Fd())
+	if hasAccessACL(fd) {
+		t.Fatal("a folder with a plain mode has an ACL")
+	}
+	const none = ^uint32(0) // ACL_UNDEFINED_ID
+	// user::rwx user:12345:rwx group::r-x mask::rwx other::r-x
+	acl := aclXattr([][3]uint32{{0x01, 7, none}, {0x02, 7, 12345}, {0x04, 5, none}, {0x10, 7, none}, {0x20, 5, none}})
+	if err := unix.Setxattr(dir, "system.posix_acl_access", acl, 0); err != nil {
+		if errors.Is(err, unix.EOPNOTSUPP) {
+			t.Skip("no POSIX ACLs on this file system")
+		}
+		t.Fatal(err)
+	}
+	if !hasAccessACL(fd) {
+		t.Fatal("the ACL is not seen")
+	}
+	if os.Geteuid() != 0 {
+		return // the folder must be root's group: the rest needs root
+	}
+	if err := os.Chown(dir, 0, 0); err != nil {
+		t.Fatal(err)
+	}
+	if parentProtected(fd) {
+		t.Error("a group-writable folder of root with a named ACL entry counts as protected")
+	}
+	if err := unix.Removexattr(dir, "system.posix_acl_access"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dir, 0o775); err != nil {
+		t.Fatal(err)
+	}
+	if !parentProtected(fd) {
+		t.Error("a group-writable folder of root's group without an ACL is no longer protected")
 	}
 }

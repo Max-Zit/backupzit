@@ -170,5 +170,18 @@ func parentProtected(dfd int) bool {
 	if st.Mode&unix.S_ISVTX != 0 {
 		return true // sticky: others may not remove or rename what is not theirs
 	}
-	return st.Mode&0o002 == 0 && (st.Mode&0o020 == 0 || st.Gid == 0)
+	// Writable for root's group counts as protected only without an access
+	// ACL: with one, the group bits are its mask, and a named entry such as
+	// user:bob:rwx (common on Samba shares) lets bob add, remove and rename
+	// entries there although the folder is root:root (LOW 9). Without
+	// group write the mask leaves no entry write access.
+	return st.Mode&0o002 == 0 && (st.Mode&0o020 == 0 || st.Gid == 0 && !hasAccessACL(dfd))
+}
+
+// hasAccessACL reports whether the folder dfd has a POSIX access ACL with
+// more than the entries its mode shows (Linux stores none for a plain
+// mode). A file system without ACLs has none.
+func hasAccessACL(dfd int) bool {
+	n, err := unix.Fgetxattr(dfd, "system.posix_acl_access", nil)
+	return err == nil && n > 0
 }
