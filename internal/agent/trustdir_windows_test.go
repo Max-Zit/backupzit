@@ -39,7 +39,7 @@ func junction(t *testing.T, link, target string) {
 	t.Helper()
 	// Junctions need no privilege: what any user can do before the agent
 	// is installed.
-	if out, err := exec.Command("cmd", "/c", "mklink", "/J", link, target).CombinedOutput(); err != nil { // #nosec G204 -- test paths
+	if out, err := exec.Command("cmd", "/c", "mklink", "/J", filepath.Clean(link), filepath.Clean(target)).CombinedOutput(); err != nil { // #nosec G204 -- test paths
 		t.Skipf("mklink /J: %v %s", err, out)
 	}
 }

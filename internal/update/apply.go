@@ -46,6 +46,9 @@ type Applier struct {
 	// OSFamily forces "apt" or "dnf"; Root prefixes system paths (tests).
 	OSFamily string
 	Root     string
+
+	// dir is Dir, opened by Apply; all access to Dir goes through it.
+	dir *os.Root
 }
 
 func runCmd(ctx context.Context, name string, args ...string) ([]byte, error) {
@@ -70,17 +73,27 @@ func (a *Applier) Apply(ctx context.Context) (*Result, error) {
 	if a.HealthWait == 0 {
 		a.HealthWait = 2 * time.Minute
 	}
-	reqPath := filepath.Join(a.Dir, "request.json")
+	// Everything in Dir goes through this handle (L-N23, see owndir.go).
+	dir, err := openOwnDir(a.Dir)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		a.logf("update folder refused: %v", err)
+		return nil, err
+	}
+	defer dir.Close()
+	a.dir = dir
 	var req Request
-	if err := ReadJSON(reqPath, &req); err != nil {
+	if err := readJSONIn(dir, "request.json", &req); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil
 		}
-		_ = os.Remove(reqPath)
+		_ = dir.Remove("request.json")
 		return a.finish(&Result{Status: "failed", From: a.CurrentVersion, Message: "invalid update request: " + err.Error()})
 	}
 	// The request is consumed in any case, so a bad one does not loop.
-	_ = os.Remove(reqPath)
+	_ = dir.Remove("request.json")
 	if req.Action == ActionNetwork || req.Action == ActionSSH || req.Action == ActionTimeZone {
 		return a.netAction(ctx, req)
 	}
@@ -114,7 +127,7 @@ func (a *Applier) Apply(ctx context.Context) (*Result, error) {
 	}
 	// Copy the package into root's directory, then verify the copy.
 	pkg := filepath.Join(a.Work, f.Name)
-	if err := copyRegular(filepath.Join(a.Dir, f.Name), pkg); err != nil {
+	if err := copyRegularIn(a.dir, f.Name, pkg); err != nil {
 		res.Status, res.Message = "failed", "read the package: "+err.Error()
 		return a.finish(res)
 	}
@@ -123,7 +136,7 @@ func (a *Applier) Apply(ctx context.Context) (*Result, error) {
 		res.Status, res.Message = "failed", err.Error()
 		return a.finish(res)
 	}
-	_ = os.Remove(filepath.Join(a.Dir, f.Name))
+	_ = a.dir.Remove(f.Name)
 
 	conn, removePass, err := pgConnection(a.DBURL, a.Work)
 	if err != nil {
@@ -192,7 +205,7 @@ func (a *Applier) finish(res *Result) (*Result, error) {
 		res.Version = "?"
 	}
 	a.logf("update %s: %s", res.Status, res.Message)
-	return res, WriteJSON(filepath.Join(a.Dir, "result.json"), res, 0o644)
+	return res, writeJSONIn(a.dir, "result.json", res, 0o644)
 }
 
 // healthy waits until the console answers its sign-in page.
@@ -306,8 +319,13 @@ func copyRegular(src, dst string) error {
 		return err
 	}
 	defer in.Close()
-	// The file opened must be the one checked above: not swapped for a
-	// link or a device in between (A17).
+	return copyOpened(in, fi, src, dst)
+}
+
+// copyOpened copies the opened file in, checked as fi, to dst.
+func copyOpened(in *os.File, fi os.FileInfo, src, dst string) error {
+	// The file opened must be the one checked: not swapped for a link or a
+	// device in between (A17).
 	opened, err := in.Stat()
 	if err != nil {
 		return err

@@ -3,7 +3,6 @@ package update
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"time"
 
 	"github.com/max-zit/backupzit/internal/netcfg"
@@ -56,7 +55,7 @@ func (a *Applier) netAction(ctx context.Context, req Request) (*Result, error) {
 	}
 	res.Finished = time.Now().UTC()
 	a.logf("%s: %s %s", req.Action, res.Status, res.Message)
-	if err := WriteJSON(filepath.Join(a.Dir, "net-result.json"), res, 0o644); err != nil {
+	if err := writeJSONIn(a.dir, "net-result.json", res, 0o644); err != nil {
 		return nil, err
 	}
 	if req.Action == ActionTimeZone && res.Status == "done" {

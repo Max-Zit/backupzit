@@ -108,13 +108,13 @@ func (a *Applier) osAction(ctx context.Context, req Request) (*Result, error) {
 	}
 	res.Finished = time.Now().UTC()
 	a.logf("%s: %s %s", req.Action, res.Status, res.Message)
-	_ = WriteJSON(filepath.Join(a.Dir, "os-status.json"), st, 0o644)
-	werr := WriteJSON(filepath.Join(a.Dir, "os-result.json"), res, 0o644)
+	_ = writeJSONIn(a.dir, "os-status.json", st, 0o644)
+	werr := writeJSONIn(a.dir, "os-result.json", res, 0o644)
 	if req.Action == ActionReboot && res.Status == "done" {
 		_, err := a.Run(ctx, "systemctl", "reboot")
 		if err != nil {
 			res.Status, res.Message = "failed", err.Error()
-			_ = WriteJSON(filepath.Join(a.Dir, "os-result.json"), res, 0o644)
+			_ = writeJSONIn(a.dir, "os-result.json", res, 0o644)
 		}
 	}
 	return nil, werr
