@@ -88,6 +88,10 @@ type wizard struct {
 	verify     *walk.CheckBox
 	keepOff    *walk.CheckBox
 	sameDiskHt *walk.TextLabel
+	// sourceHereHt warns when the backed up disk is in this computer next
+	// to the target; sourceDisk is its number, -1 when it is not.
+	sourceHereHt *walk.TextLabel
+	sourceDisk   int
 
 	// Summary and progress.
 	summary *walk.TextEdit
@@ -115,7 +119,7 @@ type sourceItem struct {
 var wizardOpened func(*wizard)
 
 func runRestoreWizard(owner walk.Form) {
-	w := &wizard{}
+	w := &wizard{sourceDisk: -1}
 	// On a small screen each page scrolls in its own view (see compact).
 	views := make([]*walk.ScrollView, len(pageTitles))
 	nPage := 0
@@ -210,11 +214,15 @@ func runRestoreWizard(owner walk.Form) {
 							dcl.HSpacer{},
 						}},
 						dcl.CustomWidget{AssignTo: &w.view, MinSize: dcl.Size{Height: 130}, Paint: w.paintLayout, ClearsBackground: true, InvalidatesOnResize: true},
+						// Both scroll bars stay allowed (see scrolling): a view that
+						// scrolls only up and down is no wider than its rows at their
+						// narrowest, so the hint column wrapped at its minimum and the
+						// vertical scroll bar then covered its right edge (#61, at
+						// 1280x800). Now the rows take the page width.
 						dcl.ScrollView{
-							Background:      solid(colCard),
-							Layout:          dcl.VBox{MarginsZero: true},
-							HorizontalFixed: true,
-							MinSize:         dcl.Size{Height: 200},
+							Background: solid(colCard),
+							Layout:     dcl.VBox{MarginsZero: true},
+							MinSize:    dcl.Size{Height: 200},
 							Children: []dcl.Widget{
 								dcl.Composite{AssignTo: &w.rows, Layout: dcl.VBox{MarginsZero: true, Spacing: 2}},
 								dcl.VSpacer{},
@@ -242,6 +250,9 @@ func runRestoreWizard(owner walk.Form) {
 						dcl.TextLabel{AssignTo: &w.sameDiskHt, TextColor: colWarn, Visible: false, MinSize: dcl.Size{Width: wrapWidth},
 							Text: t("Die Zieldisk sieht aus wie die gesicherte Disk. Prüfen Sie das Backup vorher: ist es beschädigt, wäre sonst beides verloren.",
 								"The target disk looks like the backed up disk. Check the backup first: if it is damaged, both would be lost.")},
+						// The backed up disk is in this computer next to the target
+						// (its text names the disk; see sourceDiskText).
+						dcl.TextLabel{AssignTo: &w.sourceHereHt, TextColor: colWarn, Visible: false, MinSize: dcl.Size{Width: wrapWidth}},
 						dcl.CheckBox{Alignment: dcl.AlignHNearVCenter, AssignTo: &w.keepOff, Text: t("Zieldisk danach offline lassen (wenn die alte Disk noch im Rechner steckt)", "Leave the target disk offline (when the old disk is still in the computer)")},
 						dcl.VSpacer{},
 					),
@@ -252,10 +263,13 @@ func runRestoreWizard(owner walk.Form) {
 						dcl.LineEdit{AssignTo: &w.confirm, MaxSize: dcl.Size{Width: 80}},
 					),
 					page(&pProgress,
+						// The percentage keeps room for "100 %" and the phase line
+						// gives way with "…" when both do not fit: the percentage was
+						// cut to "100" (#61).
 						dcl.Composite{Layout: dcl.HBox{MarginsZero: true}, Children: []dcl.Widget{
-							dcl.Label{AssignTo: &w.phase, Font: dcl.Font{Family: uiFamily, PointSize: 13, Bold: true}, TextColor: colText},
+							dcl.Label{AssignTo: &w.phase, Font: dcl.Font{Family: uiFamily, PointSize: 13, Bold: true}, TextColor: colText, EllipsisMode: dcl.EllipsisEnd},
 							dcl.HSpacer{},
-							dcl.Label{AssignTo: &w.percent, Font: dcl.Font{Family: uiFamily, PointSize: 20, Bold: true}, TextColor: colAccent},
+							dcl.Label{AssignTo: &w.percent, Font: dcl.Font{Family: uiFamily, PointSize: 20, Bold: true}, TextColor: colAccent, TextAlignment: dcl.AlignFar, MinSize: dcl.Size{Width: 110}},
 						}},
 						dcl.ProgressBar{AssignTo: &w.progress, MinValue: 0, MaxValue: 1000, MinSize: dcl.Size{Height: 22}},
 						section(t("Protokoll", "Log")),
@@ -672,7 +686,7 @@ func (w *wizard) loadDisks() {
 	w.protected = recovery.ProtectedDisks(disks, w.protectPaths)
 	var labels []string
 	for _, d := range disks {
-		l := fmt.Sprintf("Disk %d   %s   %s   %s", d.Number, strings.TrimSpace(d.Model), humanBytes(d.Size), strings.ToUpper(d.Style))
+		l := fmt.Sprintf("Disk %d   %s   %s   %s", d.Number, strings.TrimSpace(d.Model), humanBytes(d.Size), diskStyleText(d.Style))
 		if d.Bus != "" {
 			l += "   " + strings.ToUpper(d.Bus)
 		}
@@ -808,7 +822,7 @@ func (w *wizard) makeLayout(mode imaging.LayoutMode) {
 	l, err := imaging.SuggestLayout(img, d.Size, w.limits, opts)
 	if err != nil {
 		w.layout = nil
-		_ = w.layoutErr.SetText(err.Error())
+		_ = w.layoutErr.SetText(layoutErrText(err))
 		_ = w.view.Invalidate()
 		return
 	}
@@ -854,7 +868,7 @@ func (w *wizard) buildRows() {
 			case !lim.Resizable:
 				info = t("nur verschiebbar: ", "can only be moved: ") + reasonText(lim, imaging.Partition{GPTType: src.GPTType, MBRType: src.MBRType}.Kind())
 			default:
-				info = tf("belegt %s, mindestens %s", "used %s, at least %s", humanBytes(lim.UsedBytes), humanBytes(lim.Min(src)))
+				info = limitsInfo(lim, src)
 			}
 		}
 		var cb *walk.CheckBox
@@ -964,10 +978,18 @@ func (w *wizard) singleSizeChanged() {
 	if !w.single() {
 		return
 	}
-	_ = w.layoutErr.SetText("")
+	msg := ""
 	if err := w.checkSingle(); err != nil {
-		_ = w.layoutErr.SetText(err.Error())
+		msg = err.Error()
+	} else if lim := w.limits[w.singleSource]; lim.Reason != "" {
+		// Why the minimum above is that large (#61).
+		for _, p := range w.img().Partitions {
+			if p.Number == w.singleSource {
+				msg = heldText(p.Number, lim, imaging.Partition{GPTType: p.GPTType, MBRType: p.MBRType}.Kind())
+			}
+		}
 	}
+	_ = w.layoutErr.SetText(msg)
 	_ = w.view.Invalidate()
 }
 
@@ -992,7 +1014,7 @@ func (w *wizard) validate() {
 	_ = w.layoutErr.SetText("")
 	if w.layout != nil {
 		if err := w.layout.Validate(w.img(), w.limits); err != nil {
-			_ = w.layoutErr.SetText(err.Error())
+			_ = w.layoutErr.SetText(layoutErrText(err))
 		}
 	}
 	_ = w.view.Invalidate()
@@ -1008,7 +1030,7 @@ func (w *wizard) checkLayout() error {
 			return errors.New(w.layoutErr.Text())
 		}
 		if err := w.layout.Validate(w.img(), w.limits); err != nil {
-			return err
+			return errors.New(layoutErrText(err))
 		}
 	}
 	same := !w.single() && recovery.SameDiskAsSource(w.img(), *w.target())
@@ -1016,6 +1038,14 @@ func (w *wizard) checkLayout() error {
 	if same {
 		w.verify.SetChecked(true)
 	}
+	// Restoring next to the backed up disk: say before the restore that
+	// Windows keeps the copy offline while both are in (#61).
+	w.sourceDisk = -1
+	if n, ok := w.job().SourceDiskPresent(w.disks); ok {
+		w.sourceDisk = n
+		_ = w.sourceHereHt.SetText(sourceDiskText(n))
+	}
+	w.sourceHereHt.SetVisible(w.sourceDisk >= 0)
 	return nil
 }
 
@@ -1112,6 +1142,9 @@ func (w *wizard) checkOptions() error {
 	if j.Verify {
 		b.WriteString(t("Backup vorher prüfen: ja\r\n", "Check the backup first: yes\r\n"))
 	}
+	if w.sourceDisk >= 0 && !j.KeepOffline {
+		b.WriteString("\r\n" + sourceDiskText(w.sourceDisk) + "\r\n")
+	}
 	_ = w.summary.SetText(b.String())
 	_ = w.confirm.SetText("")
 	return nil
@@ -1148,7 +1181,7 @@ func (w *wizard) start() error {
 			}
 			if total > 0 {
 				w.progress.SetValue(int(done * 1000 / total)) // #nosec G115 -- done <= total, so at most 1000
-				_ = w.percent.SetText(fmt.Sprintf("%d %%", done*100/total))
+				_ = w.percent.SetText(percentText(done, total))
 				rate := float64(done) / max(time.Since(started).Seconds(), 1)
 				rest := time.Duration(float64(total-done)/max(rate, 1)) * time.Second
 				name += tf(" – %s von %s, %s/s, noch etwa %s", " – %s of %s, %s/s, about %s left", humanBytes(done), humanBytes(total), humanBytes(uint64(rate)), rest.Round(time.Minute))
@@ -1173,9 +1206,13 @@ func (w *wizard) start() error {
 			}
 			msg := t("Fertig. Die Wiederherstellung ist abgeschlossen.", "Done. The restore has finished.")
 			if len(res.Warnings) > 0 {
-				msg += "\r\n\r\n" + t("Hinweise:", "Notes:") + "\r\n- " + strings.Join(res.Warnings, "\r\n- ")
+				notes := make([]string, len(res.Warnings))
+				for i, s := range res.Warnings {
+					notes[i] = warningText(s)
+				}
+				msg += "\r\n\r\n" + t("Hinweise:", "Notes:") + "\r\n- " + strings.Join(notes, "\r\n- ")
 			}
-			_ = w.percent.SetText("100 %")
+			_ = w.percent.SetText(percentText(1, 1))
 			w.phase.SetTextColor(colOK)
 			_ = w.phase.SetText(t("Fertig", "Done"))
 			walk.MsgBox(w.dlg, "BackupZit", msg, walk.MsgBoxIconInformation)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/max-zit/backupzit/internal/imaging"
+	"github.com/max-zit/backupzit/internal/recovery"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // languages are the languages of the program: the 14 of the console
@@ -124,8 +127,107 @@ func reasonText(lim imaging.PartitionLimits, kind string) string {
 		return t("verschlüsselt (BitLocker) oder nicht als NTFS lesbar", "encrypted (BitLocker) or not readable as NTFS")
 	case imaging.ReasonError:
 		return t("nicht lesbar: ", "not readable: ") + lim.Reason
+	case imaging.ReasonNoShrink:
+		// The file system check's explanation stays as it is (English), as
+		// for a read error: it names the cause and what to do.
+		return t("nicht verkleinerbar: ", "cannot be shrunk: ") + strings.TrimPrefix(lim.Reason, imaging.NoShrinkPrefix)
 	}
 	return lim.Reason
+}
+
+// limitsInfo is the hint of a resizable partition p on the layout page: the
+// space in use and the minimum, and why the minimum is that large when it
+// is held up, e.g. by a copy that was not shut down cleanly (#61).
+func limitsInfo(lim imaging.PartitionLimits, p *repo.PartitionImage) string {
+	s := tf("belegt %s, mindestens %s", "used %s, at least %s", humanBytes(lim.UsedBytes), humanBytes(lim.Min(p)))
+	if lim.Reason != "" {
+		s += " – " + reasonText(lim, "")
+	}
+	return s
+}
+
+// heldText says why partition n keeps its size; kind is its type
+// (imaging.Partition.Kind).
+func heldText(n int, lim imaging.PartitionLimits, kind string) string {
+	return tf("Partition %d: %s", "Partition %d: %s", n, reasonText(lim, kind))
+}
+
+// sizePair formats two sizes that are compared in one message; when they
+// round to the same text, both are given in bytes.
+func sizePair(a, b uint64) (string, string) {
+	if x, y := humanBytes(a), humanBytes(b); x != y {
+		return x, y
+	}
+	return fmt.Sprintf("%d B", a), fmt.Sprintf("%d B", b)
+}
+
+// layoutErrText shows an error of the layout planner in the current
+// language: the "too small" errors with the reasons that hold partitions
+// up (#61); other errors as they are.
+func layoutErrText(err error) string {
+	var ts *imaging.TooSmallError
+	if errors.As(err, &ts) {
+		disk, need := sizePair(ts.DiskSize, ts.Needed)
+		s := tf("Die Zieldisk ist zu klein: %s, die Partitionen brauchen mindestens %s.", "The target disk is too small: %s, the partitions need at least %s.", disk, need)
+		for _, h := range ts.Held {
+			s += "\r\n" + heldText(h.Partition, h.Limits, "")
+		}
+		return s
+	}
+	var ms *imaging.MinSizeError
+	if errors.As(err, &ms) {
+		need, got := sizePair(ms.Min, ms.Length)
+		s := tf("Partition %d braucht mindestens %s, das Layout gibt ihr %s.", "Partition %d needs at least %s, the layout gives it %s.", ms.Partition, need, got)
+		if ms.Limits.Reason != "" {
+			s += "\r\n" + heldText(ms.Partition, ms.Limits, "")
+		}
+		return s
+	}
+	return err.Error()
+}
+
+// warningText shows a warning of a restore (English, from the restore
+// functions) in the current language when the program knows it; other
+// warnings stay as they are.
+func warningText(s string) string {
+	if s == recovery.WarnShrunk {
+		return t("Partitionen wurden verkleinert wiederhergestellt: Windows prüft ihre Dateisysteme (chkdsk) einmal beim nächsten Start",
+			"partitions were restored smaller: Windows checks their file systems (chkdsk) once at the next start")
+	}
+	var part, disk int
+	if _, err := fmt.Sscanf(s, imaging.SameIDOfflineWarning, &part, &disk); err == nil && fmt.Sprintf(imaging.SameIDOfflineWarning, part, disk) == s {
+		return tf("Partition %d: nicht erweitert, weil Disk %d in diesem Computer dieselben Disk- und Partitions-IDs hat (die gesicherte Disk); Windows lässt diese Kopie deshalb offline. Die alte Disk entfernen und danach das Dateisystem in der Datenträgerverwaltung erweitern, sobald diese Disk online ist",
+			"partition %d: not extended, because disk %d in this computer has the same disk and partition IDs (the backed up disk), so Windows keeps this copy offline; remove the old disk, then extend the file system in Disk Management once this disk is online", part, disk)
+	}
+	return s
+}
+
+// sourceDiskText warns before a whole-disk restore while disk n, which has
+// the disk ID the restored disk gets (usually the backed up disk), is in
+// this computer: Windows keeps the copy offline then (#61).
+func sourceDiskText(n int) string {
+	return tf("Disk %d in diesem Computer hat dieselbe Disk-ID wie die gesicherte Disk (wahrscheinlich ist sie es). Solange beide Disks im Computer sind, lässt Windows die wiederhergestellte Disk offline: Größere Partitionen werden nicht erweitert, Bootdateien und Treiber für neue Hardware nicht geschrieben. „Zieldisk danach offline lassen“ ankreuzen, nach der Wiederherstellung die alte Disk entfernen und dann das Dateisystem in der Datenträgerverwaltung erweitern oder „Boot reparieren“ ausführen.",
+		"Disk %d in this computer has the same disk ID as the backed up disk (it probably is that disk). While both disks are in the computer, Windows keeps the restored disk offline: larger partitions are not extended, and boot files and drivers for new hardware are not written. Tick “Leave the target disk offline”, remove the old disk after the restore, then extend the file system in Disk Management or run “Repair boot”.", n)
+}
+
+// diskStyleText is the partition table of a listed disk; a disk without one
+// (never initialized) says so, where Windows itself would call it MBR.
+func diskStyleText(style string) string {
+	if style == imaging.StyleRaw {
+		return t("nicht initialisiert", "not initialized")
+	}
+	return strings.ToUpper(style)
+}
+
+// percentText is the percentage on the progress page. A no-break space
+// keeps "%" with the number: the label wraps at a space and showed only
+// "100" when it was a little too narrow (#61).
+func percentText(done, total uint64) string {
+	p := uint64(100)
+	if total > 0 {
+		p = min(done*100/total, 100)
+	}
+	return fmt.Sprintf("%d\u00a0%%", p)
 }
 
 // span is a partition on disk in bytes.
@@ -209,7 +311,7 @@ func logText(s string) string {
 		return t("Neue Hardware: ", "new hardware: ") + logText(rest)
 	}
 	if rest, ok := strings.CutPrefix(s, "warning: "); ok {
-		return t("Hinweis: ", "warning: ") + rest
+		return t("Hinweis: ", "warning: ") + warningText(rest)
 	}
 	switch s {
 	case "verifying the snapshot":
@@ -471,6 +573,16 @@ var translations = map[string]map[string]string{
 		"Log":                                    "Protokol",
 		"Current state (ipconfig)":               "Aktuální stav (ipconfig)",
 		"Set the address of the network adapter": "Nastavit adresu síťového adaptéru",
+
+		// 0.63: restore findings of #61.
+		"cannot be shrunk: ": "nelze zmenšit: ",
+		"Partition %d: %s":   "Oddíl %d: %s",
+		"The target disk is too small: %s, the partitions need at least %s.":                                  "Cílový disk je příliš malý: %s, oddíly potřebují nejméně %s.",
+		"Partition %d needs at least %s, the layout gives it %s.":                                             "Oddíl %d potřebuje nejméně %s, rozvržení mu dává %s.",
+		"partitions were restored smaller: Windows checks their file systems (chkdsk) once at the next start": "oddíly byly obnoveny menší: Windows při příštím spuštění jednou zkontroluje jejich systémy souborů (chkdsk)",
+		"partition %d: not extended, because disk %d in this computer has the same disk and partition IDs (the backed up disk), so Windows keeps this copy offline; remove the old disk, then extend the file system in Disk Management once this disk is online":                                                                                                                                                                           "oddíl %d: nerozšířen, protože disk %d v tomto počítači má stejná ID disku a oddílů (disk ze zálohy), a Windows proto nechává tuto kopii offline; odeberte starý disk a pak rozšiřte systém souborů ve Správě disků, jakmile bude tento disk online",
+		"Disk %d in this computer has the same disk ID as the backed up disk (it probably is that disk). While both disks are in the computer, Windows keeps the restored disk offline: larger partitions are not extended, and boot files and drivers for new hardware are not written. Tick “Leave the target disk offline”, remove the old disk after the restore, then extend the file system in Disk Management or run “Repair boot”.": "Disk %d v tomto počítači má stejné ID disku jako disk ze zálohy (pravděpodobně je to on). Dokud jsou v počítači oba disky, Windows nechává obnovený disk offline: větší oddíly se nerozšíří a spouštěcí soubory ani ovladače pro nový hardware se nezapíší. Zaškrtněte „Ponechat cílový disk poté offline“, po obnově odeberte starý disk a pak rozšiřte systém souborů ve Správě disků nebo použijte „Opravit spouštění“.",
+		"not initialized": "neinicializován",
 	},
 	"es": { // #nosec G101 -- interface texts; "password" and "key" in them are field labels
 		"Choose what you want to do.": "Elija lo que desea hacer.",
@@ -675,6 +787,16 @@ var translations = map[string]map[string]string{
 		"Log":                                    "Registro",
 		"Current state (ipconfig)":               "Estado actual (ipconfig)",
 		"Set the address of the network adapter": "Configurar la dirección del adaptador de red",
+
+		// 0.63: restore findings of #61.
+		"cannot be shrunk: ": "no se puede reducir: ",
+		"Partition %d: %s":   "Partición %d: %s",
+		"The target disk is too small: %s, the partitions need at least %s.":                                  "El disco de destino es demasiado pequeño: %s; las particiones necesitan al menos %s.",
+		"Partition %d needs at least %s, the layout gives it %s.":                                             "La partición %d necesita al menos %s; la distribución le da %s.",
+		"partitions were restored smaller: Windows checks their file systems (chkdsk) once at the next start": "las particiones se restauraron más pequeñas: Windows comprueba sus sistemas de archivos (chkdsk) una vez en el próximo inicio",
+		"partition %d: not extended, because disk %d in this computer has the same disk and partition IDs (the backed up disk), so Windows keeps this copy offline; remove the old disk, then extend the file system in Disk Management once this disk is online":                                                                                                                                                                           "partición %d: no se amplió, porque el disco %d de este equipo tiene los mismos ID de disco y de partición (el disco respaldado), así que Windows deja esta copia sin conexión; quite el disco antiguo y luego amplíe el sistema de archivos en Administración de discos cuando este disco esté en línea",
+		"Disk %d in this computer has the same disk ID as the backed up disk (it probably is that disk). While both disks are in the computer, Windows keeps the restored disk offline: larger partitions are not extended, and boot files and drivers for new hardware are not written. Tick “Leave the target disk offline”, remove the old disk after the restore, then extend the file system in Disk Management or run “Repair boot”.": "El disco %d de este equipo tiene el mismo ID de disco que el disco respaldado (probablemente sea ese disco). Mientras ambos discos estén en el equipo, Windows deja el disco restaurado sin conexión: las particiones más grandes no se amplían y no se escriben archivos de arranque ni controladores para hardware nuevo. Marque “Dejar el disco de destino sin conexión”, quite el disco antiguo después de la restauración y luego amplíe el sistema de archivos en Administración de discos o use “Reparar el arranque”.",
+		"not initialized": "sin inicializar",
 	},
 	"fr": { // #nosec G101 -- interface texts; "password" and "key" in them are field labels
 		"Choose what you want to do.": "Choisissez ce que vous voulez faire.",
@@ -879,6 +1001,16 @@ var translations = map[string]map[string]string{
 		"Log":                                    "Journal",
 		"Current state (ipconfig)":               "État actuel (ipconfig)",
 		"Set the address of the network adapter": "Définir l’adresse de la carte réseau",
+
+		// 0.63: restore findings of #61.
+		"cannot be shrunk: ": "impossible à réduire : ",
+		"Partition %d: %s":   "Partition %d : %s",
+		"The target disk is too small: %s, the partitions need at least %s.":                                  "Le disque cible est trop petit : %s, les partitions ont besoin d’au moins %s.",
+		"Partition %d needs at least %s, the layout gives it %s.":                                             "La partition %d a besoin d’au moins %s, la disposition lui donne %s.",
+		"partitions were restored smaller: Windows checks their file systems (chkdsk) once at the next start": "des partitions ont été restaurées plus petites : Windows vérifie leurs systèmes de fichiers (chkdsk) une fois au prochain démarrage",
+		"partition %d: not extended, because disk %d in this computer has the same disk and partition IDs (the backed up disk), so Windows keeps this copy offline; remove the old disk, then extend the file system in Disk Management once this disk is online":                                                                                                                                                                           "partition %d : non étendue, car le disque %d de cet ordinateur a les mêmes ID de disque et de partition (le disque sauvegardé), et Windows laisse donc cette copie hors ligne ; retirez l’ancien disque, puis étendez le système de fichiers dans Gestion des disques une fois ce disque en ligne",
+		"Disk %d in this computer has the same disk ID as the backed up disk (it probably is that disk). While both disks are in the computer, Windows keeps the restored disk offline: larger partitions are not extended, and boot files and drivers for new hardware are not written. Tick “Leave the target disk offline”, remove the old disk after the restore, then extend the file system in Disk Management or run “Repair boot”.": "Le disque %d de cet ordinateur a le même ID de disque que le disque sauvegardé (c’est probablement lui). Tant que les deux disques sont dans l’ordinateur, Windows laisse le disque restauré hors ligne : les partitions agrandies ne sont pas étendues, et ni les fichiers de démarrage ni les pilotes pour un nouveau matériel ne sont écrits. Cochez « Laisser le disque cible hors ligne », retirez l’ancien disque après la restauration, puis étendez le système de fichiers dans Gestion des disques ou utilisez « Réparer le démarrage ».",
+		"not initialized": "non initialisé",
 	},
 	"it": { // #nosec G101 -- interface texts; "password" and "key" in them are field labels
 		"Choose what you want to do.": "Scegli cosa vuoi fare.",
@@ -1083,6 +1215,16 @@ var translations = map[string]map[string]string{
 		"Log":                                    "Registro",
 		"Current state (ipconfig)":               "Stato attuale (ipconfig)",
 		"Set the address of the network adapter": "Imposta l'indirizzo della scheda di rete",
+
+		// 0.63: restore findings of #61.
+		"cannot be shrunk: ": "non riducibile: ",
+		"Partition %d: %s":   "Partizione %d: %s",
+		"The target disk is too small: %s, the partitions need at least %s.":                                  "Il disco di destinazione è troppo piccolo: %s, le partizioni richiedono almeno %s.",
+		"Partition %d needs at least %s, the layout gives it %s.":                                             "La partizione %d richiede almeno %s, il layout le assegna %s.",
+		"partitions were restored smaller: Windows checks their file systems (chkdsk) once at the next start": "le partizioni sono state ripristinate più piccole: Windows controlla i loro file system (chkdsk) una volta al prossimo avvio",
+		"partition %d: not extended, because disk %d in this computer has the same disk and partition IDs (the backed up disk), so Windows keeps this copy offline; remove the old disk, then extend the file system in Disk Management once this disk is online":                                                                                                                                                                           "partizione %d: non estesa, perché il disco %d di questo computer ha gli stessi ID di disco e di partizione (il disco salvato), quindi Windows lascia offline questa copia; rimuovi il vecchio disco, poi estendi il file system in Gestione disco quando questo disco è online",
+		"Disk %d in this computer has the same disk ID as the backed up disk (it probably is that disk). While both disks are in the computer, Windows keeps the restored disk offline: larger partitions are not extended, and boot files and drivers for new hardware are not written. Tick “Leave the target disk offline”, remove the old disk after the restore, then extend the file system in Disk Management or run “Repair boot”.": "Il disco %d di questo computer ha lo stesso ID disco del disco salvato (probabilmente è proprio quello). Finché entrambi i dischi sono nel computer, Windows lascia offline il disco ripristinato: le partizioni più grandi non vengono estese e non vengono scritti né i file di avvio né i driver per il nuovo hardware. Seleziona “Lascia offline il disco di destinazione”, dopo il ripristino rimuovi il vecchio disco, poi estendi il file system in Gestione disco o usa “Ripara l'avvio”.",
+		"not initialized": "non inizializzato",
 	},
 	"ja": { // #nosec G101 -- interface texts; "password" and "key" in them are field labels
 		"Choose what you want to do.": "実行する操作を選択してください。",
@@ -1287,6 +1429,16 @@ var translations = map[string]map[string]string{
 		"Log":                                    "ログ",
 		"Current state (ipconfig)":               "現在の状態 (ipconfig)",
 		"Set the address of the network adapter": "ネットワークアダプターのアドレスを設定",
+
+		// 0.63: restore findings of #61.
+		"cannot be shrunk: ": "縮小できません: ",
+		"Partition %d: %s":   "パーティション %d: %s",
+		"The target disk is too small: %s, the partitions need at least %s.":                                  "復元先ディスクが小さすぎます: %s。パーティションには少なくとも %s が必要です。",
+		"Partition %d needs at least %s, the layout gives it %s.":                                             "パーティション %d には少なくとも %s が必要ですが、レイアウトでは %s です。",
+		"partitions were restored smaller: Windows checks their file systems (chkdsk) once at the next start": "パーティションを縮小して復元しました: 次回の起動時に Windows がファイルシステムを一度チェックします (chkdsk)",
+		"partition %d: not extended, because disk %d in this computer has the same disk and partition IDs (the backed up disk), so Windows keeps this copy offline; remove the old disk, then extend the file system in Disk Management once this disk is online":                                                                                                                                                                           "パーティション %d: 拡張されませんでした。このコンピューターのディスク %d が同じディスク ID とパーティション ID を持っている (バックアップされたディスク) ため、Windows はこのコピーをオフラインのままにします。古いディスクを取り外し、このディスクがオンラインになったら [ディスクの管理] でファイルシステムを拡張してください",
+		"Disk %d in this computer has the same disk ID as the backed up disk (it probably is that disk). While both disks are in the computer, Windows keeps the restored disk offline: larger partitions are not extended, and boot files and drivers for new hardware are not written. Tick “Leave the target disk offline”, remove the old disk after the restore, then extend the file system in Disk Management or run “Repair boot”.": "このコンピューターのディスク %d は、バックアップされたディスクと同じディスク ID を持っています (おそらくそのディスクです)。両方のディスクがコンピューターにある間、Windows は復元したディスクをオフラインのままにします。大きくなったパーティションは拡張されず、ブートファイルや新しいハードウェア用のドライバーも書き込まれません。「復元先ディスクをオフラインのままにする」をオンにし、復元後に古いディスクを取り外してから、[ディスクの管理] でファイルシステムを拡張するか、「起動の修復」を使ってください。",
+		"not initialized": "未初期化",
 	},
 	"nl": { // #nosec G101 -- interface texts; "password" and "key" in them are field labels
 		"Choose what you want to do.": "Kies wat u wilt doen.",
@@ -1491,6 +1643,16 @@ var translations = map[string]map[string]string{
 		"Log":                                    "Logboek",
 		"Current state (ipconfig)":               "Huidige status (ipconfig)",
 		"Set the address of the network adapter": "Het adres van de netwerkadapter instellen",
+
+		// 0.63: restore findings of #61.
+		"cannot be shrunk: ": "niet te verkleinen: ",
+		"Partition %d: %s":   "Partitie %d: %s",
+		"The target disk is too small: %s, the partitions need at least %s.":                                  "De doelschijf is te klein: %s, de partities hebben minstens %s nodig.",
+		"Partition %d needs at least %s, the layout gives it %s.":                                             "Partitie %d heeft minstens %s nodig, de indeling geeft haar %s.",
+		"partitions were restored smaller: Windows checks their file systems (chkdsk) once at the next start": "partities zijn kleiner hersteld: Windows controleert hun bestandssystemen (chkdsk) één keer bij de volgende start",
+		"partition %d: not extended, because disk %d in this computer has the same disk and partition IDs (the backed up disk), so Windows keeps this copy offline; remove the old disk, then extend the file system in Disk Management once this disk is online":                                                                                                                                                                           "partitie %d: niet vergroot, omdat schijf %d in deze computer dezelfde schijf- en partitie-ID's heeft (de schijf van de back-up), waardoor Windows deze kopie offline houdt; verwijder de oude schijf en vergroot daarna het bestandssysteem in Schijfbeheer zodra deze schijf online is",
+		"Disk %d in this computer has the same disk ID as the backed up disk (it probably is that disk). While both disks are in the computer, Windows keeps the restored disk offline: larger partitions are not extended, and boot files and drivers for new hardware are not written. Tick “Leave the target disk offline”, remove the old disk after the restore, then extend the file system in Disk Management or run “Repair boot”.": "Schijf %d in deze computer heeft dezelfde schijf-ID als de schijf van de back-up (waarschijnlijk is het die schijf). Zolang beide schijven in de computer zitten, houdt Windows de herstelde schijf offline: grotere partities worden niet vergroot, en opstartbestanden en stuurprogramma's voor nieuwe hardware worden niet geschreven. Vink “Doelschijf daarna offline laten” aan, verwijder na het herstel de oude schijf en vergroot daarna het bestandssysteem in Schijfbeheer of gebruik “Opstarten repareren”.",
+		"not initialized": "niet geïnitialiseerd",
 	},
 	"pl": { // #nosec G101 -- interface texts; "password" and "key" in them are field labels
 		"Choose what you want to do.": "Wybierz, co chcesz zrobić.",
@@ -1695,6 +1857,16 @@ var translations = map[string]map[string]string{
 		"Log":                                    "Dziennik",
 		"Current state (ipconfig)":               "Bieżący stan (ipconfig)",
 		"Set the address of the network adapter": "Ustaw adres karty sieciowej",
+
+		// 0.63: restore findings of #61.
+		"cannot be shrunk: ": "nie można zmniejszyć: ",
+		"Partition %d: %s":   "Partycja %d: %s",
+		"The target disk is too small: %s, the partitions need at least %s.":                                  "Dysk docelowy jest za mały: %s, partycje potrzebują co najmniej %s.",
+		"Partition %d needs at least %s, the layout gives it %s.":                                             "Partycja %d potrzebuje co najmniej %s, układ daje jej %s.",
+		"partitions were restored smaller: Windows checks their file systems (chkdsk) once at the next start": "partycje przywrócono jako mniejsze: Windows sprawdzi ich systemy plików (chkdsk) raz przy następnym uruchomieniu",
+		"partition %d: not extended, because disk %d in this computer has the same disk and partition IDs (the backed up disk), so Windows keeps this copy offline; remove the old disk, then extend the file system in Disk Management once this disk is online":                                                                                                                                                                           "partycja %d: nie rozszerzono, ponieważ dysk %d w tym komputerze ma te same identyfikatory dysku i partycji (dysk z kopii), więc Windows pozostawia tę kopię offline; usuń stary dysk, a potem rozszerz system plików w Zarządzaniu dyskami, gdy ten dysk będzie online",
+		"Disk %d in this computer has the same disk ID as the backed up disk (it probably is that disk). While both disks are in the computer, Windows keeps the restored disk offline: larger partitions are not extended, and boot files and drivers for new hardware are not written. Tick “Leave the target disk offline”, remove the old disk after the restore, then extend the file system in Disk Management or run “Repair boot”.": "Dysk %d w tym komputerze ma ten sam identyfikator dysku co dysk z kopii (prawdopodobnie to ten dysk). Dopóki oba dyski są w komputerze, Windows pozostawia przywrócony dysk offline: większe partycje nie zostaną rozszerzone, a pliki rozruchowe i sterowniki dla nowego sprzętu nie zostaną zapisane. Zaznacz „Pozostaw potem dysk docelowy offline”, po przywróceniu usuń stary dysk, a następnie rozszerz system plików w Zarządzaniu dyskami lub użyj „Napraw rozruch”.",
+		"not initialized": "niezainicjowany",
 	},
 	"pt": { // #nosec G101 -- interface texts; "password" and "key" in them are field labels
 		"Choose what you want to do.": "Escolha o que deseja fazer.",
@@ -1899,6 +2071,16 @@ var translations = map[string]map[string]string{
 		"Log":                                    "Registro",
 		"Current state (ipconfig)":               "Estado atual (ipconfig)",
 		"Set the address of the network adapter": "Definir o endereço do adaptador de rede",
+
+		// 0.63: restore findings of #61.
+		"cannot be shrunk: ": "não pode ser reduzida: ",
+		"Partition %d: %s":   "Partição %d: %s",
+		"The target disk is too small: %s, the partitions need at least %s.":                                  "O disco de destino é pequeno demais: %s; as partições precisam de pelo menos %s.",
+		"Partition %d needs at least %s, the layout gives it %s.":                                             "A partição %d precisa de pelo menos %s; o layout dá a ela %s.",
+		"partitions were restored smaller: Windows checks their file systems (chkdsk) once at the next start": "as partições foram restauradas menores: o Windows verifica os sistemas de arquivos delas (chkdsk) uma vez na próxima inicialização",
+		"partition %d: not extended, because disk %d in this computer has the same disk and partition IDs (the backed up disk), so Windows keeps this copy offline; remove the old disk, then extend the file system in Disk Management once this disk is online":                                                                                                                                                                           "partição %d: não foi estendida, porque o disco %d deste computador tem os mesmos IDs de disco e de partição (o disco do backup), por isso o Windows mantém esta cópia offline; remova o disco antigo e depois estenda o sistema de arquivos no Gerenciamento de Disco quando este disco estiver online",
+		"Disk %d in this computer has the same disk ID as the backed up disk (it probably is that disk). While both disks are in the computer, Windows keeps the restored disk offline: larger partitions are not extended, and boot files and drivers for new hardware are not written. Tick “Leave the target disk offline”, remove the old disk after the restore, then extend the file system in Disk Management or run “Repair boot”.": "O disco %d deste computador tem o mesmo ID de disco que o disco do backup (provavelmente é esse disco). Enquanto os dois discos estiverem no computador, o Windows mantém o disco restaurado offline: partições maiores não são estendidas, e arquivos de inicialização e drivers para hardware novo não são gravados. Marque “Deixar o disco de destino offline depois”, remova o disco antigo após a restauração e depois estenda o sistema de arquivos no Gerenciamento de Disco ou use “Reparar a inicialização”.",
+		"not initialized": "não inicializado",
 	},
 	"ru": { // #nosec G101 -- interface texts; "password" and "key" in them are field labels
 		"Choose what you want to do.": "Выберите действие.",
@@ -2103,6 +2285,16 @@ var translations = map[string]map[string]string{
 		"Log":                                    "Журнал",
 		"Current state (ipconfig)":               "Текущее состояние (ipconfig)",
 		"Set the address of the network adapter": "Настроить адрес сетевого адаптера",
+
+		// 0.63: restore findings of #61.
+		"cannot be shrunk: ": "нельзя уменьшить: ",
+		"Partition %d: %s":   "Раздел %d: %s",
+		"The target disk is too small: %s, the partitions need at least %s.":                                  "Целевой диск слишком мал: %s, разделам нужно не менее %s.",
+		"Partition %d needs at least %s, the layout gives it %s.":                                             "Разделу %d нужно не менее %s, разметка даёт ему %s.",
+		"partitions were restored smaller: Windows checks their file systems (chkdsk) once at the next start": "разделы восстановлены уменьшенными: Windows один раз проверит их файловые системы (chkdsk) при следующем запуске",
+		"partition %d: not extended, because disk %d in this computer has the same disk and partition IDs (the backed up disk), so Windows keeps this copy offline; remove the old disk, then extend the file system in Disk Management once this disk is online":                                                                                                                                                                           "раздел %d: не расширен, потому что диск %d в этом компьютере имеет те же ID диска и разделов (диск из резервной копии), поэтому Windows оставляет эту копию в офлайне; извлеките старый диск, затем расширьте файловую систему в «Управлении дисками», когда этот диск будет в сети",
+		"Disk %d in this computer has the same disk ID as the backed up disk (it probably is that disk). While both disks are in the computer, Windows keeps the restored disk offline: larger partitions are not extended, and boot files and drivers for new hardware are not written. Tick “Leave the target disk offline”, remove the old disk after the restore, then extend the file system in Disk Management or run “Repair boot”.": "Диск %d в этом компьютере имеет тот же ID диска, что и диск из резервной копии (вероятно, это он и есть). Пока оба диска в компьютере, Windows оставляет восстановленный диск в офлайне: увеличенные разделы не расширяются, а загрузочные файлы и драйверы для нового оборудования не записываются. Отметьте «Оставить затем целевой диск в офлайне», после восстановления извлеките старый диск, затем расширьте файловую систему в «Управлении дисками» или используйте «Исправить загрузку».",
+		"not initialized": "не инициализирован",
 	},
 	"sr": { // #nosec G101 -- interface texts; "password" and "key" in them are field labels
 		"Choose what you want to do.": "Izaberite šta želite da uradite.",
@@ -2307,6 +2499,16 @@ var translations = map[string]map[string]string{
 		"Log":                                    "Log",
 		"Current state (ipconfig)":               "Trenutno stanje (ipconfig)",
 		"Set the address of the network adapter": "Podesite adresu mrežnog adaptera",
+
+		// 0.63: restore findings of #61.
+		"cannot be shrunk: ": "ne može da se smanji: ",
+		"Partition %d: %s":   "Particija %d: %s",
+		"The target disk is too small: %s, the partitions need at least %s.":                                  "Ciljni disk je premali: %s, particijama treba najmanje %s.",
+		"Partition %d needs at least %s, the layout gives it %s.":                                             "Particiji %d treba najmanje %s, raspored joj daje %s.",
+		"partitions were restored smaller: Windows checks their file systems (chkdsk) once at the next start": "particije su vraćene manje: Windows jednom proverava njihove sisteme fajlova (chkdsk) pri sledećem pokretanju",
+		"partition %d: not extended, because disk %d in this computer has the same disk and partition IDs (the backed up disk), so Windows keeps this copy offline; remove the old disk, then extend the file system in Disk Management once this disk is online":                                                                                                                                                                           "particija %d: nije proširena, jer disk %d u ovom računaru ima iste ID-jeve diska i particija (disk iz bekapa), pa Windows ovu kopiju drži offline; uklonite stari disk, pa proširite sistem fajlova u Upravljanju diskovima kada ovaj disk bude online",
+		"Disk %d in this computer has the same disk ID as the backed up disk (it probably is that disk). While both disks are in the computer, Windows keeps the restored disk offline: larger partitions are not extended, and boot files and drivers for new hardware are not written. Tick “Leave the target disk offline”, remove the old disk after the restore, then extend the file system in Disk Management or run “Repair boot”.": "Disk %d u ovom računaru ima isti ID diska kao disk iz bekapa (verovatno je to taj disk). Dok su oba diska u računaru, Windows drži vraćeni disk offline: veće particije se ne proširuju, a fajlovi za pokretanje i drajveri za novi hardver se ne upisuju. Označite „Ostavi ciljni disk offline“, posle vraćanja uklonite stari disk, pa proširite sistem fajlova u Upravljanju diskovima ili upotrebite „Popravi pokretanje“.",
+		"not initialized": "nije inicijalizovan",
 	},
 	"tr": { // #nosec G101 -- interface texts; "password" and "key" in them are field labels
 		"Choose what you want to do.": "Ne yapmak istediğinizi seçin.",
@@ -2511,6 +2713,16 @@ var translations = map[string]map[string]string{
 		"Log":                                    "Günlük",
 		"Current state (ipconfig)":               "Geçerli durum (ipconfig)",
 		"Set the address of the network adapter": "Ağ bağdaştırıcısının adresini ayarla",
+
+		// 0.63: restore findings of #61.
+		"cannot be shrunk: ": "küçültülemez: ",
+		"Partition %d: %s":   "Bölüm %d: %s",
+		"The target disk is too small: %s, the partitions need at least %s.":                                  "Hedef disk çok küçük: %s, bölümler en az %s gerektiriyor.",
+		"Partition %d needs at least %s, the layout gives it %s.":                                             "Bölüm %d en az %s gerektiriyor, düzen ona %s veriyor.",
+		"partitions were restored smaller: Windows checks their file systems (chkdsk) once at the next start": "bölümler daha küçük geri yüklendi: Windows bir sonraki başlangıçta dosya sistemlerini bir kez denetler (chkdsk)",
+		"partition %d: not extended, because disk %d in this computer has the same disk and partition IDs (the backed up disk), so Windows keeps this copy offline; remove the old disk, then extend the file system in Disk Management once this disk is online":                                                                                                                                                                           "bölüm %d: genişletilmedi, çünkü bu bilgisayardaki disk %d aynı disk ve bölüm kimliklerine sahip (yedekteki disk); bu yüzden Windows bu kopyayı çevrimdışı tutar. Eski diski çıkarın, ardından bu disk çevrimiçi olunca Disk Yönetimi'nde dosya sistemini genişletin",
+		"Disk %d in this computer has the same disk ID as the backed up disk (it probably is that disk). While both disks are in the computer, Windows keeps the restored disk offline: larger partitions are not extended, and boot files and drivers for new hardware are not written. Tick “Leave the target disk offline”, remove the old disk after the restore, then extend the file system in Disk Management or run “Repair boot”.": "Bu bilgisayardaki disk %d, yedekteki diskle aynı disk kimliğine sahip (büyük olasılıkla o disk). İki disk de bilgisayarda olduğu sürece Windows geri yüklenen diski çevrimdışı tutar: büyütülen bölümler genişletilmez, önyükleme dosyaları ve yeni donanım için sürücüler yazılmaz. “Hedef diski sonra çevrimdışı bırak” seçeneğini işaretleyin, geri yüklemeden sonra eski diski çıkarın, ardından Disk Yönetimi'nde dosya sistemini genişletin veya “Önyüklemeyi onar”ı kullanın.",
+		"not initialized": "başlatılmamış",
 	},
 	"zh": { // #nosec G101 -- interface texts; "password" and "key" in them are field labels
 		"Choose what you want to do.": "请选择要执行的操作。",
@@ -2715,5 +2927,15 @@ var translations = map[string]map[string]string{
 		"Log":                                    "日志",
 		"Current state (ipconfig)":               "当前状态 (ipconfig)",
 		"Set the address of the network adapter": "设置网络适配器的地址",
+
+		// 0.63: restore findings of #61.
+		"cannot be shrunk: ": "无法缩小: ",
+		"Partition %d: %s":   "分区 %d：%s",
+		"The target disk is too small: %s, the partitions need at least %s.":                                  "目标磁盘太小：%s，分区至少需要 %s。",
+		"Partition %d needs at least %s, the layout gives it %s.":                                             "分区 %d 至少需要 %s，布局只给了 %s。",
+		"partitions were restored smaller: Windows checks their file systems (chkdsk) once at the next start": "分区已缩小还原：Windows 会在下次启动时检查一次其文件系统 (chkdsk)",
+		"partition %d: not extended, because disk %d in this computer has the same disk and partition IDs (the backed up disk), so Windows keeps this copy offline; remove the old disk, then extend the file system in Disk Management once this disk is online":                                                                                                                                                                           "分区 %d：未扩展，因为此计算机中的磁盘 %d 具有相同的磁盘和分区 ID（已备份的磁盘），所以 Windows 让此副本保持脱机；请移除旧磁盘，然后在此磁盘联机后在“磁盘管理”中扩展文件系统",
+		"Disk %d in this computer has the same disk ID as the backed up disk (it probably is that disk). While both disks are in the computer, Windows keeps the restored disk offline: larger partitions are not extended, and boot files and drivers for new hardware are not written. Tick “Leave the target disk offline”, remove the old disk after the restore, then extend the file system in Disk Management or run “Repair boot”.": "此计算机中的磁盘 %d 与已备份的磁盘具有相同的磁盘 ID（很可能就是该磁盘）。只要两个磁盘都在计算机中，Windows 就会让还原的磁盘保持脱机：变大的分区不会被扩展，也不会写入启动文件和新硬件的驱动程序。请勾选“让目标磁盘保持脱机”，还原后移除旧磁盘，然后在“磁盘管理”中扩展文件系统，或使用“修复启动”。",
+		"not initialized": "未初始化",
 	},
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -14,6 +15,8 @@ import (
 	"testing"
 
 	"github.com/max-zit/backupzit/internal/imaging"
+	"github.com/max-zit/backupzit/internal/recovery"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // withLang switches the texts to language l for the rest of the test.
@@ -477,4 +480,139 @@ func stringValue(e ast.Expr) (string, bool) {
 		return stringValue(e.X)
 	}
 	return "", false
+}
+
+// #61 finding 1: a partition that can grow but not shrink says why its
+// minimum is its size, in the language of the program; the explanation of
+// the file system check stays as it is.
+func TestLimitsInfoNamesTheReason(t *testing.T) {
+	p := &repo.PartitionImage{Number: 3, Length: 58 << 30}
+	held := imaging.PartitionLimits{Resizable: true, MinSize: 40 << 30, UsedBytes: 13 << 30, Why: imaging.ReasonNoShrink,
+		Reason: imaging.NoShrinkPrefix + "the file system in the backup was not shut down cleanly"}
+	for l, want := range map[string]string{
+		"en": "used 13.0 GiB, at least 40.0 GiB – cannot be shrunk: the file system in the backup was not shut down cleanly",
+		"de": "belegt 13,0 GiB, mindestens 40,0 GiB – nicht verkleinerbar: the file system in the backup was not shut down cleanly",
+		"sr": "zauzeto 13,0 GiB, najmanje 40,0 GiB – ne može da se smanji: the file system in the backup was not shut down cleanly",
+	} {
+		withLang(t, l)
+		if got := limitsInfo(held, p); got != want {
+			t.Errorf("%s: %q, want %q", l, got, want)
+		}
+	}
+	withLang(t, "de")
+	if got := limitsInfo(imaging.PartitionLimits{Resizable: true, MinSize: 20 << 30, UsedBytes: 13 << 30}, p); got != "belegt 13,0 GiB, mindestens 20,0 GiB" {
+		t.Errorf("without a reason: %q", got)
+	}
+}
+
+// The "too small" errors of the layout page are in the language of the
+// program and list the partitions held up by a reason.
+func TestLayoutErrText(t *testing.T) {
+	why := imaging.PartitionLimits{Resizable: true, Why: imaging.ReasonNoShrink, Reason: imaging.NoShrinkPrefix + "dirty"}
+	small := &imaging.TooSmallError{DiskSize: 25 << 30, Needed: 40 << 30, Held: []imaging.HeldPartition{{Partition: 3, Limits: why}}}
+	withLang(t, "de")
+	if got, want := layoutErrText(fmt.Errorf("wrapped: %w", small)), "Die Zieldisk ist zu klein: 25,0 GiB, die Partitionen brauchen mindestens 40,0 GiB.\r\nPartition 3: nicht verkleinerbar: dirty"; got != want {
+		t.Errorf("too small: %q, want %q", got, want)
+	}
+	minErr := &imaging.MinSizeError{Partition: 3, Min: 40 << 30, Length: 30 << 30, Limits: why}
+	if got, want := layoutErrText(minErr), "Partition 3 braucht mindestens 40,0 GiB, das Layout gibt ihr 30,0 GiB.\r\nPartition 3: nicht verkleinerbar: dirty"; got != want {
+		t.Errorf("needs at least: %q, want %q", got, want)
+	}
+	// Sizes that round alike are given in bytes, so the message does not
+	// say "40,0 GiB, at least 40,0 GiB".
+	withLang(t, "en")
+	if got := layoutErrText(&imaging.TooSmallError{DiskSize: 40 << 30, Needed: 40<<30 + 1<<20}); !strings.Contains(got, "42949672960 B") || !strings.Contains(got, "42950721536 B") {
+		t.Errorf("close sizes: %q", got)
+	}
+	if got := layoutErrText(errors.New("an MBR disk holds at most 4 partitions")); got != "an MBR disk holds at most 4 partitions" {
+		t.Errorf("other errors stay as they are: %q", got)
+	}
+}
+
+// #61: the warnings of a restore that the program knows are shown in its
+// language (the line about shrunk partitions was English in the German
+// program), in the final message and in the log; the English stays the
+// text of the restore functions.
+func TestWarningText(t *testing.T) {
+	offline := fmt.Sprintf(imaging.SameIDOfflineWarning, 3, 2)
+	withLang(t, "en")
+	for _, s := range []string{recovery.WarnShrunk, offline, "rebuild the boot files: x"} {
+		if got := warningText(s); got != s {
+			t.Errorf("en: %q became %q", s, got)
+		}
+	}
+	for _, l := range languages {
+		if l == "en" {
+			continue
+		}
+		withLang(t, l)
+		if got := warningText(recovery.WarnShrunk); got == recovery.WarnShrunk || !strings.Contains(got, "chkdsk") {
+			t.Errorf("%s: shrunk: %q", l, got)
+		}
+		if got := warningText(offline); got == offline || !strings.Contains(got, "3") || !strings.Contains(got, "2") {
+			t.Errorf("%s: offline: %q", l, got)
+		}
+		if got := warningText("partition 3: not extended, because of something else"); got != "partition 3: not extended, because of something else" {
+			t.Errorf("%s: a text that only starts the same: %q", l, got)
+		}
+	}
+	withLang(t, "de")
+	if got := logText("warning: " + recovery.WarnShrunk); !strings.HasPrefix(got, "Hinweis: Partitionen wurden verkleinert") {
+		t.Errorf("log line: %q", got)
+	}
+}
+
+// #61 finding 2: the warning before a restore next to the backed up disk
+// names that disk and the option and the button it refers to, as the
+// program calls them in each language.
+func TestSourceDiskText(t *testing.T) {
+	label := func(s string) string {
+		if i := strings.IndexAny(s, "(（"); i > 0 {
+			s = s[:i]
+		}
+		return strings.TrimSpace(s)
+	}
+	for _, l := range languages {
+		withLang(t, l)
+		got := sourceDiskText(7)
+		keep := label(t2("Zieldisk danach offline lassen (wenn die alte Disk noch im Rechner steckt)", "Leave the target disk offline (when the old disk is still in the computer)"))
+		repair := t2("Boot reparieren", "Repair boot")
+		if !strings.Contains(got, "7") || !strings.Contains(got, keep) || !strings.Contains(got, repair) {
+			t.Errorf("%s: %q does not name disk 7, %q and %q", l, got, keep, repair)
+		}
+	}
+}
+
+// #61: a disk that was never initialized is not listed as MBR.
+func TestDiskStyleText(t *testing.T) {
+	withLang(t, "de")
+	if got := diskStyleText(imaging.StyleRaw); got != "nicht initialisiert" {
+		t.Errorf("raw: %q", got)
+	}
+	if got := diskStyleText(imaging.StyleGPT); got != "GPT" {
+		t.Errorf("gpt: %q", got)
+	}
+	withLang(t, "fr")
+	if got := diskStyleText(imaging.StyleRaw); got != "non initialisé" {
+		t.Errorf("fr raw: %q", got)
+	}
+}
+
+// #61: the percentage keeps "%" with the number; a plain space let the
+// label wrap it away and show "100".
+func TestPercentText(t *testing.T) {
+	for _, c := range []struct {
+		done, total uint64
+		want        string
+	}{
+		{1, 1, "100\u00a0%"},
+		{0, 10, "0\u00a0%"},
+		{5, 10, "50\u00a0%"},
+		{11, 10, "100\u00a0%"},
+		{0, 0, "100\u00a0%"},
+	} {
+		if got := percentText(c.done, c.total); got != c.want || strings.Contains(got, " ") {
+			t.Errorf("percentText(%d, %d) = %q, want %q", c.done, c.total, got, c.want)
+		}
+	}
 }
