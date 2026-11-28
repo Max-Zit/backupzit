@@ -30,6 +30,10 @@ jobs:
         run: test -z "$(gofmt -l ./cmd ./internal ./tools)" || (gofmt -l ./cmd ./internal ./tools; exit 1)
       - name: go vet
         run: go vet ./...
+      - name: Appliance boot script (console address on the login screen)
+        run: |
+          sh -n packaging/appliance/backupzit-appliance-boot
+          sh packaging/appliance/test-boot.sh
       - name: Cache the test PostgreSQL (downloaded from Maven by embedded-postgres)
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
