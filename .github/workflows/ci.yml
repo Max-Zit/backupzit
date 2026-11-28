@@ -176,6 +176,27 @@ jobs:
           sarif_file: govulncheck.sarif
           category: govulncheck
 
+  licenses:
+    # A new or updated dependency (a Dependabot pull request, too) must have
+    # a license known to be compatible with AGPLv3, and the
+    # THIRD_PARTY_LICENSES.txt that the packages ship must list it.
+    name: Third-party licenses
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: tools/licenses passes and its output is THIRD_PARTY_LICENSES.txt
+        run: |
+          go run ./tools/licenses > "$RUNNER_TEMP/THIRD_PARTY_LICENSES.txt"
+          if ! cmp -s THIRD_PARTY_LICENSES.txt "$RUNNER_TEMP/THIRD_PARTY_LICENSES.txt"; then
+            diff -u THIRD_PARTY_LICENSES.txt "$RUNNER_TEMP/THIRD_PARTY_LICENSES.txt" | head -n 200 || true
+            echo "::error file=THIRD_PARTY_LICENSES.txt::not up to date: run 'go run ./tools/licenses > THIRD_PARTY_LICENSES.txt' and commit it"
+            exit 1
+          fi
+
   race:
     name: Race detector (Linux)
     runs-on: ubuntu-latest

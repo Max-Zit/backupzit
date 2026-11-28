@@ -13,6 +13,6 @@ Thank you for helping! BackupZit is free software under the GNU AGPLv3.
 1. Go (the version in `go.mod`) is all you need: `go build ./cmd/...` and `go test ./...` (the tests start an embedded PostgreSQL).
 2. Keep changes focused, with tests for new behavior.
 3. Functional changes update the built-in user guide (`internal/server/templates/doc_*.html` and the translations in `internal/server/templates/docs/<lang>/`) and the UI texts in all 14 catalogs (`internal/server/i18n/`); `go run ./tools/i18n missing sr` lists missing texts.
-4. New dependencies must have a license compatible with the AGPLv3; `go run ./tools/licenses` checks it.
+4. New dependencies must have a license compatible with the AGPLv3; `go run ./tools/licenses > THIRD_PARTY_LICENSES.txt` checks it and updates the list (CI fails when the committed file differs from its output).
 
 By contributing you agree that your contribution is licensed under the GNU AGPLv3.
