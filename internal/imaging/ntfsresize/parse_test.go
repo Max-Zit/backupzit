@@ -196,3 +196,26 @@ func TestParseAttributeChecksOffsets(t *testing.T) {
 		}
 	}
 }
+
+// An update sequence array over the header's own fields (CI fuzzing: an
+// array at 0x10 covers the attribute offset at 0x14 and the used size at
+// 0x18) is refused: applyFixups would overwrite them when the record is
+// written back. NTFS 3.0 puts the array at 0x2A, 3.1 at 0x30.
+func TestRecordUSAOverHeaderFields(t *testing.T) {
+	b := synthRecord(1024, 9, 0, false)
+	if _, err := parseRecord(9, b); err != nil {
+		t.Fatalf("NTFS 3.1 record: %v", err)
+	}
+	for _, off := range []uint16{0x08, 0x10, 0x14, 0x28} {
+		bad := append([]byte(nil), b...)
+		binary.LittleEndian.PutUint16(bad[4:], off)
+		if _, err := parseRecord(9, bad); err == nil {
+			t.Errorf("update sequence array at %#x accepted", off)
+		}
+	}
+	ok := append([]byte(nil), b...)
+	binary.LittleEndian.PutUint16(ok[4:], 0x2a)
+	if _, err := parseRecord(9, ok); err != nil {
+		t.Errorf("NTFS 3.0 position 0x2a refused: %v", err)
+	}
+}

@@ -134,8 +134,11 @@ func parseRecord(num uint64, b []byte) (*Record, error) {
 	first := int(binary.LittleEndian.Uint16(b[0x14:]))
 	used := int(binary.LittleEndian.Uint32(b[0x18:]))
 	// The update sequence array must lie in the header: encode copies the
-	// header as it is and applyFixups writes the array there.
-	if first < 0x30 || first >= len(b) || used > len(b) || used < first || usaOff+2*usaCount > first {
+	// header as it is and applyFixups writes the array there. It must also
+	// start after the header's own fields (0x2A in NTFS 3.0, 0x30 in 3.1):
+	// an array over the attribute offset or the used size would change
+	// them when applyFixups writes it.
+	if first < 0x30 || first >= len(b) || used > len(b) || used < first || usaOff < 0x2a || usaOff+2*usaCount > first {
 		return nil, fmt.Errorf("record %d: invalid header", num)
 	}
 	r.header = append([]byte(nil), b[:first]...)
