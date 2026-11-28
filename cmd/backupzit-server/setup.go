@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"strconv"
@@ -89,9 +90,9 @@ func (m *setupMenu) header(ctx context.Context) {
 			mode = "static"
 		}
 		fmt.Printf("  Network:      %s (%s)  gateway %s  DNS %s\n", strings.Join(st.Addresses, ", "), mode, orDash(st.Gateway), orDash(strings.Join(st.DNS, ", ")))
-		for _, a := range st.Addresses {
-			ip, _, _ := strings.Cut(a, "/")
-			fmt.Printf("  Web console:  https://%s:8443\n", ip)
+		env, _ := readServerEnv()
+		for _, u := range consoleURLs(env, st.Addresses) {
+			fmt.Printf("  Web console:  %s\n", u)
 		}
 	}
 	ssh := m.sys.SSH(ctx)
@@ -103,6 +104,32 @@ func (m *setupMenu) header(ctx context.Context) {
 	fmt.Printf("  Time:         %s (%s)\n", time.Now().Format("2006-01-02 15:04"), m.sys.TimeZone())
 	state, _ := exec.CommandContext(ctx, "systemctl", "is-active", "backupzit-server").Output()
 	fmt.Printf("  Service:      %s\n\n", strings.TrimSpace(string(state)))
+}
+
+// consoleURLs returns the web console's address for the menu, as the login
+// screen shows it (backupzit-appliance-boot): BACKUPZIT_PUBLIC_URL when the
+// service's settings have one, else https:// with each IPv4 address of the
+// server (with prefix) and the port of BACKUPZIT_LISTEN; the console's
+// default is :8443.
+func consoleURLs(env map[string]string, addrs []string) []string {
+	if u := strings.TrimSpace(env["BACKUPZIT_PUBLIC_URL"]); u != "" {
+		return []string{u}
+	}
+	port := ":8443"
+	if _, p, err := net.SplitHostPort(strings.TrimSpace(env["BACKUPZIT_LISTEN"])); err == nil {
+		if n, err := strconv.Atoi(p); err == nil && n > 0 && n <= 65535 {
+			port = ":" + strconv.Itoa(n)
+		}
+	}
+	if port == ":443" {
+		port = ""
+	}
+	var out []string
+	for _, a := range addrs {
+		ip, _, _ := strings.Cut(a, "/")
+		out = append(out, "https://"+ip+port)
+	}
+	return out
 }
 
 func orDash(s string) string {
@@ -212,17 +239,31 @@ func (m *setupMenu) hostname(ctx context.Context) {
 	m.pause()
 }
 
-// store opens the console database with the settings of the service.
-func (m *setupMenu) store(ctx context.Context) (*server.Store, func(), error) {
-	env := map[string]string{}
+// readServerEnv returns the settings of the service (server.env); a later
+// line of a name wins, as for systemd.
+func readServerEnv() (map[string]string, error) {
 	b, err := os.ReadFile(serverEnv)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	for _, l := range strings.Split(string(b), "\n") {
+	return parseEnv(string(b)), nil
+}
+
+func parseEnv(s string) map[string]string {
+	env := map[string]string{}
+	for _, l := range strings.Split(s, "\n") {
 		if k, v, ok := strings.Cut(strings.TrimSpace(l), "="); ok && !strings.HasPrefix(k, "#") {
 			env[k] = strings.Trim(v, `"'`)
 		}
+	}
+	return env
+}
+
+// store opens the console database with the settings of the service.
+func (m *setupMenu) store(ctx context.Context) (*server.Store, func(), error) {
+	env, err := readServerEnv()
+	if err != nil {
+		return nil, nil, err
 	}
 	if env["BACKUPZIT_DB"] == "" {
 		return nil, nil, errors.New("BACKUPZIT_DB is not set in " + serverEnv)
