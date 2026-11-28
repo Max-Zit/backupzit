@@ -204,14 +204,21 @@ func (s *Server) createVMwareViaProxy(w http.ResponseWriter, r *http.Request, h 
 	}
 	run, done := s.store.waitProbe(r.Context(), runID, 25*time.Second)
 	if !done {
+		s.auditProbe(r, h.Address, a.Hostname, "", "", errors.New("no answer within 25 seconds"))
 		redirectErr(w, r, "/agents#vmware", errors.New("the proxy agent did not answer within 25 seconds; add the host again when the agent is online"))
 		return
 	}
 	var p api.VMwareProbe
 	if run.Status != api.StatusSuccess || json.Unmarshal(run.Details, &p) != nil || p.Thumbprint == "" {
+		msg := run.Message
+		if msg == "" {
+			msg = "no certificate reported"
+		}
+		s.auditProbe(r, h.Address, a.Hostname, "", "", errors.New(msg))
 		redirectErr(w, r, "/agents#vmware", fmt.Errorf("the proxy agent could not reach %s: %s", h.Address, run.Message))
 		return
 	}
+	s.auditProbe(r, h.Address, a.Hostname, p.Thumbprint, p.SSHHostKey, nil)
 	s.confirmVMware(w, r, currentUser(r).Username, &pendingConnect{By: currentUser(r).Username, VMware: &h, Via: true}, p.Thumbprint, p.SSHHostKey)
 }
 

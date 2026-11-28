@@ -250,6 +250,19 @@ func TestVMwareThroughProxyConfirm(t *testing.T) {
 	if hosts, _ := e.store.ListVMwareHosts(ctx); len(hosts) != 0 {
 		t.Fatal("host stored before the confirmation")
 	}
+	// The probe is in the audit log, also before the host is added; no
+	// password goes into it.
+	probed := false
+	entries, _ := e.store.ListAudit(ctx, 20)
+	for _, a := range entries {
+		if strings.Contains(a.Detail, "secret-esx") {
+			t.Errorf("password in the audit log: %+v", a)
+		}
+		probed = probed || (a.Action == "vmware.probe" && strings.Contains(a.Detail, "10.9.9.9 through proxy1") && strings.Contains(a.Detail, fp))
+	}
+	if !probed {
+		t.Errorf("the fingerprint probe is not in the audit log: %+v", entries)
+	}
 	second := make(chan *api.Run, 1)
 	go func() {
 		run := next()

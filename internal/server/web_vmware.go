@@ -50,10 +50,31 @@ func (s *Server) handleVMwareCreate(w http.ResponseWriter, r *http.Request, user
 	defer cancel()
 	fp, sfp, err := vmware.PresentedFingerprints(ctx, h.Address)
 	if err != nil {
+		s.auditProbe(r, h.Address, "", "", "", err)
 		redirectErr(w, r, "/agents#vmware", fmt.Errorf("cannot connect to %s: %v", h.Address, err))
 		return
 	}
+	s.auditProbe(r, h.Address, "", fp, sfp, nil)
 	s.confirmVMware(w, r, user, &pendingConnect{By: user, VMware: &h}, fp, sfp)
+}
+
+// auditProbe records that the console, or the proxy agent via, read the
+// fingerprints of a host that is being added (no password is sent yet):
+// it connects to any address the user enters, so the attempt is logged
+// also when the host is not added.
+func (s *Server) auditProbe(r *http.Request, address, via, fp, sfp string, err error) {
+	who := ""
+	if via != "" {
+		who = " through " + via
+	}
+	switch {
+	case err != nil:
+		s.audit(r, "vmware.probe", "%s%s: fingerprints not read: %v", address, who, err)
+	case sfp == "":
+		s.audit(r, "vmware.probe", "%s%s: certificate %s shown for confirmation", address, who, fp)
+	default:
+		s.audit(r, "vmware.probe", "%s%s: certificate %s, SSH host key %s shown for confirmation", address, who, fp, sfp)
+	}
 }
 
 // confirmVMware shows the fingerprints of an ESXi host or vCenter for

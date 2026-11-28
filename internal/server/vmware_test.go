@@ -659,6 +659,14 @@ func TestVCenterConnection(t *testing.T) {
 	if !strings.Contains(loc, "msg=vCenter+Server+vc1+added") {
 		t.Fatalf("add vCenter: %s", loc)
 	}
+	probed := false
+	entries, _ := e.store.ListAudit(ctx, 20)
+	for _, a := range entries {
+		probed = probed || (a.Action == "vmware.probe" && strings.HasPrefix(a.Detail, sim.URL.Host+": certificate SHA256:") && !strings.Contains(a.Detail, pw))
+	}
+	if !probed {
+		t.Errorf("the fingerprint probe is not in the audit log: %+v", entries)
+	}
 	hosts, _ := e.store.ListVMwareHosts(ctx)
 	if len(hosts) != 1 || !hosts[0].IsVCenter() || hosts[0].UsesSSH() || len(hosts[0].Inv().Hosts) == 0 {
 		t.Fatalf("vCenter: %+v", hosts)
