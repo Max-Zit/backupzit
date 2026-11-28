@@ -5,7 +5,6 @@ package agent
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -22,14 +21,24 @@ const nasMountDir = "/mnt/backupzit-nas"
 
 var unsafeName = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
+// nasMountPoint is the share's fixed mount point.
+func nasMountPoint(s nasShare) string {
+	return filepath.Join(nasMountDir, unsafeName.ReplaceAllString(s.Host, "_"),
+		unsafeName.ReplaceAllString(strings.Trim(s.Share, "/"), "_"))
+}
+
+// nasKey: runs whose share has the same mount point share the mount.
+func nasKey(s nasShare) string { return nasMountPoint(s) }
+
+// mountNAS mounts the share (s.Sub is not used: withNAS looks the folder
+// up below the mount) and returns its mount point.
 func mountNAS(ctx context.Context, s nasShare, cred *api.NASShare, writable bool) (string, func(), error) {
 	helper := map[string]string{"smb": "mount.cifs", "nfs": "mount.nfs"}[s.Proto]
 	if _, err := exec.LookPath(helper); err != nil {
 		pkg := map[string]string{"smb": "cifs-utils", "nfs": "nfs-common (Debian, Ubuntu) or nfs-utils (AlmaLinux, Rocky Linux)"}[s.Proto]
 		return "", nil, fmt.Errorf("%s is missing on this machine; install %s", helper, pkg)
 	}
-	dir := filepath.Join(nasMountDir, unsafeName.ReplaceAllString(s.Host, "_"),
-		unsafeName.ReplaceAllString(strings.Trim(s.Share, "/"), "_"))
+	dir := nasMountPoint(s)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", nil, err
 	}
@@ -73,19 +82,7 @@ func mountNAS(ctx context.Context, s nasShare, cred *api.NASShare, writable bool
 			_ = exec.Command("umount", "-l", dir).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
 		}
 	}
-	root := dir
-	if s.Sub != "" {
-		root = filepath.Join(dir, filepath.FromSlash(s.Sub))
-		if !belowMount(root, dir) {
-			unmount()
-			return "", nil, errors.New("the folder " + s.Sub + " is not below the share")
-		}
-		if _, err := os.Stat(root); err != nil {
-			unmount()
-			return "", nil, errors.New("the folder " + s.Sub + " does not exist on the share")
-		}
-	}
-	return root, unmount, nil
+	return dir, unmount, nil
 }
 
 // mounted reports whether dir is a mount point.

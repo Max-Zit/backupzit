@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
+	"strings"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -27,9 +27,13 @@ type netResource struct {
 
 const resourceTypeDisk = 1
 
+// nasKey: Windows keeps one connection per share name, whatever its case.
+func nasKey(s nasShare) string { return strings.ToLower(`\\` + s.Host + `\` + s.Share) }
+
 // mountNAS connects the SMB share with the job's credentials (for the
-// agent's service account only) and returns its UNC path. NFS shares need
-// a Linux agent.
+// agent's service account only) and returns its UNC path (s.Sub is not
+// used: withNAS looks the folder up below it). NFS shares need a Linux
+// agent.
 func mountNAS(ctx context.Context, s nasShare, cred *api.NASShare, writable bool) (string, func(), error) {
 	if s.Proto != "smb" {
 		return "", nil, errors.New("NFS shares are backed up through a Linux agent; choose a Linux agent or use SMB")
@@ -59,17 +63,9 @@ func mountNAS(ctx context.Context, s nasShare, cred *api.NASShare, writable bool
 		return "", nil, fmt.Errorf("connect %s: %w", unc, windows.Errno(r))
 	}
 	unmount := func() { _, _, _ = procWNetCancelConnection2.Call(uintptr(unsafe.Pointer(remote)), 0, 1) } // #nosec G103 -- structure passed to the WNet API
-	root := unc
-	if s.Sub != "" {
-		root = filepath.Join(unc, filepath.FromSlash(s.Sub))
-		if !belowMount(root, unc) {
-			unmount()
-			return "", nil, errors.New("the folder " + s.Sub + " is not below the share")
-		}
-	}
-	if _, err := os.Stat(root); err != nil {
+	if _, err := os.Stat(unc); err != nil {
 		unmount()
-		return "", nil, fmt.Errorf("%s is not reachable: %w", root, err)
+		return "", nil, fmt.Errorf("%s is not reachable: %w", unc, err)
 	}
-	return root, unmount, nil
+	return unc, unmount, nil
 }

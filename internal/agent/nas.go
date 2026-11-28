@@ -2,11 +2,15 @@ package agent
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/max-zit/backupzit/internal/api"
 )
@@ -80,19 +84,167 @@ func (a *Agent) withNAS(ctx context.Context, run api.Run, writable bool, fn func
 	if err != nil {
 		return failed(err)
 	}
-	root, unmount, err := mountNAS(ctx, s, run.NAS, writable)
-	if err != nil {
+	// The share itself is mounted (and shared with other runs); the run's
+	// folder below it is looked up afterwards.
+	whole := s
+	whole.Sub = ""
+	share, release, err := shareNAS(ctx, nasKey(whole), nasConfig(writable, run.NAS), func() (string, func(), error) {
+		return mountNAS(ctx, whole, run.NAS, writable)
+	}, func() {
+		a.log.Info("waiting for another run on the same share to finish (it is connected with other credentials or for a restore)", "run", run.ID, "share", run.NAS.URL)
+	})
+	connectFailed := func(err error) api.RunResult {
 		if hint := nasHint(err); hint != "" {
 			return failed(fmt.Errorf("connect to the share %s: %s (%w)", run.NAS.URL, hint, err))
 		}
 		return failed(fmt.Errorf("connect to the share %s: %w", run.NAS.URL, err))
 	}
-	defer unmount()
+	if err != nil {
+		return connectFailed(err)
+	}
+	defer release()
+	root, err := nasSubfolder(share, s.Sub)
+	if err != nil {
+		return connectFailed(err)
+	}
 	paths, err := nasPaths(root, run.Paths)
 	if err != nil {
 		return failed(err)
 	}
 	return fn(paths)
+}
+
+// nasSubfolder is the run's folder sub (slash separated) below the share
+// mounted at root.
+func nasSubfolder(root, sub string) (string, error) {
+	if sub == "" {
+		return root, nil
+	}
+	p := filepath.Join(root, filepath.FromSlash(sub))
+	if !belowMount(p, root) {
+		return "", errors.New("the folder " + sub + " is not below the share")
+	}
+	if _, err := os.Stat(p); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", errors.New("the folder " + sub + " does not exist on the share")
+		}
+		return "", fmt.Errorf("%s is not reachable: %w", p, err)
+	}
+	return p, nil
+}
+
+// Runs on the same share at the same time (M-24): a share has one mount
+// point (Linux) or one connection per name (Windows), and each run used to
+// unmount it, or cancel the connection, when it ended, under the feet of
+// the others: a backup then saw an empty folder (files missing from it) or
+// failed reads. Now the runs share the mount: a run with the same mode and
+// credentials joins it, and the last one to finish unmounts it; a run with
+// another mode (a restore to the share mounts it writable) or other
+// credentials waits until the share is free.
+
+// nasMount is a share mounted for one or more runs.
+type nasMount struct {
+	cfg     [32]byte // mode and credentials it was mounted with (nasConfig)
+	users   int
+	ready   chan struct{} // closed when mounting ended (root, unmount, err set)
+	gone    chan struct{} // closed when it is unmounted and forgotten
+	root    string
+	unmount func()
+	err     error
+}
+
+var nasMounts = struct {
+	sync.Mutex
+	m map[string]*nasMount
+}{m: map[string]*nasMount{}}
+
+// nasConfig identifies how a share is mounted, without keeping the
+// password itself.
+func nasConfig(writable bool, cred *api.NASShare) [32]byte {
+	var user, domain, pass string
+	if cred != nil {
+		user, domain, pass = cred.User, cred.Domain, cred.Password
+	}
+	return sha256.Sum256([]byte(fmt.Sprintf("%t\x00%s\x00%s\x00%s", writable, user, domain, pass)))
+}
+
+// shareNAS returns the mount of the share key for a run: a new one (mount),
+// or the one other runs use when it was made the same way (cfg). A share
+// mounted differently is waited for (waiting is called once). release ends
+// the run's use; the last user unmounts.
+func shareNAS(ctx context.Context, key string, cfg [32]byte, mount func() (string, func(), error), waiting func()) (root string, release func(), err error) {
+	told := false
+	for {
+		nasMounts.Lock()
+		m := nasMounts.m[key]
+		switch {
+		case m == nil:
+			m = &nasMount{cfg: cfg, users: 1, ready: make(chan struct{}), gone: make(chan struct{})}
+			nasMounts.m[key] = m
+			nasMounts.Unlock()
+			m.root, m.unmount, m.err = mount()
+			if m.err != nil {
+				nasMounts.Lock()
+				delete(nasMounts.m, key)
+				nasMounts.Unlock()
+				close(m.ready)
+				close(m.gone)
+				return "", nil, m.err
+			}
+			close(m.ready)
+			return m.root, m.releaser(key), nil
+		case m.cfg == cfg && m.users > 0:
+			m.users++
+			nasMounts.Unlock()
+			rel := m.releaser(key)
+			select {
+			case <-m.ready:
+			case <-ctx.Done():
+				rel()
+				return "", nil, ctx.Err()
+			}
+			if m.err != nil {
+				return "", nil, m.err // the mount failed; it is forgotten already
+			}
+			return m.root, rel, nil
+		default:
+			// Mounted differently, or being unmounted: wait until it is gone.
+			gone := m.gone
+			nasMounts.Unlock()
+			if !told && waiting != nil {
+				waiting()
+				told = true
+			}
+			select {
+			case <-gone:
+			case <-ctx.Done():
+				return "", nil, ctx.Err()
+			}
+		}
+	}
+}
+
+// releaser ends one run's use of m; the last one unmounts it.
+func (m *nasMount) releaser(key string) func() {
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			nasMounts.Lock()
+			m.users--
+			last := m.users == 0 && nasMounts.m[key] == m
+			nasMounts.Unlock()
+			if !last {
+				return
+			}
+			// Only after a successful mount can the count reach 0: the run
+			// that mounts holds one use until it releases its own.
+			m.unmount()
+			nasMounts.Lock()
+			delete(nasMounts.m, key)
+			nasMounts.Unlock()
+			close(m.gone)
+		})
+	}
 }
 
 // nasHint explains the usual mount failures (mount.cifs, mount.nfs, net

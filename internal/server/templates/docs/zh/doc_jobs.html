@@ -38,7 +38,7 @@
   <li>对于 SMB，填写帐户（用户、可选的域、密码——加密存储）；留空表示来宾访问。NFS 使用代理机器对导出的访问权限（在 NAS 上允许其地址）；</li>
   <li>要备份的<b>共享中的文件夹</b>，每行一个（留空：整个共享），以及排除项，例如 <code>#recycle</code>、<code>@eaDir</code> 或 <code>.snapshot</code>。</li>
 </ul>
-<p>每次运行时，代理都会连接共享——Windows 代理通过其 UNC 路径（<code>\\nas01\data</code>，仅 SMB），Linux 代理以只读方式挂载到 <code>/mnt/backupzit-nas</code> 下（SMB 需要 <code>cifs-utils</code>，NFS 需要 <code>nfs-common</code> 或 <code>nfs-utils</code>；Proxmox VE 两者都有）——之后断开连接。Mac 代理目前还不能连接共享：请使用 Windows 或 Linux 代理。这些备份是普通的文件备份：经过重复数据删除且为增量，支持保留、复制作业、还原测试、浏览和文件还原。<b>还原到原位置</b>会以可写方式重新连接共享并将文件写回；也可以还原到任意代理上的文件夹或下载。</p>
+<p>每次运行时，代理都会连接共享——Windows 代理通过其 UNC 路径（<code>\\nas01\data</code>，仅 SMB），Linux 代理以只读方式挂载到 <code>/mnt/backupzit-nas</code> 下（SMB 需要 <code>cifs-utils</code>，NFS 需要 <code>nfs-common</code> 或 <code>nfs-utils</code>；Proxmox VE 两者都有）——之后断开连接。Mac 代理目前还不能连接共享：请使用 Windows 或 Linux 代理。这些备份是普通的文件备份：经过重复数据删除且为增量，支持保留、复制作业、还原测试、浏览和文件还原。<b>还原到原位置</b>会以可写方式重新连接共享并将文件写回；也可以还原到任意代理上的文件夹或下载。同一时间在同一共享上的多个运行共用一个连接，由最后结束的运行断开；以不同方式连接的运行（其他凭据，或以可写方式连接共享的还原到共享）会等待其他运行结束（代理 0.63 及更新版本）。</p>
 
 <h2>打开和锁定的文件（VSS）</h2>
 <p>在 Windows 上，代理使用<b>卷影复制服务</b>：它为卷创建一致的时间点快照并从中备份，因此打开的文件（Outlook PST、数据库、正在编辑的文档）都能一致地备份。支持 VSS 的应用程序（例如 SQL Server）会在创建快照前将数据刷新到磁盘。文件夹位于多个卷（C: 和 D:）上的作业会在同一时刻一起为它们创建快照；只有 VSS 无法做到时，才会为每个卷分别创建快照，并且运行会发出警告。</p>
