@@ -51,6 +51,11 @@ func (s *Store) checkChain(ctx context.Context, jobID, after int64) error {
 // QueueChainAfter queues the jobs chained after a job whose run finished
 // (ok: it succeeded or finished with warnings).
 func (s *Store) QueueChainAfter(ctx context.Context, jobID int64, ok bool) ([]int64, error) {
+	return s.queueChain(ctx, jobID, func(sc Schedule) bool { return ok || sc.AfterAny })
+}
+
+// queueChain queues the jobs chained after jobID whose chain want accepts.
+func (s *Store) queueChain(ctx context.Context, jobID int64, want func(Schedule) bool) ([]int64, error) {
 	rows, err := s.db.Query(ctx, `SELECT id, schedule FROM jobs WHERE enabled AND schedule LIKE '%"kind":"chain"%'`)
 	if err != nil {
 		return nil, err
@@ -72,7 +77,7 @@ func (s *Store) QueueChainAfter(ctx context.Context, jobID int64, ok bool) ([]in
 	var queued []int64
 	for _, c := range cands {
 		sc, err := ParseSchedule(c.sched)
-		if err != nil || sc.Kind != SchedChain || sc.AfterJob != jobID || !(ok || sc.AfterAny) {
+		if err != nil || sc.Kind != SchedChain || sc.AfterJob != jobID || !want(sc) {
 			continue
 		}
 		rid, err := s.QueueBackup(ctx, c.id, "after-job")
@@ -107,7 +112,8 @@ func (s *Store) chainAfterRun(ctx context.Context, runID int64) ([]int64, error)
 	ok := run.Status == api.StatusSuccess || run.Status == api.StatusWarning
 	if run.Batch == nil {
 		// Once per run: the console may end a run (stale agent) and the agent
-		// still report it later; the chain was decided the first time.
+		// still report it later; the chain was decided the first time (a
+		// late success adds the success-only chains: chainAfterLateSuccess).
 		ct, err := s.db.Exec(ctx, `UPDATE runs SET chained=true WHERE id=$1 AND NOT chained`, run.ID)
 		if err != nil {
 			return nil, err
@@ -142,6 +148,21 @@ func (s *Store) chainAfterRun(ctx context.Context, runID int64) ([]int64, error)
 		}
 	}
 	return s.QueueChainAfter(ctx, *run.JobID, ok)
+}
+
+// chainAfterLateSuccess starts the success-only chained jobs of a run that
+// the console had failed as stale (its agent did not poll for minutes) and
+// whose agent then reported success after all (MED 10). The chain was
+// decided at the stale fail as after a failure: the jobs that also follow a
+// failure have run then; the ones that follow only a success follow now.
+// A split start is decided once for all its parts and is left as it is.
+func (s *Store) chainAfterLateSuccess(ctx context.Context, runID int64) ([]int64, error) {
+	run, err := s.GetRun(ctx, runID)
+	if err != nil || run.JobID == nil || !chainKinds[run.Kind] || run.Batch != nil ||
+		(run.Status != api.StatusSuccess && run.Status != api.StatusWarning) {
+		return nil, nil
+	}
+	return s.queueChain(ctx, *run.JobID, func(sc Schedule) bool { return !sc.AfterAny })
 }
 
 // chainTargets are the jobs a job can run after (not itself).
@@ -210,4 +231,31 @@ func (s *Server) afterJob(ctx context.Context, j Job) *Job {
 		return nil
 	}
 	return &a
+}
+
+// afterJobGone reports a chained job whose job to run after no longer
+// exists (deleted, or removed with its agent): it never starts again, which
+// the job page and Needs attention say instead of nothing (LOW 2).
+func (s *Server) afterJobGone(ctx context.Context, j Job) bool {
+	sc, err := ParseSchedule(j.Schedule)
+	if err != nil || sc.Kind != SchedChain {
+		return false
+	}
+	_, err = s.store.GetJob(ctx, sc.AfterJob)
+	return errors.Is(err, ErrNotFound)
+}
+
+// chainedAfter counts the jobs chained after jobID.
+func (s *Store) chainedAfter(ctx context.Context, jobID int64) int {
+	jobs, err := s.ListJobs(ctx)
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, j := range jobs {
+		if sc, err := ParseSchedule(j.Schedule); err == nil && sc.Kind == SchedChain && sc.AfterJob == jobID {
+			n++
+		}
+	}
+	return n
 }

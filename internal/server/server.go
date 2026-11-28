@@ -1262,7 +1262,8 @@ func (s *Server) handleJob(w http.ResponseWriter, r *http.Request, user string) 
 		return
 	}
 	data := map[string]any{"Job": j, "Runs": s.withProgress(r.Context(), runs), "Coverage": s.coverageMap(r.Context())[j.ID], "Protected": nil, "ProtectedSQL": nil, "ProtectedRun": nil,
-		"Replicas": s.jobReplicas(r.Context(), j), "Active": activeRuns(runs), "RPO": rpoState(j, s.coverageMap(r.Context())[j.ID], time.Now()), "AfterJob": s.afterJob(r.Context(), j)}
+		"Replicas": s.jobReplicas(r.Context(), j), "Active": activeRuns(runs), "RPO": rpoState(j, s.coverageMap(r.Context())[j.ID], time.Now()), "AfterJob": s.afterJob(r.Context(), j),
+		"AfterJobGone": s.afterJobGone(r.Context(), j)}
 	if pr, err := s.store.newestBackup(r.Context(), j.ID); err == nil && pr != nil {
 		data["ProtectedRun"] = pr
 		if d := vmDetails(*pr); d != nil {
@@ -1362,8 +1363,15 @@ func (s *Server) handleJobDelete(w http.ResponseWriter, r *http.Request, _ strin
 	if s.needsApproval(w, r, fmt.Sprintf("/jobs/%d", id), "job.delete", id, j.Name, nil) {
 		return
 	}
+	chained := s.store.chainedAfter(r.Context(), id)
 	if err := s.store.DeleteJob(r.Context(), id); err != nil {
 		redirectErr(w, r, "/jobs", err)
+		return
+	}
+	if chained > 0 {
+		// Jobs chained after it never start again: say so (LOW 2).
+		s.audit(r, "job.delete", "job %d; %d jobs chained after it no longer start", id, chained)
+		redirectMsg(w, r, "/jobs", "Job deleted. Existing backups remain on the storage target. Jobs that ran after it no longer start: choose another job for them (Needs attention on the dashboard lists them).")
 		return
 	}
 	s.audit(r, "job.delete", "job %d", id)

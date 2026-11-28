@@ -24,8 +24,8 @@
         </select>
       </label>
       {{if .ChainJobs}}<div data-sched="chain" {{if ne .S.Kind "chain"}}hidden{{end}} class="row">
-        <label>{{T "Start after the job"}} <small>{{T "e.g. first the database, then the file server"}}</small>{{$a := .S.AfterJob}}
-          <select name="sched_after_job">{{range .ChainJobs}}<option value="{{.ID}}" {{if eq .ID $a}}selected{{end}}>{{.Name}} ({{.Hostname}})</option>{{end}}</select></label>
+        <label>{{T "Start after the job"}} <small>{{T "e.g. first the database, then the file server"}}</small>{{$a := .S.AfterJob}}{{$known := false}}{{range .ChainJobs}}{{if eq .ID $a}}{{$known = true}}{{end}}{{end}}
+          <select name="sched_after_job" required>{{if and $a (not $known)}}<option value="" selected>{{T "the job it ran after was deleted: choose one"}}</option>{{end}}{{range .ChainJobs}}<option value="{{.ID}}" {{if eq .ID $a}}selected{{end}}>{{.Name}} ({{.Hostname}})</option>{{end}}</select></label>
         <label class="check"><input type="checkbox" name="sched_after_any" {{if .S.AfterAny}}checked{{end}}> {{T "also when that job failed"}}</label>
       </div>{{end}}
 

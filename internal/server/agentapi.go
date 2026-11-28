@@ -367,7 +367,8 @@ func (s *Server) handleRunFinish(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, "invalid request")
 		return
 	}
-	if err := s.store.FinishRun(r.Context(), a.ID, id, res); err != nil {
+	failChained, err := s.store.finishRun(r.Context(), a.ID, id, res)
+	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			writeAPIError(w, http.StatusNotFound, "run not found or not running")
 			return
@@ -395,6 +396,15 @@ func (s *Server) handleRunFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.chainAfterRun(r.Context(), id)
+	if failChained && res.Status != api.StatusFailed {
+		// The console had given the run up as stale and chained as after a
+		// failure; it succeeded after all (MED 10).
+		if ids, err := s.store.chainAfterLateSuccess(r.Context(), id); err != nil {
+			s.log.Error("queue chained jobs after a late success", "run", id, "err", err)
+		} else if len(ids) > 0 {
+			s.log.Info("chained jobs queued after a late success", "after_run", id, "runs", ids)
+		}
+	}
 	if run, err := s.store.GetRun(r.Context(), id); err == nil && run.JobID != nil && isBackupKind(run.Kind) {
 		// A backup split over several proxies is copied once, after its last
 		// part: chainAfterRun queues those copies when it decides the chain.

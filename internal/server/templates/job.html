@@ -53,6 +53,7 @@
     {{if .Options.ReplicaAgentID}}<dt>{{T "Replicas"}}</dt><dd>{{T "kept up to date after each backup"}}{{if .Options.ReplicaStorage}}{{T ", on storage"}} {{.Options.ReplicaStorage}}{{end}}</dd>{{end}}
     {{if .Options.LimitMBps}}<dt>{{T "Speed limit"}}</dt><dd>{{.Options.LimitText}}</dd>{{end}}
     {{with $.Data.AfterJob}}<dt>{{T "Runs after"}}</dt><dd><a href="/jobs/{{.ID}}">{{.Name}}</a> ({{.Hostname}})</dd>{{end}}
+    {{if $.Data.AfterJobGone}}<dt>{{T "Runs after"}}</dt><dd><span class="badge failed"><i></i>{{T "deleted job"}}</span> {{T "runs after a job that was deleted, so it never starts: choose another job or a schedule"}}</dd>{{end}}
     {{if .Options.Window}}<dt>{{T "Backup window"}}</dt><dd>{{.Options.WindowText}} <span class="muted small">{{T "scheduled runs start only in this window"}}</span></dd>{{end}}
     {{with $.Data.RPO}}{{if .Hours}}<dt>{{T "RPO"}}</dt><dd>{{if .Missed}}<span class="badge failed"><i></i>{{T "missed"}}</span> {{rpotext .}}{{else}}<span class="badge success"><i></i>{{T "met"}}</span> {{T "%d h" .Hours}}{{if .LastGood}} — {{T "newest good backup"}} {{ago .LastGood}}{{end}}{{end}}</dd>{{end}}{{end}}
     {{if .Options.MaxHours}}<dt>{{T "Time limit"}}</dt><dd>{{T "stopped after %d h" .Options.MaxHours}}</dd>{{end}}

@@ -1062,10 +1062,18 @@ func (s *Store) claimRunIdle(ctx context.Context, agentID int64, onlyUpdate, idl
 // FinishRun records the agent's result. Only runs of that agent in state
 // running can be finished.
 func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.RunResult) error {
+	_, err := s.finishRun(ctx, agentID, runID, res)
+	return err
+}
+
+// finishRun is FinishRun; failChained reports that the console had failed
+// the run as stale and decided its chained jobs then, as after a failure
+// (MED 10: a late success must still start the success-only ones).
+func (s *Store) finishRun(ctx context.Context, agentID, runID int64, res api.RunResult) (failChained bool, err error) {
 	switch res.Status {
 	case api.StatusSuccess, api.StatusWarning, api.StatusFailed:
 	default:
-		return fmt.Errorf("invalid status %q", res.Status)
+		return false, fmt.Errorf("invalid status %q", res.Status)
 	}
 	if res.Errors == nil {
 		res.Errors = []string{}
@@ -1081,23 +1089,27 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 		details = res.Details
 	}
 	// A run a user cancelled ends as "cancelled" (the agent reports failed).
-	ct, err := s.db.Exec(ctx, `UPDATE runs SET status=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' AND cancel_by<>'' THEN 'cancelled' ELSE $3 END,
+	// The run's flags before this answer come from "old".
+	err = s.db.QueryRow(ctx, `WITH old AS (SELECT id AS old_id, stale_failed AS was_stale, chained AS was_chained FROM runs
+			WHERE id=$2 AND agent_id=$1 AND (status='running' OR (status='failed' AND stale_failed)) FOR UPDATE)
+		UPDATE runs SET status=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' AND cancel_by<>'' THEN 'cancelled' ELSE $3 END,
 		finished_at=now(), stats=$4, errors=$5,
 		message=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' THEN cancel_reason ELSE $6 END,
 		notified=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' THEN cancel_by<>'' ELSE notified AND NOT stale_failed END,
 		snapshot_id=CASE WHEN kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') THEN $7 ELSE snapshot_id END, details=$8, commands=$9,
 		chat_notified=chat_notified AND NOT stale_failed, stale_failed=false
-		WHERE id=$2 AND agent_id=$1 AND (status='running' OR (status='failed' AND stale_failed))`,
-		agentID, runID, res.Status, stats, res.Errors, res.Message, res.SnapshotID, details, commands)
-	if err != nil {
-		return err
+		FROM old WHERE id=old.old_id AND agent_id=$1 AND (status='running' OR (status='failed' AND stale_failed))
+		RETURNING old.was_stale AND old.was_chained`,
+		agentID, runID, res.Status, stats, res.Errors, res.Message, res.SnapshotID, details, commands).Scan(&failChained)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, ErrNotFound
 	}
-	if ct.RowsAffected() == 0 {
-		return ErrNotFound
+	if err != nil {
+		return false, err
 	}
 	if res.Status == api.StatusSuccess {
 		if err := s.endInstant(ctx, runID); err != nil {
-			return err
+			return failChained, err
 		}
 	}
 	if res.RepoURL != "" {
@@ -1110,7 +1122,7 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 		}
 		if _, err := s.db.Exec(ctx, `UPDATE runs SET repo_bytes=$2, storage_total=$3, storage_free=$4 WHERE id=$1`,
 			runID, int64(res.RepoBytes), total, free); err != nil { // #nosec G115 -- sizes and counts for display and statistics, not negative
-			return err
+			return failChained, err
 		}
 	}
 	if len(res.Forgotten) > 0 {
@@ -1119,13 +1131,13 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 		if _, err := s.db.Exec(ctx, `UPDATE runs SET expired=true WHERE snapshot_id = ANY($1)
 			AND repo_url IS NOT DISTINCT FROM (SELECT repo_url FROM runs WHERE id=$2)
 			AND target_id IS NOT DISTINCT FROM (SELECT target_id FROM runs WHERE id=$2)`, res.Forgotten, runID); err != nil {
-			return err
+			return failChained, err
 		}
 	}
 	if a, err := s.checkAnomaly(ctx, runID); err == nil && a != "" {
 		slog.Warn("suspicious backup: possible ransomware or mass deletion", "run", runID, "why", a)
 	}
-	return nil
+	return failChained, nil
 }
 
 // FailStaleRuns marks running runs as failed when their agent stopped

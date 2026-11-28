@@ -159,11 +159,20 @@ func (s *Server) attention(ctx context.Context, now time.Time, l *language) []At
 		return nil
 	}
 	cov, _ := s.store.jobCoverage(ctx)
+	exists := map[int64]bool{}
+	for _, j := range jobs {
+		exists[j.ID] = true
+	}
 	for _, j := range jobs {
 		if !j.Enabled {
 			continue
 		}
 		link := fmt.Sprintf("/jobs/%d", j.ID)
+		// A chain after a deleted job never starts again (LOW 2).
+		if sc, err := ParseSchedule(j.Schedule); err == nil && sc.Kind == SchedChain && !exists[sc.AfterJob] {
+			out = append(out, Attention{"warning", j.Name, l.T("runs after a job that was deleted, so it never starts: choose another job or a schedule"), link, ""})
+			continue
+		}
 		if st := rpoState(j, cov[j.ID], now); st.Missed {
 			out = append(out, Attention{"failed", j.Name, l.T("RPO missed: %s", rpoText(l, st)), link, ""})
 			continue
