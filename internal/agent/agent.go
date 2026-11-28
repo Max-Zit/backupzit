@@ -584,6 +584,16 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 	}
 	a.log.Info("run finished", "run", run.ID, "status", res.Status, "message", res.Message, "errors", len(res.Errors))
 	a.runFinished(run.ID, res)
+	a.report(parent, run, res, after)
+}
+
+// reportRetryWait is the first pause between two attempts to report a
+// result; it grows with each attempt (tests shorten it).
+var reportRetryWait = 3 * time.Second
+
+// report sends a run's result to the console and then runs after (the
+// update's or uninstall's installer), if any.
+func (a *Agent) report(parent context.Context, run api.Run, res api.RunResult, after func()) {
 	// Report with a fresh context: the result must reach the server even
 	// when the agent is shutting down. Retry for a while on network errors:
 	// for two hours while the agent runs (the console may be restarting or
@@ -595,6 +605,9 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		deadline = time.Now().Add(time.Minute)
 	}
 	trimmed := false
+	// sent: an earlier attempt may have reached the console although its
+	// answer never came back (a timeout, a cut connection).
+	sent := false
 	for i := 0; time.Now().Before(deadline); i++ {
 		rctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		err := a.client.post(rctx, fmt.Sprintf("%s%d/finish", api.PathRunsPrefix, run.ID), res, nil, true)
@@ -606,6 +619,17 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 			return
 		}
 		a.log.Warn("report run result", "run", run.ID, "err", err)
+		if after != nil && sent && storedBefore(run.Kind, err) {
+			// The console stored the earlier report and only its answer was
+			// lost: it now refuses the repeat because the run is finished
+			// (or, after an uninstall, because it removed the agent). The
+			// update or uninstall it has recorded as done still happens,
+			// once (LOW 3); before, the agent stayed as it was.
+			a.log.Info("the console already has the result (the answer to an earlier report was lost); going ahead", "run", run.ID, "kind", run.Kind)
+			after()
+			return
+		}
+		sent = sent || mayHaveArrived(err)
 		if strings.Contains(err.Error(), "not found or not running") {
 			return
 		}
@@ -628,7 +652,7 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 				deadline = soon
 			}
 		}
-		wait := min(time.Duration(i+1)*3*time.Second, time.Minute)
+		wait := min(time.Duration(i+1)*reportRetryWait, time.Minute)
 		if stopping {
 			time.Sleep(min(wait, 10*time.Second))
 			continue
@@ -638,6 +662,27 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		case <-parent.Done():
 		}
 	}
+}
+
+// mayHaveArrived tells whether a failed report may still have reached the
+// console: it was sent, but no answer came (a timeout, a cut connection).
+// Not when the console answered with an error, nor when no connection was
+// made (refused, no such host).
+func mayHaveArrived(err error) bool {
+	if err == nil || strings.HasPrefix(err.Error(), "server: ") {
+		return false
+	}
+	var oe *net.OpError
+	return !errors.As(err, &oe) || oe.Op != "dial"
+}
+
+// storedBefore tells whether the console's refusal of a repeated report
+// means that it stored an earlier one: the run is no longer running (404),
+// or, for an uninstall, the console removed the agent with it (401).
+func storedBefore(kind string, err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "not found or not running") ||
+		(kind == api.KindAgentUninstall && strings.Contains(msg, "server: unknown agent"))
 }
 
 // trimResult shortens what can make a run result too large for the console.
