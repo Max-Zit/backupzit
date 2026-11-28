@@ -119,8 +119,10 @@ func TestAgentPackageSignedList(t *testing.T) {
 	if pkg, err := s.agentPackage("deb"); err != nil || !pkg.signed {
 		t.Fatalf("listed package: %+v %v", pkg, err)
 	}
+	// The signed list keeps only agent installers (update, MED 14), so a
+	// repository package is not in it at all.
 	manifest("repo", "agent 0.62.0")
-	if _, err := s.agentPackage("deb"); err == nil || !strings.Contains(err.Error(), "not an agent installer") {
+	if _, err := s.agentPackage("deb"); err == nil || !strings.Contains(err.Error(), "not an agent installer") && !strings.Contains(err.Error(), "not in the signed list") {
 		t.Errorf("a repository package installed as an agent: %v", err)
 	}
 	manifest("agent", "agent 0.62.0")
