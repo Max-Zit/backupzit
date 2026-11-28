@@ -3,6 +3,7 @@
   "%d changes wait for a second user's approval": "%d change waits for a second user's approval|%d changes wait for a second user's approval",
   "%d files": "%d file|%d files",
   "%d restore points": "%d restore point|%d restore points",
+  "+%d restore points of other agents": "+%d restore point of other agents|+%d restore points of other agents",
   "From (email sender)": "From",
   "To (email recipients)": "To",
   "VMs (count)": "VMs",
