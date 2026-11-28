@@ -618,4 +618,6 @@ Third-party components keep their own licenses (MIT, BSD, Apache 2.0, ISC, MPL 2
 
 The appliance images and the Linux recovery ISO also contain Debian packages under their own licenses (GPL and others); where to get their source code is in [SOURCE-CODE.txt](packaging/appliance/SOURCE-CODE.txt), which is included in every image and attached to every release.
 
+The Windows agent installer (MSI) also carries unmodified parts of the WiX Toolset 5 (its standard dialogs and a custom action library) under the Microsoft Reciprocal License; THIRD_PARTY_LICENSES.txt names them, with the license text and where their source code is.
+
 Veeam, NAKIVO, VMware, ESXi, Hyper-V, Microsoft 365, SQL Server and Proxmox are trademarks of their respective owners; BackupZit is not affiliated with them.
