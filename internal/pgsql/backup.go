@@ -413,6 +413,7 @@ type RestoreResult struct {
 	Database string
 	DataDir  string // whole cluster: its data directory
 	Port     int    // whole cluster: its port
+	Socket   string // whole cluster: the folder of its Unix socket (psql -h)
 	WALFiles int
 }
 
@@ -434,8 +435,8 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 	if err != nil && o.Database != Cluster {
 		return nil, err
 	}
-	// Root fills the folder while it is root's and hands it to postgres only
-	// once it stops writing there (startRecovered, before pg_restore).
+	// work stays root's: postgres gets only what it must use, once root has
+	// stopped writing there (startRecovered; the dump before pg_restore).
 	work, err := workDir("restore-" + time.Now().Format("20060102-150405"))
 	if err != nil {
 		return nil, err
@@ -449,7 +450,11 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 	res := &RestoreResult{Database: o.Database}
 	fetch := func(sn *repo.Snapshot, path, sub string) (string, error) {
 		target := filepath.Join(work, sub)
-		st, err := restorer.Run(ctx, r, sn, restorer.Options{Target: target, Include: []string{path}})
+		// Private: root's own files, not their recorded owner. The cluster
+		// backup was postgres's folder; restored as postgres's, postgres
+		// could swap base.tar while root fetches the WAL, and root would
+		// unpack and write through what postgres chose (NEW-1).
+		st, err := restorer.Run(ctx, r, sn, restorer.Options{Target: target, Include: []string{path}, Private: true})
 		if err != nil {
 			return "", err
 		}
@@ -467,7 +472,21 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 			return nil, fmt.Errorf("database %s is not in this backup", o.Database)
 		}
 		o.Log("reading the dump", "database", o.Database)
-		if dump, err = fetch(full, d.File, "dump"); err != nil {
+		got, err := fetch(full, d.File, "dump")
+		if err != nil {
+			return nil, err
+		}
+		if err := regularFile(got); err != nil {
+			return nil, err
+		}
+		// pg_restore reads it as postgres: the file alone goes to postgres,
+		// moved into work (root's, 0711) so the folders the restore created
+		// on the way do not have to be opened up (LOW 8).
+		dump = filepath.Join(work, "restore.dump")
+		if err := os.Rename(got, dump); err != nil {
+			return nil, err
+		}
+		if err := givePostgres(dump); err != nil {
 			return nil, err
 		}
 	} else {
@@ -520,11 +539,11 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 		}
 		if o.Database == Cluster {
 			keep = true
-			res.DataDir, res.Port = inst.DataDir, inst.Port
+			res.DataDir, res.Port, res.Socket = inst.DataDir, inst.Port, inst.Socket
 			return res, nil
 		}
 		defer inst.stop(context.Background())
-		// work is postgres's by now: a new file only, never through a link.
+		// A new file in root's work folder, for pg_dump (as postgres).
 		dump = filepath.Join(work, "pitr.dump")
 		if err := writeNew(dump, nil, 0o600); err != nil {
 			return nil, err
@@ -537,9 +556,8 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 			return nil, err
 		}
 	}
-	// pg_restore runs as postgres: give it the restored files (-h: a link
-	// postgres put there keeps its target's owner).
-	_ = exec.CommandContext(ctx, "chown", "-R", "-h", "postgres:", work).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
+	// The dump is postgres's already: no chown of all of work, where
+	// postgres could have planted a hard link to a file of root (LOW 8).
 	if err := s.restoreDump(ctx, dump, o); err != nil {
 		return nil, err
 	}
@@ -618,57 +636,41 @@ func (i *instance) start(ctx context.Context, logFile string) error {
 // a free port, replaying WAL from walDir up to stopAt (zero: all).
 func startRecovered(ctx context.Context, work, base, walDir string, stopAt time.Time, bindir, version string, log func(string, ...any)) (*instance, error) {
 	data := filepath.Join(work, "data")
-	if err := os.Mkdir(data, 0o700); err != nil {
-		return nil, err
-	}
-	if out, err := exec.CommandContext(ctx, "tar", "-xf", filepath.Join(base, "base.tar"), "-C", data).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
-		return nil, fmt.Errorf("unpack base.tar: %v: %s", err, out)
-	}
-	if _, err := os.Stat(filepath.Join(base, "pg_wal.tar")); err == nil {
-		if out, err := exec.CommandContext(ctx, "tar", "-xf", filepath.Join(base, "pg_wal.tar"), "-C", filepath.Join(data, "pg_wal")).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
-			return nil, fmt.Errorf("unpack pg_wal.tar: %v: %s", err, out)
-		}
-	}
-	if err := mapTablespaces(ctx, data, base, filepath.Join(work, "tablespaces")); err != nil {
-		return nil, err
-	}
+	tablespaces := filepath.Join(work, "tablespaces")
+	// The socket and the server log go into a folder of postgres's own:
+	// work stays root's (LOW 8).
+	run := filepath.Join(work, "run")
 	port, err := freePort()
 	if err != nil {
 		return nil, err
 	}
-	// A separate configuration: socket only in work, no archiving into the
-	// production spool, small memory.
-	conf := fmt.Sprintf("port = %d\nlisten_addresses = ''\nunix_socket_directories = '%s'\narchive_mode = off\nshared_buffers = '128MB'\n"+
-		"restore_command = 'cp %s/%%f \"%%p\"'\nrecovery_target_action = 'promote'\n", port, work, walDir)
-	if !stopAt.IsZero() {
-		conf += "recovery_target_time = '" + stopAt.Format("2006-01-02 15:04:05-07:00") + "'\n"
+	if err := prepareData(ctx, data, base, tablespaces, run, walDir, port, stopAt); err != nil {
+		return nil, err
 	}
-	if _, err := os.Stat(filepath.Join(data, "postgresql.conf")); err != nil {
-		_ = os.WriteFile(filepath.Join(data, "postgresql.conf"), []byte("# written by BackupZit for a restored cluster\n"), 0o600)
+	if _, err := pgDir(work, "run"); err != nil {
+		return nil, err
 	}
-	_ = os.WriteFile(filepath.Join(data, "postgresql.auto.conf"), []byte(conf), 0o600)
-	_ = os.WriteFile(filepath.Join(data, "pg_hba.conf"), []byte("local all all peer\n"), 0o600)
-	_ = os.WriteFile(filepath.Join(data, "pg_ident.conf"), nil, 0o600)
-	_ = os.WriteFile(filepath.Join(data, "recovery.signal"), nil, 0o600)
-	_ = os.Remove(filepath.Join(data, "postmaster.pid"))
-	for _, d := range []string{work, walDir} {
-		_ = os.Chmod(d, 0o700) // #nosec G302 -- a directory needs the x bit
+	// Only now that root has stopped writing there, the cluster's folders
+	// go to postgres (-h: a link changes itself, not where it points).
+	own := []string{data, walDir}
+	if _, err := os.Lstat(tablespaces); err == nil {
+		own = append(own, tablespaces)
 	}
-	if out, err := exec.CommandContext(ctx, "chown", "-R", "-h", "postgres:", work).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
+	if out, err := exec.CommandContext(ctx, "chown", append([]string{"-R", "-h", "postgres:"}, own...)...).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
 		return nil, fmt.Errorf("chown: %v: %s", err, out)
 	}
 	if bindir == "" {
 		bindir = findBinDir(version)
 	}
-	inst := &instance{DataDir: data, Socket: work, BinDir: bindir, Port: port}
+	inst := &instance{DataDir: data, Socket: run, BinDir: bindir, Port: port}
 	log("starting the recovered cluster", "port", port)
-	if err := inst.start(ctx, filepath.Join(work, "postgres.log")); err != nil {
-		b, _ := readNoFollow(filepath.Join(work, "postgres.log"), 1<<20)
+	if err := inst.start(ctx, filepath.Join(run, "postgres.log")); err != nil {
+		b, _ := readNoFollow(filepath.Join(run, "postgres.log"), 1<<20)
 		return nil, fmt.Errorf("the recovered cluster did not start: %s", lastLines(strings.TrimSpace(string(b)), 4))
 	}
 	// Wait for the end of recovery (promotion).
 	for i := 0; i < 3600; i++ {
-		out, err := asPostgres(ctx, inst.bin("psql"), "-XAtq", "-h", work, "-p", strconv.Itoa(port), "-d", "postgres", "-c", "SELECT pg_is_in_recovery()")
+		out, err := asPostgres(ctx, inst.bin("psql"), "-XAtq", "-h", run, "-p", strconv.Itoa(port), "-d", "postgres", "-c", "SELECT pg_is_in_recovery()")
 		if err == nil && strings.TrimSpace(string(out)) == "f" {
 			return inst, nil
 		}
@@ -681,6 +683,94 @@ func startRecovered(ctx context.Context, work, base, walDir string, stopAt time.
 	}
 	inst.stop(context.Background())
 	return nil, errors.New("the recovered cluster did not finish recovery")
+}
+
+// prepareData unpacks the tar base backup in base into the new folder data
+// (its tablespaces below tablespaces) and writes the configuration of the
+// recovered cluster: port, socket folder, WAL from walDir up to stopAt
+// (zero: all). Root does it while data is root's and private.
+//
+// pg_basebackup wrote the base backup as postgres, so its content is
+// postgres's choice (NEW-1): the archives are unpacked without their owners
+// and permissions, and root never writes or reads through a link they may
+// hold (a pg_ident.conf -> /etc/passwd would have made root empty that
+// file). pg_basebackup itself puts no links into a tar backup.
+func prepareData(ctx context.Context, data, base, tablespaces, socket, walDir string, port int, stopAt time.Time) error {
+	if err := os.Mkdir(data, 0o700); err != nil {
+		return err
+	}
+	if err := untar(ctx, filepath.Join(base, "base.tar"), data); err != nil {
+		return fmt.Errorf("unpack base.tar: %w", err)
+	}
+	// A "." entry of the archive sets the folder's own mode.
+	if err := os.Chmod(data, 0o700); err != nil { // #nosec G302 -- a directory needs the x bit
+		return err
+	}
+	if _, err := os.Lstat(filepath.Join(base, "pg_wal.tar")); err == nil {
+		// tar follows links on its way into the folder: base.tar must have
+		// made pg_wal a real folder, with no link in it.
+		if err := noLinks(filepath.Join(data, "pg_wal")); err != nil {
+			return err
+		}
+		if err := untar(ctx, filepath.Join(base, "pg_wal.tar"), filepath.Join(data, "pg_wal")); err != nil {
+			return fmt.Errorf("unpack pg_wal.tar: %w", err)
+		}
+	}
+	if err := mapTablespaces(ctx, data, base, tablespaces); err != nil {
+		return err
+	}
+	// A separate configuration: socket only in the restore's own folder, no
+	// archiving into the production spool, small memory.
+	conf := fmt.Sprintf("port = %d\nlisten_addresses = ''\nunix_socket_directories = '%s'\narchive_mode = off\nshared_buffers = '128MB'\n"+
+		"restore_command = 'cp %s/%%f \"%%p\"'\nrecovery_target_action = 'promote'\n", port, socket, walDir)
+	if !stopAt.IsZero() {
+		conf += "recovery_target_time = '" + stopAt.Format("2006-01-02 15:04:05-07:00") + "'\n"
+	}
+	files := [][2]string{ // name, content
+		{"postgresql.auto.conf", conf},
+		{"pg_hba.conf", "local all all peer\n"},
+		{"pg_ident.conf", ""},
+		{"recovery.signal", ""},
+	}
+	// The backup's postgresql.conf stays (RHEL keeps it in the data folder).
+	if fi, err := os.Lstat(filepath.Join(data, "postgresql.conf")); err != nil || !fi.Mode().IsRegular() {
+		files = append(files, [2]string{"postgresql.conf", "# written by BackupZit for a restored cluster\n"})
+	}
+	for _, f := range files {
+		if err := putFile(filepath.Join(data, f[0]), []byte(f[1])); err != nil {
+			return err
+		}
+	}
+	_ = os.Remove(filepath.Join(data, "postmaster.pid"))
+	return os.Chmod(walDir, 0o700) // #nosec G302 -- a directory needs the x bit
+}
+
+// untar unpacks the tar archive f, which must be a regular file, into dir.
+// Root takes the archive's content as it is but not its owners and
+// permissions: what it creates is root's, with the umask applied and no
+// setuid bits, until it is handed to postgres.
+func untar(ctx context.Context, f, dir string) error {
+	if err := regularFile(f); err != nil {
+		return err
+	}
+	if out, err := exec.CommandContext(ctx, "tar", "--no-same-owner", "--no-same-permissions", "-xf", f, "-C", dir).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
+		return fmt.Errorf("%v: %s", err, out)
+	}
+	return nil
+}
+
+// noLinks fails unless dir is a folder with no link in it (looked at
+// without following any).
+func noLinks(dir string) error {
+	return filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.Type()&fs.ModeSymlink != 0 || p == dir && !d.IsDir() {
+			return fmt.Errorf("%s in the cluster backup is a link or not a folder (pg_basebackup writes no links); the backup is not restored", p)
+		}
+		return nil
+	})
 }
 
 func findBinDir(version string) string {
@@ -753,13 +843,21 @@ func copyFile(src, dst string) error {
 // Otherwise PostgreSQL links pg_tblspc to the original absolute paths when
 // the recovered cluster starts: on the same server those belong to the live
 // cluster, and the recovery would write into production data.
+//
+// The map comes from the base backup, which postgres wrote (NEW-1): it is
+// read and replaced without following a link, and each tablespace is
+// unpacked into a new, empty folder of its own (a second line of the same
+// tablespace would unpack through the links the first one left).
 func mapTablespaces(ctx context.Context, data, base, dir string) error {
 	p := filepath.Join(data, "tablespace_map")
-	b, err := os.ReadFile(p) // #nosec G304 -- file of the base backup in the agent's working folder
+	b, err := readNoFollow(p, 1<<20)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
 	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
 	var out strings.Builder
@@ -773,17 +871,20 @@ func mapTablespaces(ctx context.Context, data, base, dir string) error {
 			return fmt.Errorf("unexpected line in tablespace_map: %q", line)
 		}
 		tarFile := filepath.Join(base, oid+".tar")
-		if _, err := os.Stat(tarFile); err != nil { // #nosec G703 -- oid is digits only (checked above), base is the agent's working folder
+		if _, err := os.Lstat(tarFile); err != nil { // #nosec G703 -- oid is digits only (checked above), base is the agent's working folder
 			return fmt.Errorf("tablespace %s is not in the backup (%s.tar is missing)", oid, oid)
 		}
 		target := filepath.Join(dir, oid)
-		if err := os.MkdirAll(target, 0o700); err != nil { // #nosec G703 -- oid is digits only, dir is the agent's working folder
+		if err := os.Mkdir(target, 0o700); err != nil { // #nosec G703 -- oid is digits only, dir is the agent's working folder
+			if errors.Is(err, fs.ErrExist) {
+				return fmt.Errorf("tablespace %s is listed twice in tablespace_map", oid)
+			}
 			return err
 		}
-		if o, err := exec.CommandContext(ctx, "tar", "-xf", tarFile, "-C", target).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
-			return fmt.Errorf("unpack tablespace %s: %v: %s", oid, err, o)
+		if err := untar(ctx, tarFile, target); err != nil {
+			return fmt.Errorf("unpack tablespace %s: %w", oid, err)
 		}
 		fmt.Fprintf(&out, "%s %s\n", oid, target)
 	}
-	return os.WriteFile(p, []byte(out.String()), 0o600)
+	return putFile(p, []byte(out.String()))
 }

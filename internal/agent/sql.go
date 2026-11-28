@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -181,7 +180,7 @@ func (a *Agent) sqlRestore(ctx context.Context, run api.Run) api.RunResult {
 			if !o.StopAt.IsZero() {
 				msg += ", as of " + o.StopAt.Local().Format("2006-01-02 15:04:05 MST")
 			}
-			msg += fmt.Sprintf(". Connect with: sudo -u postgres psql -h %s -p %d. Stop it with: sudo -u postgres pg_ctl -D %s stop", filepath.Dir(pr.DataDir), pr.Port, pr.DataDir)
+			msg += fmt.Sprintf(". Connect with: sudo -u postgres psql -h %s -p %d. Stop it with: sudo -u postgres pg_ctl -D %s stop", pr.Socket, pr.Port, pr.DataDir)
 			return api.RunResult{Status: api.StatusSuccess, Message: msg}
 		}
 		n = pr.WALFiles

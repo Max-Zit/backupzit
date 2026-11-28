@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -30,6 +31,17 @@ type Options struct {
 	Verify bool
 	// Progress, if set, is called for each restored file.
 	Progress func(path string, s *Stats)
+	// Private restores files and folders as the agent user's own with no
+	// access for anyone else (files 0600, folders 0700), without the
+	// owner, permissions, extended attributes (ACLs) and flags of the
+	// backup; links and special files are not restored (listed as errors).
+	// It is for staging folders whose files the agent itself reads back as
+	// root, but that another account wrote at backup time: with their
+	// recorded owner (postgres for PostgreSQL's cluster backup) that
+	// account could swap a file while root unpacks it (NEW-1), and with
+	// its recorded mode or ACL a setuid bit or a write entry would come
+	// back on a file of root.
+	Private bool
 }
 
 // Stats summarises a restore.
@@ -147,7 +159,7 @@ func RunDir(ctx context.Context, r *repo.Repository, dir *repo.Node, target stri
 		relock()
 		return &rs.stats, err
 	}
-	for _, err := range applySelfMeta(top, dir) {
+	for _, err := range applySelfMeta(top, rs.meta(dir)) {
 		rs.addError(abs, err)
 	}
 	rs.stats.Dirs++
@@ -198,6 +210,23 @@ func (rs *restorer) dest(comps []string) string {
 
 func (rs *restorer) addError(p string, err error) {
 	rs.stats.Errors = append(rs.stats.Errors, fmt.Sprintf("%s: %v", p, err))
+}
+
+// errPrivateKind: a Private restore writes files and folders only.
+var errPrivateKind = errors.New("not a file or folder, not restored here")
+
+// meta is the metadata a restored entry gets: the node's own, or with
+// Options.Private only its time, no owner (the agent's user keeps it) and
+// no access for others.
+func (rs *restorer) meta(n *repo.Node) *repo.Node {
+	if !rs.opts.Private {
+		return n
+	}
+	m := repo.Node{Name: n.Name, Type: n.Type, ModTime: n.ModTime, Mode: 0o600}
+	if n.Type == repo.NodeDir {
+		m.Mode = uint32(fs.ModeDir | 0o700)
+	}
+	return &m
 }
 
 // restoreTree restores the entries of t, which belong into the folder dir
@@ -274,7 +303,7 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 				// hidden and system, which would hide everything restored below it.
 				if sub != nil && (len(comps) > 1 || rs.dir || runtime.GOOS != "windows") {
 					setTimes := len(comps) > 1 || rs.dir
-					for _, err := range applyDirMeta(dir, sub, n.Name, n, setTimes) {
+					for _, err := range applyDirMeta(dir, sub, n.Name, rs.meta(n), setTimes) {
 						rs.addError(dst, err)
 					}
 					metaSet = setTimes // flags are set with the times
@@ -323,6 +352,10 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 			if !selected {
 				continue
 			}
+			if rs.opts.Private {
+				rs.addError(dst, errPrivateKind)
+				continue
+			}
 			if err := dir.Symlink(n.LinkTarget, n.Name); err != nil {
 				rs.addError(dst, err)
 				continue
@@ -333,6 +366,10 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 			}
 		case repo.NodeDev, repo.NodeFifo:
 			if !selected {
+				continue
+			}
+			if rs.opts.Private {
+				rs.addError(dst, errPrivateKind)
 				continue
 			}
 			for _, err := range makeSpecialAt(dir, n.Name, n) {
@@ -523,7 +560,8 @@ func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst 
 	}
 	// Owner, mode, attributes and times through the file's own handle
 	// (Linux), before it gets its name.
-	metaErrs := applyFileMeta(f, n, true)
+	m := rs.meta(n)
+	metaErrs := applyFileMeta(f, m, true)
 	id, _ := fsutil.IDOf(f)
 	if err := f.Close(); err != nil {
 		_ = dir.Remove(tmp)
@@ -533,7 +571,7 @@ func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst 
 		_ = dir.Remove(tmp)
 		return none, err
 	}
-	metaErrs = append(metaErrs, afterRename(dir, name, id, n)...)
+	metaErrs = append(metaErrs, afterRename(dir, name, id, m)...)
 	for _, err := range metaErrs {
 		rs.addError(dst, err)
 	}

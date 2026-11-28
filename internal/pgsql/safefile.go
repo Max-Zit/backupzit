@@ -1,8 +1,10 @@
 package pgsql
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/user"
 	"strconv"
@@ -32,6 +34,28 @@ func writeNew(p string, b []byte, mode os.FileMode) error {
 		err = cerr
 	}
 	return err
+}
+
+// putFile writes b to p (0600) in a folder only root can write to, in place
+// of whatever is at that name: a link there (unpacked from an archive
+// postgres wrote) is removed, never written through.
+func putFile(p string, b []byte) error {
+	if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return writeNew(p, b, 0o600)
+}
+
+// regularFile fails unless p is a regular file itself (not a link to one).
+func regularFile(p string) error {
+	fi, err := os.Lstat(p)
+	if err != nil {
+		return err
+	}
+	if !fi.Mode().IsRegular() {
+		return fmt.Errorf("%s is not a regular file", p)
+	}
+	return nil
 }
 
 // readNoFollow reads p, refusing a link, at most limit bytes (0: no limit).

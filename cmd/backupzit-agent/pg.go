@@ -139,7 +139,7 @@ func cmdPG(ctx context.Context, args []string) error {
 			return err
 		}
 		if *db == pgsql.Cluster {
-			fmt.Printf("cluster running on port %d, data directory %s\n", res.Port, res.DataDir)
+			fmt.Printf("cluster running on port %d, data directory %s (connect: sudo -u postgres psql -h %s -p %d)\n", res.Port, res.DataDir, res.Socket, res.Port)
 			return nil
 		}
 		fmt.Printf("database restored (%d WAL backups replayed)\n", res.WALFiles)
