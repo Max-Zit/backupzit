@@ -109,10 +109,12 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 			resp.Status = st
 		}
 	}
-	// Runs wait while two machines use this enrollment (a running copy);
-	// only agent updates go out, after which agents tell themselves apart.
+	// Runs wait while two machines use this enrollment (a running copy), and
+	// for a new agent process until the previous one fell silent; only agent
+	// updates go out, after which agents tell themselves apart.
 	held := s.agentDuplicate(r.Context(), a, req.Instance, req.Hostname, req.IPs, remoteIP(r))
-	// With two copies polling, one copy's list says nothing about the other.
+	// With two copies polling, one copy's list says nothing about the other
+	// (nor does the first list of a copy that just started, M-9).
 	if req.ReportsRuns && !held {
 		s.failOrphanedRuns(r.Context(), a, req.Runs)
 	}
