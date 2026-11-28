@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -50,17 +51,26 @@ func (s *Server) noteCopyStalls(ctx context.Context) {
 	if len(stalled) == 0 {
 		return
 	}
-	m := map[string]copyStall{}
-	_ = s.store.GetSetting(ctx, settingCopyStalls, &m)
+	add := map[string]copyStall{}
 	for id, since := range stalled {
 		run, err := s.store.GetRun(ctx, id)
 		if err != nil || run.Kind != api.KindCopy || run.Status != "running" {
 			continue
 		}
 		s.log.Warn("copy run moves no data, the agent still answers", "run", id, "since", since)
-		m[strconv.FormatInt(id, 10)] = copyStall{Since: since}
+		add[strconv.FormatInt(id, 10)] = copyStall{Since: since}
 	}
-	if err := s.store.SetSetting(ctx, settingCopyStalls, m); err != nil {
+	if len(add) == 0 {
+		return
+	}
+	// Added to what is stored, in one transaction (polls of several agents
+	// and the notifier write it at the same time).
+	if err := updateSettingMap(ctx, s.store, settingCopyStalls, func(m map[string]copyStall) bool {
+		for k, x := range add {
+			m[k] = x
+		}
+		return true
+	}); err != nil {
 		s.log.Error("save stalled copies", "err", err)
 	}
 }
@@ -72,16 +82,19 @@ func (n *Notifier) copyStallAlerts(ctx context.Context, l *language, e EmailSett
 	if err := n.store.GetSetting(ctx, settingCopyStalls, &m); err != nil || len(m) == 0 {
 		return
 	}
-	changed := false
+	var drop, notified []string
 	for key, x := range m {
 		id, err := strconv.ParseInt(key, 10, 64)
-		var run Run
-		if err == nil {
-			run, err = n.store.GetRun(ctx, id)
+		if err != nil {
+			drop = append(drop, key)
+			continue
+		}
+		run, err := n.store.GetRun(ctx, id)
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			continue // the database did not answer: again on the next pass
 		}
 		if err != nil || run.Status != "running" {
-			delete(m, key) // ended (or gone): nothing to report any more
-			changed = true
+			drop = append(drop, key) // ended (or gone): nothing to report any more
 			continue
 		}
 		if x.Notified {
@@ -114,11 +127,11 @@ func (n *Notifier) copyStallAlerts(ctx context.Context, l *language, e EmailSett
 				n.log.Warn("send stalled copy chat notification", "run", run.ID, "channel", c.Name, "err", err)
 			}
 		}
-		x.Notified = true
-		m[key] = x
-		changed = true
+		notified = append(notified, key)
 	}
-	if changed {
-		_ = n.store.SetSetting(ctx, settingCopyStalls, m)
+	// Only what this pass did is written: stalls noted meanwhile stay.
+	if err := settleNotices(ctx, n.store, settingCopyStalls, m, drop, notified,
+		func(x copyStall) time.Time { return x.Since }, func(x copyStall) copyStall { x.Notified = true; return x }); err != nil {
+		n.log.Error("save stalled copies", "err", err)
 	}
 }

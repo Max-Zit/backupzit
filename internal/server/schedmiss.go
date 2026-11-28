@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -31,21 +32,23 @@ type scheduleMiss struct {
 	Notified bool      `json:"notified,omitempty"`
 }
 
-// noteScheduleMiss records a missed schedule of a job.
+// noteScheduleMiss records a missed schedule of a job, in one transaction
+// with the other writers (the notifier, LOW: before, a stale copy written
+// back lost entries, and a failed read wrote over all of them).
 func (s *Store) noteScheduleMiss(ctx context.Context, jobID int64, kind string, now time.Time) error {
-	m := map[string]scheduleMiss{}
-	_ = s.GetSetting(ctx, settingScheduleMisses, &m)
 	key := strconv.FormatInt(jobID, 10)
-	x, ok := m[key]
-	if !ok {
-		x = scheduleMiss{Kind: kind, Since: now}
-	}
-	x.Count++
-	if x.Kind != kind && !x.Notified {
-		x.Kind = kind
-	}
-	m[key] = x
-	return s.SetSetting(ctx, settingScheduleMisses, m)
+	return updateSettingMap(ctx, s, settingScheduleMisses, func(m map[string]scheduleMiss) bool {
+		x, ok := m[key]
+		if !ok {
+			x = scheduleMiss{Kind: kind, Since: now}
+		}
+		x.Count++
+		if x.Kind != kind && !x.Notified {
+			x.Kind = kind
+		}
+		m[key] = x
+		return true
+	})
 }
 
 // lastSuccessAt is when the newest successful (or warning) backup of the
@@ -66,18 +69,19 @@ func (n *Notifier) scheduleMissAlerts(ctx context.Context, l *language, e EmailS
 	if err := n.store.GetSetting(ctx, settingScheduleMisses, &m); err != nil || len(m) == 0 {
 		return
 	}
-	changed := false
+	var drop, notified []string
 	for key, x := range m {
 		id, err := strconv.ParseInt(key, 10, 64)
 		if err != nil {
-			delete(m, key)
-			changed = true
+			drop = append(drop, key)
 			continue
 		}
 		j, err := n.store.GetJob(ctx, id)
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			continue // the database did not answer: again on the next pass
+		}
 		if err != nil || n.store.lastSuccessAt(ctx, id).After(x.Since) {
-			delete(m, key) // deleted, or it backed up since
-			changed = true
+			drop = append(drop, key) // deleted, or it backed up since
 			continue
 		}
 		if x.Notified {
@@ -115,11 +119,11 @@ func (n *Notifier) scheduleMissAlerts(ctx context.Context, l *language, e EmailS
 				n.log.Warn("send missed schedule chat notification", "job", j.ID, "channel", c.Name, "err", err)
 			}
 		}
-		x.Notified = true
-		m[key] = x
-		changed = true
+		notified = append(notified, key)
 	}
-	if changed {
-		_ = n.store.SetSetting(ctx, settingScheduleMisses, m)
+	// Only what this pass did is written: misses noted meanwhile stay.
+	if err := settleNotices(ctx, n.store, settingScheduleMisses, m, drop, notified,
+		func(x scheduleMiss) time.Time { return x.Since }, func(x scheduleMiss) scheduleMiss { x.Notified = true; return x }); err != nil {
+		n.log.Error("save missed schedules", "err", err)
 	}
 }
