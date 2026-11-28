@@ -44,6 +44,7 @@
   <li>Klikněte na <b>Spustit obnovu</b>. Průběh a výsledky se zobrazí na stránce běhu obnovy.</li>
 </ol>
 <p>Obnovují se také časy souborů, atributy Windows (skrytý, jen pro čtení, …) a v Linuxu vlastníci, oprávnění (včetně bitů setuid), ACL, rozšířené atributy (štítky SELinux, capabilities souborů), symbolické a pevné odkazy. Na macOS také příznaky souborů BSD (skrytý, zamčený…), čas vytvoření a rozšířené atributy (viz <a href="/docs/macos#metadata">Agenti pro macOS</a>). Vlastníci se nastaví jen tehdy, když agent běží jako root/správce.</p>
+<p>Během obnovy je složka, kterou obnova vytvoří, přístupná jen vlastníkovi (0700 v Linuxu a macOS, i pro soubory z virtuálních počítačů) a svá vlastní oprávnění dostane, jakmile je zapsán její obsah: soubory soukromé složky, jako je <code>/root</code>, tak mezitím nemohou číst ostatní. Obnova, která se zastaví v polovině, nechá takové složky soukromé.</p>
 
 <h3 id="browse-files">Procházení, stahování a výběr souborů</h3>
 <p>U běhu zálohy <b>Procházet soubory</b> ukáže zálohované složky tak, jak byly (i u sdílených složek NAS a záloh systému Linux). Otevírejte složky, zaškrtněte soubory a složky a pak:</p>
@@ -63,6 +64,7 @@
 
 <h2>Obnova jednotlivých souborů z VM (Proxmox VE, Hyper-V, VMware)</h2>
 <p>V běhu zálohy VM klikněte vedle hosta na <b>Procházet soubory</b>. Konzole zobrazí oddíly a svazky LVM jeho disků a umožní procházet souborové systémy NTFS, ext4, XFS a btrfs. Zaškrtnuté soubory <b>stáhněte</b> (více jako archiv ZIP) nebo je obnovte na libovolného agenta. Viz <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> a <a href="/docs/vmware">VMware ESXi</a>. Soubory obnovené na agentovi si ponechají unixová oprávnění, která měly ve VM (ext4, XFS, btrfs), takže obnovená tajemství jako <code>/etc/shadow</code> zůstanou soukromá; soubory ze svazků NTFS může v Linuxu číst jen jejich vlastník. Při obnově na agenta ve Windows se názvy s <code>:</code> z linuxových hostů (ext4, XFS, btrfs) přeskočí a vypíšou: Windows by část za dvojtečkou četl jako datový proud jiného souboru. Alternativní datové proudy NTFS se obnoví jako proudy.</p>
+<p>Řídké (sparse) soubory hosta zůstanou řídké: úseky nul se nezapisují, takže soubor jako <code>/var/log/lastlog</code>, jehož zdánlivá velikost může dosáhnout terabajtů, zabere jen místo svých dat. Na agentovi s Windows se soubor označí jako řídký jen tehdy, když obsahuje úsek nul dlouhý alespoň 64 MiB (Hyper-V odmítá řídké virtuální disky); ostatní soubory se tam zapíšou celé.</p>
 <p id="btrfs"><b>btrfs</b> se zobrazí tak, jak vypadá s připojeným subvolume nejvyšší úrovně: subvolumy a snímky jsou složky tam, kde jsou připojeny (ve snímku je subvolume, který byl uvnitř originálu, prázdnou složkou, stejně jako v Linuxu). Soubory komprimované pomocí zstd, LZO nebo zlib se čtou jako všechny ostatní. Procházet lze jen btrfs na jednom disku: u souborového systému rozloženého na více disků (btrfs RAID nebo přidaná zařízení) konzole zobrazí chybu; spusťte VM pomocí okamžité obnovy a soubory zkopírujte odtud.</p>
 
 <h2>Obnova celých počítačů</h2>

@@ -244,7 +244,7 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 		}
 		switch n.Type {
 		case repo.NodeDir:
-			sub, err := rs.openSub(dir, comps, dst)
+			sub, err := rs.openSub(dir, comps, dst, selected)
 			if err != nil {
 				rs.addError(dst, err)
 				continue
@@ -353,8 +353,11 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 // points. At the original location a link of the system (owned by root or
 // the agent's user, e.g. /bin -> usr/bin; on Windows SYSTEM, TrustedInstaller
 // or an administrator) is followed; one of another user is not. A nil
-// folder with no error: a level above the shares of a UNC path.
-func (rs *restorer) openSub(dir *fsutil.Dir, comps []string, dst string) (*fsutil.Dir, error) {
+// folder with no error: a level above the shares of a UNC path. A selected
+// folder the restore creates is private (0700) until applyDirMeta gives it
+// its own mode after its contents (MED 17); one above the selection keeps
+// 0755.
+func (rs *restorer) openSub(dir *fsutil.Dir, comps []string, dst string, selected bool) (*fsutil.Dir, error) {
 	original := rs.opts.Target == "" && !rs.dir
 	if original && runtime.GOOS == "windows" {
 		switch {
@@ -368,6 +371,9 @@ func (rs *restorer) openSub(dir *fsutil.Dir, comps []string, dst string) (*fsuti
 	}
 	if dir == nil {
 		return nil, errors.New("not inside a folder, skipped")
+	}
+	if selected {
+		return dir.SubPrivate(comps[len(comps)-1], original)
 	}
 	return dir.Sub(comps[len(comps)-1], original)
 }
@@ -399,9 +405,6 @@ func (rs *restorer) openDirOf(p string) (*fsutil.Dir, error) {
 	}
 	return d, nil
 }
-
-// hole is a range of zeros skipped instead of written (offset, length).
-type hole struct{ off, n int64 }
 
 // linkTo creates name in dir as a hard link to the file restored at first.
 // firstLink is the first restored file of a set of hard links.
@@ -465,7 +468,7 @@ func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst 
 	// did not record the attribute (those files stay as they were
 	// restored before).
 	marked := n.WinAttrs&fsutil.AttrSparse == 0 // true: nothing to mark
-	var holes []hole
+	var holes []fsutil.Hole
 	// The chunks of a larger file are read a few at a time (on shares and
 	// object stores a read waits mostly on the network, #71); a file of one
 	// chunk is read as before.
@@ -489,14 +492,14 @@ func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst 
 				// Windows needs the file marked sparse before the first
 				// hole; if the file system cannot, the zeros are written.
 				// In a file that is not marked NTFS writes the zeros too.
-				_ = markSparse(f)
+				_ = fsutil.MarkSparse(f)
 				marked = true
 			}
 			// #nosec G115 -- file sizes are below 2^63
-			if last := len(holes) - 1; last >= 0 && holes[last].off+holes[last].n == int64(written) {
-				holes[last].n += int64(len(data)) // one range for consecutive chunks of zeros
+			if last := len(holes) - 1; last >= 0 && holes[last].Off+holes[last].N == int64(written) {
+				holes[last].N += int64(len(data)) // one range for consecutive chunks of zeros
 			} else {
-				holes = append(holes, hole{int64(written), int64(len(data))})
+				holes = append(holes, fsutil.Hole{Off: int64(written), N: int64(len(data))})
 			}
 			_, err = f.Seek(int64(len(data)), io.SeekCurrent)
 		} else {
@@ -514,7 +517,7 @@ func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst 
 	// Where the file system filled skipped ranges with zeros (APFS does
 	// for gaps below 16 MiB), they are freed again; if it cannot, the
 	// zeros stay, as before.
-	_ = punchHoles(f, holes)
+	_ = fsutil.PunchHoles(f, holes)
 	if written != n.Size {
 		return fail(fmt.Errorf("restored %d bytes, snapshot says %d", written, n.Size))
 	}

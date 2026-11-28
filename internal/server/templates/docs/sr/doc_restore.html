@@ -44,6 +44,7 @@
   <li>Kliknite <b>Pokreni vraćanje</b>. Napredak i rezultati se prikazuju na stranici pokretanja vraćanja.</li>
 </ol>
 <p>Vraćaju se i vremena fajlova, Windows atributi (skriven, samo za čitanje, …) i Linux vlasnici, dozvole (uključujući setuid bitove), ACL-ovi, prošireni atributi (SELinux oznake, file capabilities), simbolički i čvrsti linkovi. Na macOS-u i BSD zastavice fajlova (hidden, locked…), vreme kreiranja i prošireni atributi (vidi <a href="/docs/macos#metadata">macOS agenti</a>). Vlasnici se postavljaju samo kada agent radi kao root/administrator.</p>
+<p>Dok vraćanje traje, folder koji ono napravi dostupan je samo vlasniku (0700 na Linuxu i macOS-u, i za fajlove iz virtuelnih mašina) i dobija svoje dozvole kada se upiše njegov sadržaj: fajlove privatnog foldera kao što je <code>/root</code> drugi u međuvremenu ne mogu da čitaju. Vraćanje koje stane na pola ostavlja takve foldere privatnim.</p>
 
 <h3 id="browse-files">Pregled, preuzimanje i izbor fajlova</h3>
 <p>Na pokretanju bekapa, <b>Pregledaj fajlove</b> prikazuje sačuvane foldere onakve kakvi su bili (i za NAS deljene foldere i bekape Linux sistema). Otvarajte foldere, označite fajlove i foldere, zatim:</p>
@@ -63,6 +64,7 @@
 
 <h2>Vraćanje pojedinačnih fajlova iz VM-a (Proxmox VE, Hyper-V, VMware)</h2>
 <p>U pokretanju bekapa VM-a kliknite <b>Pregledaj fajlove</b> pored gosta. Konzola prikazuje particije i LVM volumene njegovih diskova i omogućava pregled NTFS, ext4, XFS i btrfs fajl-sistema. <b>Preuzmite</b> označene fajlove (više njih kao ZIP arhivu) ili ih vratite na bilo kog agenta. Vidi <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> i <a href="/docs/vmware">VMware ESXi</a>. Fajlovi vraćeni na agenta zadržavaju Unix dozvole koje su imali u VM-u (ext4, XFS, btrfs), pa vraćene tajne kao što je <code>/etc/shadow</code> ostaju privatne; fajlove sa NTFS volumena na Linux-u može da čita samo vlasnik. Pri vraćanju na Windows agenta imena sa <code>:</code> iz Linux gostiju (ext4, XFS, btrfs) se preskaču i navode: Windows bi deo posle dvotačke pročitao kao tok (stream) drugog fajla. NTFS alternativni tokovi podataka vraćaju se kao tokovi.</p>
+<p>Retki (sparse) fajlovi gosta ostaju retki: nizovi nula se ne upisuju, pa fajl kao <code>/var/log/lastlog</code>, čija prividna veličina može da dostigne terabajte, zauzima samo prostor svojih podataka. Na Windows agentu fajl se označava kao redak samo kada sadrži niz od najmanje 64 MiB nula (Hyper-V odbija retke virtuelne diskove); ostali fajlovi se tamo upisuju celi.</p>
 <p id="btrfs"><b>btrfs</b> se prikazuje onako kako izgleda kada je montiran subvolume najvišeg nivoa: subvolume-i i snimci su folderi tamo gde su povezani (u snimku je subvolume koji je bio unutar originala prazan folder, kao i na Linuxu). Fajlovi kompresovani sa zstd, LZO ili zlib čitaju se kao i svi ostali. Pregledati se može samo btrfs na jednom disku: za fajl-sistem raspoređen na više diskova (btrfs RAID ili dodati uređaji) konzola prikazuje grešku; pokrenite VM preko instant recovery i kopirajte fajlove odatle.</p>
 
 <h2>Vraćanje celih mašina</h2>

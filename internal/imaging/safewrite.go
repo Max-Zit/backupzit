@@ -108,7 +108,18 @@ func isLink(fi fs.FileInfo) bool {
 }
 
 // Mkdir creates the folder p and the folders above it.
-func (t *Target) Mkdir(p string) error {
+func (t *Target) Mkdir(p string) error { return t.mkdir(p, 0o755) }
+
+// MkdirPrivate is Mkdir for a folder that gets its own permissions once its
+// contents are written (Chmod): created by it, p itself is 0700 until then.
+// With 0755 the files restored into a private folder of the guest (/root,
+// ~/.ssh) were open to everyone while the restore ran, which can take hours
+// (MED 17). The folders above p get 0755 as before; at the original
+// location folders are created as by Mkdir.
+func (t *Target) MkdirPrivate(p string) error { return t.mkdir(p, 0o700) }
+
+// mkdir creates p (with perm) and the folders above it (0755).
+func (t *Target) mkdir(p string, perm fs.FileMode) error {
 	if t.root == nil {
 		_, err := t.origDir(p)
 		return err
@@ -121,9 +132,14 @@ func (t *Target) Mkdir(p string) error {
 		return nil
 	}
 	cur := ""
-	for _, c := range strings.Split(rel, string(filepath.Separator)) {
+	parts := strings.Split(rel, string(filepath.Separator))
+	for i, c := range parts {
 		cur = filepath.Join(cur, c)
-		if err := t.realDir(cur); err != nil {
+		mode := fs.FileMode(0o755)
+		if i == len(parts)-1 {
+			mode = perm
+		}
+		if err := t.realDir(cur, mode); err != nil {
 			return err
 		}
 	}
@@ -131,13 +147,13 @@ func (t *Target) Mkdir(p string) error {
 }
 
 // realDir makes sure the folder rel (all folders above it are real) is a
-// folder and not a link.
-func (t *Target) realDir(rel string) error {
+// folder and not a link; perm is the mode of a folder it creates.
+func (t *Target) realDir(rel string, perm fs.FileMode) error {
 	for range 2 {
 		fi, err := t.root.Lstat(rel)
 		switch {
 		case errors.Is(err, fs.ErrNotExist):
-			err := t.root.Mkdir(rel, 0o755)
+			err := t.root.Mkdir(rel, perm)
 			if err == nil {
 				return nil
 			}
@@ -153,7 +169,7 @@ func (t *Target) realDir(rel string) error {
 			if err := t.root.Remove(rel); err != nil {
 				return fmt.Errorf("%s is a link where a folder belongs and cannot be replaced: %w", filepath.Join(t.dir, rel), err)
 			}
-			if err := t.root.Mkdir(rel, 0o755); err != nil {
+			if err := t.root.Mkdir(rel, perm); err != nil {
 				return err
 			}
 			return nil

@@ -1,9 +1,11 @@
 package vmfs
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -107,7 +109,13 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 				st.Errors = append(st.Errors, LoopMessage(e.Path))
 				return nil
 			}
-			if err := tg.Mkdir(dst); err != nil {
+			// A folder with permissions of its own is created private and
+			// gets them once its contents are written (MED 17).
+			mkdir := tg.Mkdir
+			if e.Perm != 0 {
+				mkdir = tg.MkdirPrivate
+			}
+			if err := mkdir(dst); err != nil {
 				st.Errors = append(st.Errors, fmt.Sprintf("%s: %v", e.Path, err))
 				return nil
 			}
@@ -178,7 +186,7 @@ func extractFile(fsys FS, e Entry, tg *imaging.Target, dst string) (int64, error
 	if err != nil {
 		return 0, err
 	}
-	n, err := io.Copy(f, rd)
+	n, err := copySparse(f, rd)
 	if err == nil && tmp != dst {
 		// Permissions and times through the file's own handle, before it
 		// gets its name: by name, a hard link put in its place could
@@ -203,6 +211,78 @@ func extractFile(fsys FS, e Entry, tg *imaging.Target, dst string) (int64, error
 		return n, err
 	}
 	return n, nil
+}
+
+// sparseBlock is the unit copySparse looks at: a block of zeros is skipped
+// with a seek instead of written.
+const sparseBlock = 1 << 20
+
+// sparseMarkRun is the shortest run of zeros for which a file is marked
+// sparse (Windows; NTFS keeps holes only in a file marked sparse, other
+// systems in any file). Hyper-V refuses a sparse virtual disk (B9), so a
+// file with only short runs of zeros is written on Windows as before.
+const sparseMarkRun = 64 << 20
+
+var zeroBlock [sparseBlock]byte
+
+// copySparse copies rd into the new file f and returns its size. Blocks of
+// zeros are skipped instead of written, so a sparse file of the guest stays
+// sparse: /var/log/lastlog has an apparent size of (highest UID + 1) × 292
+// bytes, about 1.2 TB with UID 4294967294, and was written as zeros onto
+// the agent's disk (MED 6a).
+func copySparse(f *os.File, rd io.Reader) (int64, error) {
+	buf := make([]byte, sparseBlock)
+	var off, zeros int64 // zeros: the run of zeros not written yet, ending at off
+	var holes []fsutil.Hole
+	marked := false
+	skip := func() error {
+		if zeros == 0 {
+			return nil
+		}
+		if !marked && zeros >= sparseMarkRun {
+			// If the file system cannot, the skipped range is filled
+			// with zeros, as before.
+			_ = fsutil.MarkSparse(f)
+			marked = true
+		}
+		holes = append(holes, fsutil.Hole{Off: off - zeros, N: zeros})
+		_, err := f.Seek(zeros, io.SeekCurrent)
+		zeros = 0
+		return err
+	}
+	for {
+		n, rerr := io.ReadFull(rd, buf)
+		if n > 0 {
+			if bytes.Equal(buf[:n], zeroBlock[:n]) {
+				zeros += int64(n)
+			} else {
+				if err := skip(); err != nil {
+					return off, err
+				}
+				if _, err := f.Write(buf[:n]); err != nil {
+					return off, err
+				}
+			}
+			off += int64(n)
+		}
+		if rerr == io.EOF || rerr == io.ErrUnexpectedEOF {
+			break
+		}
+		if rerr != nil {
+			return off, rerr
+		}
+	}
+	// Zeros at the end: the size alone (the truncate) leaves them as a hole.
+	if err := skip(); err != nil {
+		return off, err
+	}
+	if err := f.Truncate(off); err != nil {
+		return off, err
+	}
+	// Where the file system filled skipped ranges with zeros (APFS for
+	// gaps below 16 MiB), they are freed again.
+	_ = fsutil.PunchHoles(f, holes)
+	return off, nil
 }
 
 // Base returns the last element of a path inside a volume.

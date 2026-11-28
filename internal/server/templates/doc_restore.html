@@ -44,6 +44,7 @@
   <li>Click <b>Start restore</b>. Progress and results appear on the restore run's page.</li>
 </ol>
 <p>File times, Windows attributes (hidden, read-only, …) and Linux owners, permissions (including setuid bits), ACLs, extended attributes (SELinux labels, file capabilities), symbolic and hard links are restored too. On macOS also the BSD file flags (hidden, locked…), the creation time and the extended attributes (see <a href="/docs/macos#metadata">macOS agents</a>). Owners are set only when the agent runs as root/administrator.</p>
+<p>While a restore runs, a folder it creates is open only to its owner (0700 on Linux and macOS, also for files from virtual machines) and gets its own permissions once its contents are written: the files of a private folder such as <code>/root</code> are not readable by others in the meantime. A restore that stops halfway leaves such folders private.</p>
 
 <h3 id="browse-files">Browse, download and pick files</h3>
 <p>On the backup run, <b>Browse files</b> shows the backed up folders as they were (also for NAS shares and Linux system backups). Open folders, tick files and folders, then:</p>
@@ -63,6 +64,7 @@
 
 <h2>Restore single files from a VM (Proxmox VE, Hyper-V, VMware)</h2>
 <p>In a VM backup run click <b>Browse files</b> next to the guest. The console shows the partitions and LVM volumes of its disks and lets you browse NTFS, ext4, XFS and btrfs file systems. <b>Download</b> the ticked files (several as a ZIP archive) or restore them on any agent. See <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> and <a href="/docs/vmware">VMware ESXi</a>. Files restored on an agent keep the Unix permissions they had in the VM (ext4, XFS, btrfs), so restored secrets such as <code>/etc/shadow</code> stay private; files from NTFS volumes are readable only by their owner on Linux. Restored on a Windows agent, names with <code>:</code> from Linux guests (ext4, XFS, btrfs) are skipped and listed: Windows would read the part after the colon as a stream of another file. NTFS alternate data streams are restored as streams.</p>
+<p>Sparse files of the guest stay sparse: runs of zeros are not written, so a file such as <code>/var/log/lastlog</code>, whose apparent size can reach terabytes, takes only the space of its data. On a Windows agent a file is marked sparse only when it holds a run of at least 64 MiB of zeros (Hyper-V refuses sparse virtual disks); other files are written in full there.</p>
 <p id="btrfs"><b>btrfs</b> is shown the way it looks with the top-level subvolume mounted: subvolumes and snapshots are folders where they are linked (in a snapshot, a subvolume that was inside the original is an empty folder, as on Linux). Files compressed with zstd, LZO or zlib are read like any other. Only btrfs on one disk can be browsed: for a file system spread over several disks (btrfs RAID or added devices) the console shows an error; start the VM with instant recovery and copy the files from there.</p>
 
 <h2>Restore whole machines</h2>

@@ -98,7 +98,7 @@ func openOriginal(p string, links int, create bool) (*Dir, error) {
 		if c == "" {
 			continue
 		}
-		next, err := d.sub(c, true, links, create)
+		next, err := d.sub(c, true, links, create, 0o755)
 		_ = d.Close()
 		if err != nil {
 			return nil, err
@@ -151,9 +151,21 @@ func (d *Dir) handle() (*os.File, error) {
 // restore folder (follow false) a link where the folder belongs is replaced
 // by a real folder; at the original location (follow true) a link of the
 // system or an administrator is followed and one of another user refused.
-func (d *Dir) Sub(name string, follow bool) (*Dir, error) { return d.sub(name, follow, 0, true) }
+func (d *Dir) Sub(name string, follow bool) (*Dir, error) { return d.sub(name, follow, 0, true, 0o755) }
 
-func (d *Dir) sub(name string, follow bool, links int, create bool) (*Dir, error) {
+// SubPrivate is Sub for a folder that gets its own permissions once its
+// contents are restored: created by it, the folder is 0700 until then. With
+// 0755 the files restored into a private folder (/root, a 0700 home) were
+// open to everyone for as long as that folder restored, which can take
+// hours (MED 17). Folders above the restored ones, which the backup does
+// not describe, are created with Sub (0755) as before.
+func (d *Dir) SubPrivate(name string, follow bool) (*Dir, error) {
+	return d.sub(name, follow, 0, true, 0o700)
+}
+
+// sub opens or creates the folder name; perm is the mode of a folder it
+// creates.
+func (d *Dir) sub(name string, follow bool, links int, create bool, perm os.FileMode) (*Dir, error) {
 	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/`+string(filepath.Separator)) {
 		return nil, fmt.Errorf("%q is not a folder name", name)
 	}
@@ -171,7 +183,7 @@ func (d *Dir) sub(name string, follow bool, links int, create bool) (*Dir, error
 			if !create {
 				return nil, fmt.Errorf("%s does not exist (a link points there)", p)
 			}
-			if err := d.root.Mkdir(name, 0o755); err != nil && !errors.Is(err, os.ErrExist) { // #nosec G301 -- folder of restored files, like the original
+			if err := d.root.Mkdir(name, perm); err != nil && !errors.Is(err, os.ErrExist) { // #nosec G301 -- folder of restored files, like the original
 				return nil, err
 			}
 		case entryDir:

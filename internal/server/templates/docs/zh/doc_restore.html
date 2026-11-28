@@ -44,6 +44,7 @@
   <li>点击<b>开始还原</b>。进度和结果显示在还原运行的页面上。</li>
 </ol>
 <p>文件时间、Windows 属性（隐藏、只读……）以及 Linux 上的所有者、权限（包括 setuid 位）、ACL、扩展属性（SELinux 标签、文件 capabilities）、符号链接和硬链接也会一并还原。在 macOS 上还会还原 BSD 文件标志（隐藏、锁定……）、创建时间和扩展属性（参见 <a href="/docs/macos#metadata">macOS 代理</a>）。只有当代理以 root/管理员身份运行时才会设置所有者。</p>
+<p>还原运行期间，还原创建的文件夹只对其所有者开放（Linux 和 macOS 上为 0700，从虚拟机还原文件时也是如此），其内容写完后才设置它本身的权限：因此像 <code>/root</code> 这样的私有文件夹中的文件在此期间不会被他人读取。中途停止的还原会让这些文件夹保持私有。</p>
 
 <h3 id="browse-files">浏览、下载和选择文件</h3>
 <p>在备份运行中，<b>浏览文件</b>会按原样显示备份的文件夹（NAS 共享和 Linux 系统备份也可以）。打开文件夹，勾选文件和文件夹，然后：</p>
@@ -63,6 +64,7 @@
 
 <h2>从虚拟机还原单个文件（Proxmox VE、Hyper-V、VMware）</h2>
 <p>在虚拟机备份运行中，点击客户机旁的<b>浏览文件</b>。控制台会显示其磁盘的分区和 LVM 卷，并可浏览 NTFS、ext4、XFS 和 btrfs 文件系统。<b>下载</b>勾选的文件（多个文件打包为 ZIP）或将其还原到任意代理。参见 <a href="/docs/proxmox">Proxmox VE</a>、<a href="/docs/hyperv">Hyper-V</a> 和 <a href="/docs/vmware">VMware ESXi</a>。 恢复到代理上的文件会保留其在虚拟机中的 Unix 权限（ext4、XFS、btrfs），因此恢复的机密文件（如 <code>/etc/shadow</code>）仍然是私有的；在 Linux 上，来自 NTFS 卷的文件只有其所有者可以读取。还原到 Windows 代理上时，来自 Linux 来宾（ext4、XFS、btrfs）的含 <code>:</code> 的名称会被跳过并列出：Windows 会把冒号后的部分当作另一个文件的流来读取。NTFS 备用数据流会作为流还原。</p>
+<p>客户机中的稀疏文件还原后仍是稀疏文件：连续的零不会被写入，因此像 <code>/var/log/lastlog</code> 这样表观大小可达数 TB 的文件只占用其数据所需的空间。在 Windows 代理上，只有包含至少 64 MiB 连续零的文件才会被标记为稀疏文件（Hyper-V 拒绝稀疏虚拟磁盘）；其他文件会被完整写入。</p>
 <p id="btrfs"><b>btrfs</b> 的显示方式与挂载顶层子卷时相同：子卷和快照在其链接的位置显示为文件夹（在快照中，原始子卷内的子卷是一个空文件夹，与 Linux 中一样）。用 zstd、LZO 或 zlib 压缩的文件与其他文件一样读取。只能浏览单个磁盘上的 btrfs：对于分布在多个磁盘上的文件系统（btrfs RAID 或添加的设备），控制台会显示错误；请通过即时恢复启动虚拟机，然后从中复制文件。</p>
 
 <h2>还原整台机器</h2>
