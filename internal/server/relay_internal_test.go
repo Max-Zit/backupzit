@@ -1,10 +1,14 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -140,5 +144,93 @@ func TestBrowseRefusedAgentsOnly(t *testing.T) {
 	}
 	if browseRefused(Target{Kind: "local"}) == nil {
 		t.Error("local disk browsed")
+	}
+}
+
+// countingBody records whether the handler read the answer at all.
+type countingBody struct {
+	r    *bytes.Reader
+	read bool
+}
+
+func (b *countingBody) Read(p []byte) (int, error) {
+	b.read = true
+	return b.r.Read(p)
+}
+
+// MED 1: an answer is read only for a read the agent was given, never more
+// than was asked for, and only a few large answers at once.
+func TestRelayReplyLimits(t *testing.T) {
+	s := &Server{}
+	post := func(agentID int64, id string, body []byte) (int, *countingBody) {
+		cb := &countingBody{r: bytes.NewReader(body)}
+		req := httptest.NewRequest("POST", api.PathRelayReplyPrefix+id, cb)
+		req.SetPathValue("id", id)
+		req = req.WithContext(context.WithValue(req.Context(), agentKey, Agent{ID: agentID, Hostname: "nas-pc"}))
+		w := httptest.NewRecorder()
+		s.handleRelayReply(w, req)
+		return w.Code, cb
+	}
+	// An unknown ID: 404 before a byte of the answer is read.
+	if code, cb := post(7, "no-such-read", bytes.Repeat([]byte{1}, 1<<20)); code != http.StatusNotFound || cb.read {
+		t.Fatalf("unknown read: %d, body read %v", code, cb.read)
+	}
+	ask := func(rq api.RelayRequest) (chan error, chan []byte, string) {
+		errc, datac := make(chan error, 1), make(chan []byte, 1)
+		go func() {
+			b, err := s.relay.do(context.Background(), 7, rq)
+			errc <- err
+			datac <- b
+		}()
+		got := s.relay.next(context.Background(), 7)
+		if len(got) != 1 {
+			t.Fatalf("next: %+v", got)
+		}
+		return errc, datac, got[0].ID
+	}
+	// Another agent's answer is refused unread; the own one is taken.
+	errc, datac, id := ask(api.RelayRequest{Op: api.RelayLoadRange, Name: "data/ab/abcd", Length: 4})
+	if code, cb := post(8, id, []byte("1234")); code != http.StatusNotFound || cb.read {
+		t.Fatalf("other agent: %d, body read %v", code, cb.read)
+	}
+	if code, _ := post(7, id, []byte("1234")); code != http.StatusNoContent {
+		t.Fatalf("own answer: %d", code)
+	}
+	if err, b := <-errc, <-datac; err != nil || string(b) != "1234" {
+		t.Fatalf("range: %q %v", b, err)
+	}
+	// Longer than asked for: refused.
+	for _, rq := range []api.RelayRequest{{Op: api.RelayLoadRange, Name: "data/ab/abcd", Length: 4}, {Op: api.RelaySize, Name: "config"}} {
+		errc, _, id := ask(rq)
+		if code, _ := post(7, id, bytes.Repeat([]byte("9"), 65)); code != http.StatusNoContent {
+			t.Fatalf("%s: %d", rq.Op, code)
+		}
+		if err := <-errc; err == nil || !strings.Contains(err.Error(), "larger than") {
+			t.Errorf("%s: an answer larger than asked for was taken: %v", rq.Op, err)
+		}
+	}
+	if answerMax(api.RelayRequest{Op: api.RelayLoad}) != relayMaxBody || answerMax(api.RelayRequest{Op: api.RelayList}) != relayMaxList ||
+		answerMax(api.RelayRequest{Op: api.RelayLoadRange, Length: -1}) != relayMaxBody {
+		t.Error("answer limits")
+	}
+	// Only relayBodySlots large answers are read at the same time.
+	var releases []func()
+	for i := 0; i < relayBodySlots; i++ {
+		rel, err := s.relay.bodySlot(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		releases = append(releases, rel)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	if _, err := s.relay.bodySlot(ctx); err == nil {
+		t.Fatal("more large answers than slots")
+	}
+	releases[0]()
+	if rel, err := s.relay.bodySlot(context.Background()); err != nil {
+		t.Fatal(err)
+	} else {
+		rel()
 	}
 }

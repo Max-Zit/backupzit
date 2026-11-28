@@ -32,6 +32,13 @@ const (
 	// relayMaxBody is the largest answer accepted (the largest pack is
 	// 256 MiB).
 	relayMaxBody = 300 << 20
+	// relayMaxList bounds the answer to a listing (about 800,000 names).
+	relayMaxList = 64 << 20
+	// relaySmallAnswer: answers up to this size are read at once; larger
+	// ones wait for one of relayBodySlots, so only a few large answers are
+	// in memory at a time, however many agents send (MED 1).
+	relaySmallAnswer = 1 << 20
+	relayBodySlots   = 4
 )
 
 // relayHub holds the reads waiting for each agent and the ones it is doing.
@@ -40,6 +47,8 @@ type relayHub struct {
 	queue map[int64][]*relayCall
 	calls map[string]*relayCall
 	wake  map[int64]chan struct{}
+	// bodies limits the large answers read at the same time.
+	bodies chan struct{}
 }
 
 type relayCall struct {
@@ -57,6 +66,9 @@ type relayResult struct {
 func (h *relayHub) init() {
 	if h.queue == nil {
 		h.queue, h.calls, h.wake = map[int64][]*relayCall{}, map[string]*relayCall{}, map[int64]chan struct{}{}
+	}
+	if h.bodies == nil {
+		h.bodies = make(chan struct{}, relayBodySlots)
 	}
 }
 
@@ -143,19 +155,59 @@ func (h *relayHub) next(ctx context.Context, agentID int64) []api.RelayRequest {
 	}
 }
 
+// claim takes the read id of agentID for its answer, so an answer is read
+// only for a read this agent was given, and only once (MED 1: before, any
+// agent could have the console read 300 MiB for an ID that did not exist).
+func (h *relayHub) claim(agentID int64, id string) (*relayCall, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	c, ok := h.calls[id]
+	if !ok || c.agentID != agentID {
+		return nil, false
+	}
+	delete(h.calls, id)
+	return c, true
+}
+
 // reply delivers the agent's answer to a read it was given.
 func (h *relayHub) reply(agentID int64, id string, res relayResult) bool {
-	h.mu.Lock()
-	c, ok := h.calls[id]
-	if ok && c.agentID == agentID {
-		delete(h.calls, id)
-	}
-	h.mu.Unlock()
-	if !ok || c.agentID != agentID {
+	c, ok := h.claim(agentID, id)
+	if !ok {
 		return false
 	}
-	c.done <- res
+	c.done <- res // buffered: never blocks, also when the reader gave up
 	return true
+}
+
+// bodySlot waits for one of the slots for reading a large answer and
+// returns its release.
+func (h *relayHub) bodySlot(ctx context.Context) (func(), error) {
+	h.mu.Lock()
+	h.init()
+	slots := h.bodies
+	h.mu.Unlock()
+	select {
+	case slots <- struct{}{}:
+		return func() { <-slots }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// answerMax is the largest answer the console accepts for rq: what it asked
+// for, not more (MED 1).
+func answerMax(rq api.RelayRequest) int64 {
+	switch rq.Op {
+	case api.RelaySize:
+		return 64 // a decimal number
+	case api.RelayList:
+		return relayMaxList
+	case api.RelayLoadRange:
+		if rq.Length >= 0 && rq.Length <= relayMaxBody {
+			return int64(rq.Length)
+		}
+	}
+	return relayMaxBody
 }
 
 // handleRelayNext serves POST /api/agent/relay/next (agent).
@@ -168,9 +220,16 @@ func (s *Server) handleRelayNext(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, api.RelayNextResponse{Requests: reqs})
 }
 
-// handleRelayReply serves POST /api/agent/relay/reply/{id} (agent).
+// handleRelayReply serves POST /api/agent/relay/reply/{id} (agent). The read
+// is looked up before anything of the answer is read: an unknown ID, or one
+// given to another agent, gets 404 at once.
 func (s *Server) handleRelayReply(w http.ResponseWriter, r *http.Request) {
 	a := agentFrom(r)
+	c, ok := s.relay.claim(a.ID, r.PathValue("id"))
+	if !ok {
+		writeAPIError(w, http.StatusNotFound, "no such read (it timed out)")
+		return
+	}
 	res := relayResult{}
 	switch {
 	case r.Header.Get(api.RelayNotFoundHeader) == "1":
@@ -178,21 +237,29 @@ func (s *Server) handleRelayReply(w http.ResponseWriter, r *http.Request) {
 	case r.Header.Get(api.RelayErrorHeader) != "":
 		res.err = fmt.Errorf("agent %s: %s", a.Name(), clip(r.Header.Get(api.RelayErrorHeader), 2000))
 	default:
-		b, err := io.ReadAll(io.LimitReader(r.Body, relayMaxBody+1))
-		switch {
-		case err != nil:
-			res.err = fmt.Errorf("agent %s: %w", a.Name(), err)
-		case len(b) > relayMaxBody:
-			res.err = fmt.Errorf("agent %s: the answer is larger than %d bytes", a.Name(), relayMaxBody)
-		default:
-			res.data = b
-		}
+		res = s.readRelayAnswer(r, a, answerMax(c.req))
 	}
-	if !s.relay.reply(a.ID, r.PathValue("id"), res) {
-		writeAPIError(w, http.StatusNotFound, "no such read (it timed out)")
-		return
-	}
+	c.done <- res // buffered: never blocks, also when the reader gave up
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// readRelayAnswer reads an answer of at most limit bytes.
+func (s *Server) readRelayAnswer(r *http.Request, a Agent, limit int64) relayResult {
+	if limit > relaySmallAnswer {
+		release, err := s.relay.bodySlot(r.Context())
+		if err != nil {
+			return relayResult{err: fmt.Errorf("agent %s: %w", a.Name(), err)}
+		}
+		defer release()
+	}
+	b, err := io.ReadAll(io.LimitReader(r.Body, limit+1))
+	switch {
+	case err != nil:
+		return relayResult{err: fmt.Errorf("agent %s: %w", a.Name(), err)}
+	case int64(len(b)) > limit:
+		return relayResult{err: fmt.Errorf("agent %s: the answer is larger than the %d bytes asked for", a.Name(), limit)}
+	}
+	return relayResult{data: b}
 }
 
 // relayBackend reads a repository through an agent. It is read-only.
