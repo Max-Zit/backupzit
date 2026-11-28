@@ -201,6 +201,16 @@ func vmRestoreOptions(run Run) *api.VMRestore {
 	return &o
 }
 
+// minKeepGuestVersion is the first agent that keeps a guest it replaces
+// until all disks of the backup are written (C1); older agents ignore
+// RemoveFirst and always delete the guest first, so a failed restore left
+// no guest at all.
+const minKeepGuestVersion = "0.59.0"
+
+// errAgentRemovesFirst refuses a replace that an older agent would carry
+// out the old way (an English catalog key).
+var errAgentRemovesFirst = errors.New("The agent on this Proxmox VE node is older than 0.59 and always deletes the existing guest before the disks are written: update the agent, or tick “Delete it before the disks are written”.")
+
 // QueueVMRestore creates a vm-restore run from a VM backup run.
 func (s *Store) QueueVMRestore(ctx context.Context, backupRunID, agentID int64, o api.VMRestore) (int64, error) {
 	b, err := s.GetRun(ctx, backupRunID)
@@ -233,6 +243,9 @@ func (s *Store) QueueVMRestore(ctx context.Context, backupRunID, agentID int64, 
 	}
 	if p := d.Platform(); p != a.Platform() {
 		return 0, fmt.Errorf("this is a %s backup; restore it on a %s host", platformLabel(p), platformLabel(p))
+	}
+	if o.Overwrite && !o.RemoveFirst && a.Platform() == "proxmox" && agentOlder(a, minKeepGuestVersion) {
+		return 0, errAgentRemovesFirst
 	}
 	if o.NewVMID != 0 && o.NewVMID != -1 && (o.NewVMID < 100 || o.NewVMID > 999999999) {
 		return 0, errors.New("guest IDs are between 100 and 999999999")

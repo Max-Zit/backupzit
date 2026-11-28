@@ -90,6 +90,21 @@
       "sr": "Drugi agenti su sačuvali tačke vraćanja u istim repozitorijumima (dodatni proxy agenti vCenter veze, čvorovi klastera): %v. Brisanje bekapa ovde na isti način briše i njihove.",
       "tr": "Başka aracılar aynı depolara geri yükleme noktaları kaydetti (bir vCenter bağlantısının ek proxy'leri, bir kümenin düğümleri): %v. Burada yedekleri silmek onlarınkini de aynı şekilde siler.",
       "zh": "其他代理在相同的存储库中保存了恢复点（vCenter 连接的其他备份代理、集群的节点）：%v。在这里删除备份也会以同样方式删除它们的备份。"
+    },
+    "The agent on this Proxmox VE node is older than 0.59 and always deletes the existing guest before the disks are written: update the agent, or tick “Delete it before the disks are written”.": {
+      "cs": "Agent na tomto uzlu Proxmox VE je starší než 0.59 a existujícího hosta vždy smaže před zápisem disků: aktualizujte agenta, nebo zaškrtněte „Smazat jej před zápisem disků“.",
+      "de": "Der Agent auf diesem Proxmox-VE-Knoten ist älter als 0.59 und löscht den vorhandenen Gast immer, bevor die Datenträger geschrieben werden: Aktualisieren Sie den Agenten oder setzen Sie das Häkchen bei „Vor dem Schreiben der Datenträger löschen“.",
+      "es": "El agente de este nodo de Proxmox VE es anterior a la 0.59 y siempre elimina el invitado existente antes de escribir los discos: actualice el agente o marque «Eliminarlo antes de escribir los discos».",
+      "fr": "L'agent de ce nœud Proxmox VE est antérieur à la 0.59 et supprime toujours l'invité existant avant d'écrire les disques : mettez l'agent à jour ou cochez « Le supprimer avant d'écrire les disques ».",
+      "it": "L'agente su questo nodo Proxmox VE è precedente alla 0.59 ed elimina sempre il guest esistente prima di scrivere i dischi: aggiorna l'agente o seleziona «Eliminarlo prima di scrivere i dischi».",
+      "ja": "この Proxmox VE ノードのエージェントは 0.59 より古く、ディスクを書き込む前に既存のゲストを必ず削除します。エージェントを更新するか、「ディスクを書き込む前に削除する」をオンにしてください。",
+      "nl": "De agent op deze Proxmox VE-node is ouder dan 0.59 en verwijdert de bestaande gast altijd voordat de schijven worden geschreven: werk de agent bij of vink „Verwijderen voordat de schijven worden geschreven” aan.",
+      "pl": "Agent na tym węźle Proxmox VE jest starszy niż 0.59 i zawsze usuwa istniejącego gościa przed zapisaniem dysków: zaktualizuj agenta lub zaznacz „Usuń go przed zapisaniem dysków”.",
+      "pt": "O agente neste nó do Proxmox VE é anterior à 0.59 e sempre exclui o convidado existente antes de gravar os discos: atualize o agente ou marque “Excluí-lo antes de gravar os discos”.",
+      "ru": "Агент на этом узле Proxmox VE старше 0.59 и всегда удаляет существующего гостя до записи дисков: обновите агент или отметьте «Удалить его до записи дисков».",
+      "sr": "Agent na ovom Proxmox VE čvoru je stariji od 0.59 i uvek briše postojećeg gosta pre upisivanja diskova: ažurirajte agenta ili označite „Obriši ga pre upisivanja diskova”.",
+      "tr": "Bu Proxmox VE düğümündeki aracı 0.59'dan eski ve diskler yazılmadan önce mevcut konuğu her zaman siler: aracıyı güncelleyin veya “Diskler yazılmadan önce sil” seçeneğini işaretleyin.",
+      "zh": "此 Proxmox VE 节点上的代理早于 0.59，总会在写入磁盘之前删除现有虚拟机：请更新代理，或勾选“在写入磁盘之前将其删除”。"
     }
   },
   "remove": [

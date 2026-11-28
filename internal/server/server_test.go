@@ -1975,6 +1975,33 @@ func TestProxmoxJobs(t *testing.T) {
 			t.Errorf("form %v: overwrite %v, remove first %v", c.form, o.Overwrite, o.RemoveFirst)
 		}
 	}
+	// An agent before 0.59 ignores the choice and always deletes the guest
+	// first: replacing it without the box ticked is refused for it.
+	if _, err := e.pool.Exec(ctx, `UPDATE agents SET version='0.58.3' WHERE id=$1`, a.ID); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		form url.Values
+		ok   bool
+	}{
+		{url.Values{"overwrite": {"on"}}, false},
+		{url.Values{"overwrite": {"on"}, "remove_first": {"on"}}, true},
+		{url.Values{}, true},
+	} {
+		c.form.Set("kind", "vm")
+		c.form.Set("vmid", "100")
+		c.form.Set("agent_id", fmt.Sprint(a.ID))
+		c.form.Set("id_mode", "original")
+		_, loc, _ := admin.do("POST", fmt.Sprintf("/runs/%d/restore", runID), c.form)
+		if queued := !strings.Contains(loc, "err="); queued != c.ok || (!c.ok && !strings.Contains(loc, "older+than+0.59")) {
+			t.Errorf("agent 0.58.3, form %v: %s", c.form, loc)
+		}
+		if c.ok {
+			if got, err := e.store.ClaimRun(ctx, a.ID); err != nil || got == nil {
+				t.Fatalf("claim: %+v %v", got, err)
+			}
+		}
+	}
 }
 
 func TestAgentUpdate(t *testing.T) {
