@@ -75,7 +75,24 @@ func LogPath(cfgPath string) string {
 	return filepath.Join(filepath.Dir(cfgPath), "agent.log")
 }
 
+// TrustConfigDir checks the folder of the default configuration before
+// anything in it is read or written (Windows, HIGH 6, see
+// trustdir_windows.go): a folder another user made before the agent was
+// installed, or a link, is renamed aside unread and a new, protected
+// folder is made. It returns the name the old folder got ("" when it was
+// the agent's own). Other configuration paths (tests, --config) are left
+// as they are.
+func TrustConfigDir(cfgPath string) (string, error) {
+	if cfgPath != DefaultConfigPath() {
+		return "", nil
+	}
+	return trustDir(filepath.Dir(cfgPath))
+}
+
 func LoadConfig(path string) (*Config, error) {
+	if _, err := TrustConfigDir(path); err != nil {
+		return nil, err
+	}
 	b, err := os.ReadFile(path) // #nosec G304 -- the agent's own configuration, update or work file
 	if err != nil {
 		return nil, err
@@ -91,6 +108,9 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 func (c *Config) Save(path string) error {
+	if _, err := TrustConfigDir(path); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
@@ -843,6 +863,9 @@ func SecureConfigDir(path string) error {
 	if path != DefaultConfigPath() {
 		return nil
 	}
+	if _, err := TrustConfigDir(path); err != nil {
+		return err
+	}
 	return protectDir(filepath.Dir(path))
 }
 
@@ -858,6 +881,9 @@ func pendingPath(cfgPath string) string {
 
 // SavePendingEnrollment stores enrollment data for later retries.
 func SavePendingEnrollment(cfgPath, server, token, fingerprint string) error {
+	if _, err := TrustConfigDir(cfgPath); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(cfgPath), 0o700); err != nil {
 		return err
 	}
@@ -871,6 +897,11 @@ func SavePendingEnrollment(cfgPath, server, token, fingerprint string) error {
 // TryPendingEnrollment enrolls with stored data if there is any. It returns
 // true when the agent is now enrolled.
 func TryPendingEnrollment(ctx context.Context, cfgPath, version string) (bool, error) {
+	// A pending enrollment planted in a folder that is not the agent's own
+	// would enroll the agent with another console.
+	if _, err := TrustConfigDir(cfgPath); err != nil {
+		return false, err
+	}
 	b, err := os.ReadFile(pendingPath(cfgPath))
 	if err != nil {
 		return false, nil
@@ -934,6 +965,9 @@ func newInstanceID() string {
 // PendingServer is the console of a stored, not yet completed enrollment
 // ("" if there is none).
 func PendingServer(cfgPath string) string {
+	if _, err := TrustConfigDir(cfgPath); err != nil {
+		return ""
+	}
 	b, err := os.ReadFile(pendingPath(cfgPath))
 	if err != nil {
 		return ""

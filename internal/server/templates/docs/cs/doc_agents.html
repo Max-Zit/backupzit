@@ -103,7 +103,7 @@ systemctl enable --now backupzit-agent</pre>
 
 <h2>Kde agent uchovává konfiguraci</h2>
 <ul>
-  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (přístupné jen pro SYSTEM a Administrators).</li>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (přístupné jen pro SYSTEM a Administrators). Agent složku použije, jen když je to skutečná složka, jejímž vlastníkem je SYSTEM nebo Administrators: složku, kterou před instalací vytvořil jiný uživatel, nebo odkaz (junction) na jinou složku odloží nepřečtenou stranou jako <code>C:\ProgramData\backupzit.untrusted-<i>datum</i></code> a spustí se neregistrovaný (agenti 0.63 a novější).</li>
   <li>Linux: <code>/etc/backupzit/agent.json</code> (jen root).</li>
   <li>macOS: <code>/Library/Application Support/BackupZit/agent.json</code> (jen root).</li>
 </ul>

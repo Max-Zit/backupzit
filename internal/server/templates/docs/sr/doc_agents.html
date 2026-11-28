@@ -103,7 +103,7 @@ systemctl enable --now backupzit-agent</pre>
 
 <h2>Gde agent čuva svoja podešavanja</h2>
 <ul>
-  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (dostupno samo SYSTEM-u i administratorima).</li>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (dostupno samo SYSTEM-u i administratorima). Agent koristi folder samo kada je to pravi folder čiji je vlasnik SYSTEM ili Administrators: folder koji je drugi korisnik napravio pre instalacije, ili veza (junction) ka drugom folderu, sklanja se u stranu nepročitan kao <code>C:\ProgramData\backupzit.untrusted-<i>datum</i></code>, a agent se pokreće neregistrovan (agenti 0.63 i noviji).</li>
   <li>Linux: <code>/etc/backupzit/agent.json</code> (samo root).</li>
   <li>macOS: <code>/Library/Application Support/BackupZit/agent.json</code> (samo root).</li>
 </ul>

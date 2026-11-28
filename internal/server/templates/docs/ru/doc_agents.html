@@ -103,7 +103,7 @@ systemctl enable --now backupzit-agent</pre>
 
 <h2>Где агент хранит конфигурацию</h2>
 <ul>
-  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (доступен только SYSTEM и Администраторам).</li>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (доступен только SYSTEM и Администраторам). Агент использует папку, только если это настоящая папка, владельцем которой является SYSTEM или Администраторы: папку, созданную другим пользователем до установки, или ссылку (junction) на другую папку он, не читая, откладывает как <code>C:\ProgramData\backupzit.untrusted-<i>дата</i></code> и запускается незарегистрированным (агенты 0.63 и новее).</li>
   <li>Linux: <code>/etc/backupzit/agent.json</code> (только root).</li>
   <li>macOS: <code>/Library/Application Support/BackupZit/agent.json</code> (только root).</li>
 </ul>

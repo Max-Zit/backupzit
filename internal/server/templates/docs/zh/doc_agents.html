@@ -103,7 +103,7 @@ systemctl enable --now backupzit-agent</pre>
 
 <h2>代理的配置保存位置</h2>
 <ul>
-  <li>Windows：<code>C:\ProgramData\backupzit\agent.json</code>（仅 SYSTEM 和 Administrators 可访问）。</li>
+  <li>Windows：<code>C:\ProgramData\backupzit\agent.json</code>（仅 SYSTEM 和 Administrators 可访问）。只有当该文件夹是归 SYSTEM 或 Administrators 所有的真实文件夹时，代理才会使用它：安装前由其他用户创建的文件夹，或指向其他文件夹的链接（交接点），会在不读取的情况下被搁置为 <code>C:\ProgramData\backupzit.untrusted-<i>日期</i></code>，代理以未注册状态启动（代理 0.63 及更新版本）。</li>
   <li>Linux：<code>/etc/backupzit/agent.json</code>（仅 root）。</li>
   <li>macOS：<code>/Library/Application Support/BackupZit/agent.json</code>（仅 root）。</li>
 </ul>

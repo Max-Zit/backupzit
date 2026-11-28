@@ -103,7 +103,7 @@ systemctl enable --now backupzit-agent</pre>
 
 <h2>Wo der Agent seine Konfiguration speichert</h2>
 <ul>
-  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (nur für SYSTEM und Administratoren zugänglich).</li>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (nur für SYSTEM und Administratoren zugänglich). Der Agent verwendet den Ordner nur, wenn er ein echter Ordner im Besitz von SYSTEM oder Administratoren ist: Einen Ordner, den ein anderer Benutzer vor der Installation angelegt hat, oder eine Verknüpfung (Junction) auf einen anderen Ordner legt er ungelesen als <code>C:\ProgramData\backupzit.untrusted-<i>Datum</i></code> beiseite und startet unregistriert (Agenten 0.63 und neuer).</li>
   <li>Linux: <code>/etc/backupzit/agent.json</code> (nur root).</li>
   <li>macOS: <code>/Library/Application Support/BackupZit/agent.json</code> (nur root).</li>
 </ul>

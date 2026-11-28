@@ -46,6 +46,14 @@ func cmdEnroll(ctx context.Context, args []string) error {
 		fs.Usage()
 		return errors.New("--code, or --server, --token and --fingerprint are required")
 	}
+	// Before anything in the configuration folder is read or written (the
+	// installer runs this as SYSTEM): not the agent's own folder → set
+	// aside unread (HIGH 6).
+	if aside, err := agent.TrustConfigDir(*cfgPath); err != nil {
+		return err
+	} else if aside != "" {
+		fmt.Printf("%s was not the agent's own folder (made by another user, or a link); it was set aside unread as %s\n", filepath.Dir(*cfgPath), aside)
+	}
 	if old, err := agent.LoadConfig(*cfgPath); err == nil && !*force {
 		switch {
 		case *ifNot && old.Fingerprint == *fp:
@@ -102,10 +110,26 @@ type program struct {
 // Start never fails because of a missing enrollment: an MSI installed
 // without a token starts the service, which waits until "enroll" is run.
 func (p *program) Start(s service.Service) error {
-	logger := newLogger(p.cfgPath)
-	if err := os.MkdirAll(filepath.Dir(p.cfgPath), 0o700); err == nil {
-		if err := agent.SecureConfigDir(p.cfgPath); err != nil {
-			logger.Warn("could not restrict access to the configuration directory", "err", err)
+	// The configuration folder is checked before anything uses it, the log
+	// file in it (Windows) included: a folder another user made before the
+	// agent was installed, or a link, is set aside unread (HIGH 6). While
+	// that is not possible, nothing is written there and LoadConfig keeps
+	// refusing (the tray shows why).
+	aside, trustErr := agent.TrustConfigDir(p.cfgPath)
+	logger := newLogger(p.cfgPath, trustErr == nil)
+	switch {
+	case trustErr != nil:
+		logger.Error("the configuration folder cannot be used", "err", trustErr)
+	case aside != "":
+		logger.Warn("the configuration folder was not the agent's own (made by another user before the agent was installed, or a link); it was set aside unread and the agent starts unenrolled",
+			"folder", filepath.Dir(p.cfgPath), "set_aside_as", aside)
+	}
+	// With trustErr, LoadConfig below fails the same way and is retried.
+	if trustErr == nil {
+		if err := os.MkdirAll(filepath.Dir(p.cfgPath), 0o700); err == nil {
+			if err := agent.SecureConfigDir(p.cfgPath); err != nil {
+				logger.Warn("could not restrict access to the configuration directory", "err", err)
+			}
 		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -176,8 +200,13 @@ func (p *program) Stop(s service.Service) error {
 	return nil
 }
 
-func newLogger(cfgPath string) *slog.Logger {
+// newLogger writes the agent log; without toFile (the folder of the log is
+// not the agent's own) only to stdout.
+func newLogger(cfgPath string, toFile bool) *slog.Logger {
 	var w io.Writer = os.Stdout
+	if !toFile {
+		return slog.New(slog.NewTextHandler(w, nil))
+	}
 	logPath := agent.LogPath(cfgPath)
 	_ = os.MkdirAll(filepath.Dir(logPath), 0o700)
 	// Agents up to 0.37 wrote the log next to the configuration in /etc.

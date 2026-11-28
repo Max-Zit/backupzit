@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"io/fs"
 	"path/filepath"
 
@@ -20,7 +21,15 @@ import (
 // scripts run as SYSTEM, to an update between its check and msiexec;
 // M-N10).
 func protectDir(dir string) error {
-	sd, err := windows.SecurityDescriptorFromString("D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)")
+	// On a junction or symbolic link the access list would go to the link
+	// object only, and the folder it points to stays open (HIGH 6): such a
+	// folder (the update or commands folder) is refused.
+	if link, err := reparsePoint(dir); err != nil {
+		return err
+	} else if link {
+		return fmt.Errorf("%s is a link (junction or symbolic link), not a folder of the agent; remove it", dir)
+	}
+	sd, err := windows.SecurityDescriptorFromString(configDirSDDL)
 	if err != nil {
 		return err
 	}

@@ -103,7 +103,7 @@ systemctl enable --now backupzit-agent</pre>
 
 <h2>Where the agent keeps its configuration</h2>
 <ul>
-  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (accessible only to SYSTEM and Administrators).</li>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (accessible only to SYSTEM and Administrators). The agent uses the folder only when it is a real folder owned by SYSTEM or Administrators: a folder another user created before the installation, or a link (junction) to another folder, is set aside unread as <code>C:\ProgramData\backupzit.untrusted-<i>date</i></code>, and the agent starts unenrolled (agents 0.63 and newer).</li>
   <li>Linux: <code>/etc/backupzit/agent.json</code> (root only).</li>
   <li>macOS: <code>/Library/Application Support/BackupZit/agent.json</code> (root only).</li>
 </ul>

@@ -103,7 +103,7 @@ systemctl enable --now backupzit-agent</pre>
 
 <h2>Aracı yapılandırmasını nerede tutar</h2>
 <ul>
-  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (yalnızca SYSTEM ve Administrators erişebilir).</li>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (yalnızca SYSTEM ve Administrators erişebilir). Aracı klasörü yalnızca sahibi SYSTEM veya Administrators olan gerçek bir klasörse kullanır: kurulumdan önce başka bir kullanıcının oluşturduğu bir klasör ya da başka bir klasöre bağlantı (junction) okunmadan <code>C:\ProgramData\backupzit.untrusted-<i>tarih</i></code> olarak bir kenara konur ve aracı kayıtsız başlar (aracı 0.63 ve sonrası).</li>
   <li>Linux: <code>/etc/backupzit/agent.json</code> (yalnızca root).</li>
   <li>macOS: <code>/Library/Application Support/BackupZit/agent.json</code> (yalnızca root).</li>
 </ul>

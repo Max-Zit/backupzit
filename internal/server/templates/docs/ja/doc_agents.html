@@ -103,7 +103,7 @@ systemctl enable --now backupzit-agent</pre>
 
 <h2>エージェントの構成の保存場所</h2>
 <ul>
-  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code>（SYSTEM と Administrators のみアクセス可）。</li>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code>（SYSTEM と Administrators のみアクセス可）。エージェントがこのフォルダーを使うのは、SYSTEM または Administrators が所有する実際のフォルダーである場合だけです。インストール前に別のユーザーが作成したフォルダーや、別のフォルダーへのリンク（ジャンクション）は、読み取らずに <code>C:\ProgramData\backupzit.untrusted-<i>日付</i></code> として退避され、エージェントは未登録の状態で起動します（エージェント 0.63 以降）。</li>
   <li>Linux: <code>/etc/backupzit/agent.json</code>（root のみ）。</li>
   <li>macOS: <code>/Library/Application Support/BackupZit/agent.json</code>（root のみ）。</li>
 </ul>

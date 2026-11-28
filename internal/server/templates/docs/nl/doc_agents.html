@@ -103,7 +103,7 @@ systemctl enable --now backupzit-agent</pre>
 
 <h2>Waar de agent zijn configuratie bewaart</h2>
 <ul>
-  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (alleen toegankelijk voor SYSTEM en Administrators).</li>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (alleen toegankelijk voor SYSTEM en Administrators). De agent gebruikt de map alleen als het een echte map is met SYSTEM of Administrators als eigenaar: een map die een andere gebruiker vóór de installatie heeft gemaakt, of een koppeling (junction) naar een andere map, wordt ongelezen opzij gezet als <code>C:\ProgramData\backupzit.untrusted-<i>datum</i></code> en de agent start zonder registratie (agents 0.63 en nieuwer).</li>
   <li>Linux: <code>/etc/backupzit/agent.json</code> (alleen root).</li>
   <li>macOS: <code>/Library/Application Support/BackupZit/agent.json</code> (alleen root).</li>
 </ul>

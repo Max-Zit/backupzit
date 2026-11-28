@@ -103,7 +103,7 @@ systemctl enable --now backupzit-agent</pre>
 
 <h2>Dove l'agente conserva la configurazione</h2>
 <ul>
-  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (accessibile solo a SYSTEM e Administrators).</li>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (accessibile solo a SYSTEM e Administrators). L'agente usa la cartella solo se è una cartella vera di proprietà di SYSTEM o Administrators: una cartella creata da un altro utente prima dell'installazione, o un collegamento (junction) a un'altra cartella, viene messa da parte senza leggerla come <code>C:\ProgramData\backupzit.untrusted-<i>data</i></code> e l'agente si avvia non registrato (agenti 0.63 e successivi).</li>
   <li>Linux: <code>/etc/backupzit/agent.json</code> (solo root).</li>
   <li>macOS: <code>/Library/Application Support/BackupZit/agent.json</code> (solo root).</li>
 </ul>
