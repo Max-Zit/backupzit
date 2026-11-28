@@ -115,10 +115,17 @@ func (c *Client) CleanLeftovers(ctx context.Context, extra []leftover.Item, log 
 		}
 		if !ok {
 			// The VM is gone (deleted, or moved to a host of another
-			// connection): with it its snapshots and folder.
-			log("leftover of a VM that no longer exists dropped", "vm", it.VMName, "item", it.Name)
-			leftover.Done(it)
+			// connection), and with it its snapshots and folder; or it is
+			// missing for a while only (datastore down, moved and back, in
+			// another datacenter). The item is kept for a grace period, so
+			// the snapshot is still removed when the VM comes back.
+			if leftover.Missing(it) {
+				log("leftover of a VM that no longer exists dropped", "vm", it.VMName, "item", it.Name)
+			}
 			continue
+		}
+		if !it.MissingSince.IsZero() {
+			leftover.Found(it)
 		}
 		unlock, free := vmlock.TryLock(c.vmLockKey(v.UUID))
 		if !free {

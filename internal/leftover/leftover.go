@@ -62,6 +62,10 @@ type Item struct {
 	Tries   int       `json:"tries,omitempty"`
 	Error   string    `json:"error,omitempty"`
 	LastTry time.Time `json:"last_try,omitempty"`
+	// MissingSince: since when the item's VM is not in the VM list of its
+	// host (VMware); the item is kept for MissingGrace (older agents ignore
+	// the field and drop such an item at once).
+	MissingSince time.Time `json:"missing_since,omitzero"`
 }
 
 // Key identifies an item.
@@ -172,6 +176,50 @@ func Failed(it Item, err error) {
 	})
 }
 
+// MissingGrace is how long an item whose VM is missing from its host's VM
+// list stays in the ledger. A VM can be missing for a while and come back
+// with the snapshot still there: its datastore was down (no UUID), it was
+// moved to another host and back, it is in another datacenter.
+var MissingGrace = 7 * 24 * time.Hour
+
+// Missing records that the item's VM is not in its host's VM list. The item
+// stays (with its first time and errors) until the VM has been missing for
+// MissingGrace; Missing reports whether it was dropped now.
+func Missing(it Item) (dropped bool) {
+	l := current()
+	if l == nil {
+		return false
+	}
+	now := time.Now().UTC()
+	_ = l.update(func(items map[string]Item) {
+		old, ok := items[it.Key()]
+		switch {
+		case !ok:
+		case old.MissingSince.IsZero():
+			old.MissingSince = now
+			items[it.Key()] = old
+		case now.Sub(old.MissingSince) >= MissingGrace:
+			delete(items, it.Key())
+			dropped = true
+		}
+	})
+	return dropped
+}
+
+// Found clears the mark of an item whose VM is in the VM list again.
+func Found(it Item) {
+	l := current()
+	if l == nil {
+		return
+	}
+	_ = l.update(func(items map[string]Item) {
+		if old, ok := items[it.Key()]; ok && !old.MissingSince.IsZero() {
+			old.MissingSince = time.Time{}
+			items[it.Key()] = old
+		}
+	})
+}
+
 // List returns the items, oldest first.
 func List() []Item {
 	l := current()
@@ -189,11 +237,13 @@ var ErrBusy = errors.New("the VM is in use by a backup or restore")
 
 // Report lists the items the console shows: those whose removal failed and
 // those of runs that are no longer running (active tells which are). Items
-// a running run made are its own business.
+// a running run made are its own business. Items whose VM is missing from
+// the VM list are kept quietly, as the console showed them before (it
+// finds the snapshot in the VM list on its own when the VM is back).
 func Report(active func(runID int64) bool) []Item {
 	var out []Item
 	for _, it := range List() {
-		if it.Error == "" && it.RunID != 0 && active(it.RunID) {
+		if (it.Error == "" && it.RunID != 0 && active(it.RunID)) || !it.MissingSince.IsZero() {
 			continue
 		}
 		out = append(out, it)

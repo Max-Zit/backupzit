@@ -85,7 +85,7 @@
 <ul>
   <li>O console coloca na fila uma execução de limpeza no agente proxy (só ele tem as credenciais do host), e o agente proxy também remove esses restos após cada backup da conexão. VMs em que um backup ou uma restauração do agente proxy está trabalhando não são tocadas. Um registro que um agente informa para uma conexão da qual não é proxy (por exemplo, um proxy anterior) é listado sem execução de limpeza; o snapshot aparece então pela lista de VMs, como descrito abaixo.</li>
   <li>O painel lista cada resto em <i>Requer atenção</i> (VM, desde quando, por quê) com <b>Remover agora</b>, e uma notificação (e-mail, chat) é enviada uma única vez para cada resto que permanece.</li>
-  <li>O console também procura snapshots <code>backupzit_…</code> com mais de seis horas na lista de VMs que atualiza a cada 10 minutos, enquanto nenhum backup da conexão está em execução, de modo que restos de agentes mais antigos também aparecem. Somente snapshots chamados <code>backupzit_…</code> são removidos; os snapshots próprios da VM nunca são tocados.</li>
+  <li>O console também procura snapshots <code>backupzit_…</code> com mais de seis horas na lista de VMs que atualiza a cada 10 minutos, enquanto nenhum backup da conexão está em execução, de modo que restos de agentes mais antigos também aparecem. Somente snapshots chamados <code>backupzit_…</code> são removidos; os snapshots próprios da VM nunca são tocados. O registro de uma VM que falta na lista de VMs (o seu datastore está indisponível, ela foi movida para outro host) fica sete dias no agente proxy, para que o seu snapshot ainda seja removido quando a VM voltar (agentes 0.63 e mais recentes).</li>
 </ul>
 
 <h2>Restaurar uma VM</h2>

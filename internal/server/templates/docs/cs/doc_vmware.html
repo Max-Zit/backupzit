@@ -85,7 +85,7 @@
 <ul>
   <li>Konzole zařadí na agenta proxy běh úklidu (přihlašovací údaje hostitele má jen on) a agent proxy takové zbytky odstraňuje také po každé záloze připojení. VM, se kterými právě pracuje záloha nebo obnova agenta proxy, zůstanou nedotčené. Záznam, který nahlásí agent pro připojení, jehož není proxy (například dřívější proxy), se zobrazí bez běhu úklidu; snímek se pak objeví ze seznamu VM, jak je popsáno níže.</li>
   <li>Řídicí panel vypíše každý zbytek v části <i>Vyžaduje pozornost</i> (VM, od kdy, proč) s tlačítkem <b>Odebrat nyní</b> a pro každý zbytek, který zůstane, se jednou odešle oznámení (e-mail, chat).</li>
-  <li>Konzole navíc v seznamu VM, který obnovuje každých 10 minut, hledá snímky <code>backupzit_…</code> starší než šest hodin, pokud neběží žádná záloha připojení, takže se objeví i zbytky starších agentů. Odstraňují se vždy jen snímky pojmenované <code>backupzit_…</code>; vlastních snímků VM se nikdy nedotkne.</li>
+  <li>Konzole navíc v seznamu VM, který obnovuje každých 10 minut, hledá snímky <code>backupzit_…</code> starší než šest hodin, pokud neběží žádná záloha připojení, takže se objeví i zbytky starších agentů. Odstraňují se vždy jen snímky pojmenované <code>backupzit_…</code>; vlastních snímků VM se nikdy nedotkne. Záznam o VM, který chybí v seznamu VM (jeho datové úložiště je nedostupné, byl přesunut na jiného hostitele), zůstane na agentovi proxy sedm dní, takže se jeho snímek odstraní i po návratu VM (agenti 0.63 a novější).</li>
 </ul>
 
 <h2>Obnova VM</h2>

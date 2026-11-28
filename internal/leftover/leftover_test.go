@@ -103,3 +103,45 @@ func TestRetry(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// An item whose VM is missing from the host's VM list is kept (not shown)
+// for MissingGrace, so it is still removed when the VM comes back; then it
+// is dropped.
+func TestMissingVM(t *testing.T) {
+	Open(filepath.Join(t.TempDir(), "leftovers.json"))
+	defer Close()
+	snap := Item{Platform: VMware, Kind: KindSnapshot, Host: "esx1", VM: "5021", Name: "backupzit_1"}
+	Add(context.Background(), snap)
+	Failed(snap, errors.New("task timed out"))
+	none := func(int64) bool { return false }
+	if Missing(snap) {
+		t.Fatal("dropped at once")
+	}
+	got := List()
+	if len(got) != 1 || got[0].MissingSince.IsZero() || got[0].Tries != 1 || got[0].Error == "" {
+		t.Fatalf("after missing once: %+v", got)
+	}
+	if r := Report(none); len(r) != 0 {
+		t.Fatalf("a missing VM's item is reported: %+v", r)
+	}
+	if Missing(got[0]) {
+		t.Fatal("dropped within the grace period")
+	}
+	since := List()[0].MissingSince
+	// Back in the list: shown again with its history.
+	Found(got[0])
+	if r := Report(none); len(r) != 1 || !r[0].MissingSince.IsZero() || r[0].Tries != 1 {
+		t.Fatalf("after the VM came back: %+v", r)
+	}
+	if since.IsZero() {
+		t.Fatal("no time recorded")
+	}
+	// Missing for longer than the grace period: dropped.
+	old := MissingGrace
+	MissingGrace = 0
+	defer func() { MissingGrace = old }()
+	Missing(snap)
+	if !Missing(snap) || len(List()) != 0 {
+		t.Fatalf("not dropped after the grace period: %+v", List())
+	}
+}

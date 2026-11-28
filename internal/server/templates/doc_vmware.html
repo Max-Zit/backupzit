@@ -85,7 +85,7 @@
 <ul>
   <li>The console queues a clean-up run on the proxy (only the proxy has the host's credentials), and the proxy also removes such leftovers after each backup of the connection. VMs a backup or restore of the proxy works on are left alone. A record that an agent reports for a connection it is not a proxy of (for example a former proxy) is listed without a clean-up run; the snapshot then shows up from the VM list, as described below.</li>
   <li>The dashboard lists every leftover under <i>Attention</i> (VM, since when, why) with <b>Remove now</b>, and a notification (email, chat) goes out once per leftover that stays.</li>
-  <li>The console also looks for <code>backupzit_…</code> snapshots older than six hours in the VM list it refreshes every 10 minutes, while no backup of the connection runs, so leftovers of older agents show up too. Only snapshots named <code>backupzit_…</code> are ever removed; the VM's own snapshots are never touched.</li>
+  <li>The console also looks for <code>backupzit_…</code> snapshots older than six hours in the VM list it refreshes every 10 minutes, while no backup of the connection runs, so leftovers of older agents show up too. Only snapshots named <code>backupzit_…</code> are ever removed; the VM's own snapshots are never touched. A record of a VM that is missing from the VM list (its datastore is down, it was moved to another host) stays on the proxy for seven days, so its snapshot is still removed when the VM comes back (agents 0.63 and newer).</li>
 </ul>
 
 <h2>Restoring a VM</h2>

@@ -85,7 +85,7 @@
 <ul>
   <li>De console zet een opschoonrun op de proxyagent in de wachtrij (alleen de proxyagent heeft de aanmeldgegevens van de host), en de proxyagent verwijdert zulke restanten ook na elke back-up van de verbinding. VM's waaraan een back-up of herstel van de proxyagent werkt, blijven ongemoeid. Een record dat een agent meldt voor een verbinding waarvan hij geen proxy is (bijvoorbeeld een vroegere proxy), wordt zonder opschoonrun getoond; de snapshot verschijnt dan uit de VM-lijst, zoals hieronder beschreven.</li>
   <li>Het dashboard toont elk restant onder <i>Vraagt aandacht</i> (VM, sinds wanneer, waarom) met <b>Nu verwijderen</b>, en voor elk restant dat blijft, gaat één keer een melding (e-mail, chat) uit.</li>
-  <li>De console zoekt ook naar <code>backupzit_…</code>-snapshots ouder dan zes uur in de VM-lijst die ze elke 10 minuten vernieuwt, zolang er geen back-up van de verbinding loopt, zodat ook restanten van oudere agents verschijnen. Alleen snapshots met de naam <code>backupzit_…</code> worden ooit verwijderd; de eigen snapshots van de VM blijven altijd onaangeroerd.</li>
+  <li>De console zoekt ook naar <code>backupzit_…</code>-snapshots ouder dan zes uur in de VM-lijst die ze elke 10 minuten vernieuwt, zolang er geen back-up van de verbinding loopt, zodat ook restanten van oudere agents verschijnen. Alleen snapshots met de naam <code>backupzit_…</code> worden ooit verwijderd; de eigen snapshots van de VM blijven altijd onaangeroerd. Een record van een VM die in de VM-lijst ontbreekt (de datastore is onbereikbaar, de VM is naar een andere host verplaatst) blijft zeven dagen op de proxyagent, zodat de snapshot nog wordt verwijderd als de VM terugkomt (agents 0.63 en nieuwer).</li>
 </ul>
 
 <h2>Een VM herstellen</h2>

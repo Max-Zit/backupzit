@@ -85,7 +85,7 @@
 <ul>
   <li>Konsola kolejkuje uruchomienie czyszczenia na agencie proxy (tylko on ma poświadczenia hosta), a agent proxy usuwa takie pozostałości także po każdej kopii zapasowej połączenia. Maszyny, nad którymi pracuje kopia lub przywracanie agenta proxy, pozostają nietknięte. Wpis zgłoszony przez agenta dla połączenia, którego nie jest proxy (na przykład dawnego proxy), jest wyświetlany bez uruchomienia czyszczenia; migawka pojawia się wtedy z listy maszyn, jak opisano niżej.</li>
   <li>Pulpit pokazuje każdą pozostałość w sekcji <i>Wymaga uwagi</i> (maszyna, od kiedy, dlaczego) z przyciskiem <b>Usuń teraz</b>, a dla każdej pozostałości, która zostaje, jeden raz wysyłane jest powiadomienie (e-mail, czat).</li>
-  <li>Konsola szuka też migawek <code>backupzit_…</code> starszych niż sześć godzin na liście maszyn, którą odświeża co 10 minut, gdy nie działa żadna kopia zapasowa połączenia, więc pojawiają się również pozostałości starszych agentów. Usuwane są wyłącznie migawki o nazwie <code>backupzit_…</code>; własne migawki maszyny nigdy nie są ruszane.</li>
+  <li>Konsola szuka też migawek <code>backupzit_…</code> starszych niż sześć godzin na liście maszyn, którą odświeża co 10 minut, gdy nie działa żadna kopia zapasowa połączenia, więc pojawiają się również pozostałości starszych agentów. Usuwane są wyłącznie migawki o nazwie <code>backupzit_…</code>; własne migawki maszyny nigdy nie są ruszane. Wpis o maszynie, której brakuje na liście maszyn (jej magazyn danych jest niedostępny, została przeniesiona na inny host), zostaje na agencie proxy przez siedem dni, więc jej migawka zostanie usunięta także wtedy, gdy maszyna wróci (agenci 0.63 i nowsi).</li>
 </ul>
 
 <h2>Przywracanie maszyny</h2>

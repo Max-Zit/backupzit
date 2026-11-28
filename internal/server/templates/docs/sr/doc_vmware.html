@@ -85,7 +85,7 @@
 <ul>
   <li>Konzola stavlja u red pokretanje čišćenja na proxy agentu (samo on ima pristupne podatke hosta), a proxy agent takve ostatke uklanja i posle svakog bekapa veze. VM-ovi na kojima upravo radi bekap ili vraćanje proxy agenta ostaju netaknuti. Zapis koji agent prijavi za vezu čiji nije proxy (na primer raniji proxy) prikazuje se bez pokretanja čišćenja; snimak se tada pojavljuje iz liste VM-ova, kako je opisano ispod.</li>
   <li>Kontrolna tabla navodi svaki ostatak pod <i>Zahteva pažnju</i> (VM, od kada, zašto) sa <b>Ukloni sada</b>, a za svaki ostatak koji ostane jednom se šalje obaveštenje (email, chat).</li>
-  <li>Konzola takođe traži snimke <code>backupzit_…</code> starije od šest sati u listi VM-ova koju osvežava na svakih 10 minuta, dok nijedan bekap veze ne radi, pa se pojavljuju i ostaci starijih agenata. Uklanjaju se isključivo snimci nazvani <code>backupzit_…</code>; sopstveni snimci VM-a se nikad ne diraju.</li>
+  <li>Konzola takođe traži snimke <code>backupzit_…</code> starije od šest sati u listi VM-ova koju osvežava na svakih 10 minuta, dok nijedan bekap veze ne radi, pa se pojavljuju i ostaci starijih agenata. Uklanjaju se isključivo snimci nazvani <code>backupzit_…</code>; sopstveni snimci VM-a se nikad ne diraju. Zapis o VM-u koji nedostaje u listi VM-ova (njegov datastore nije dostupan, premešten je na drugi host) ostaje na proxy agentu sedam dana, tako da se njegov snimak ipak ukloni kada se VM vrati (agenti 0.63 i noviji).</li>
 </ul>
 
 <h2>Vraćanje VM-a</h2>

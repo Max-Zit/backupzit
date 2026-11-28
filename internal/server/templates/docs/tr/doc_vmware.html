@@ -85,7 +85,7 @@
 <ul>
   <li>Konsol, proxy aracısında bir temizleme çalıştırmasını kuyruğa alır (ana bilgisayarın kimlik bilgileri yalnızca onda vardır) ve proxy aracısı bu tür kalıntıları bağlantının her yedeğinden sonra da kaldırır. Proxy aracısının bir yedeklemesinin veya geri yüklemesinin üzerinde çalıştığı VM'lere dokunulmaz. Bir aracının proxy'si olmadığı bir bağlantı için bildirdiği kayıt (örneğin eski bir proxy) temizleme çalıştırması olmadan listelenir; anlık görüntü daha sonra aşağıda açıklandığı gibi VM listesinden görünür.</li>
   <li>Pano her kalıntıyı <i>İlgi gerekiyor</i> altında (VM, ne zamandan beri, neden) <b>Şimdi kaldır</b> ile listeler ve kalmaya devam eden her kalıntı için bir kez bildirim (e-posta, sohbet) gönderilir.</li>
-  <li>Konsol ayrıca, bağlantının hiçbir yedeklemesi çalışmazken, 10 dakikada bir yenilediği VM listesinde altı saatten eski <code>backupzit_…</code> anlık görüntülerini arar; böylece eski aracıların kalıntıları da görünür. Yalnızca <code>backupzit_…</code> adlı anlık görüntüler kaldırılır; VM'nin kendi anlık görüntülerine asla dokunulmaz.</li>
+  <li>Konsol ayrıca, bağlantının hiçbir yedeklemesi çalışmazken, 10 dakikada bir yenilediği VM listesinde altı saatten eski <code>backupzit_…</code> anlık görüntülerini arar; böylece eski aracıların kalıntıları da görünür. Yalnızca <code>backupzit_…</code> adlı anlık görüntüler kaldırılır; VM'nin kendi anlık görüntülerine asla dokunulmaz. VM listesinde bulunmayan bir VM'nin kaydı (veri deposu çalışmıyor, başka bir ana bilgisayara taşındı) proxy aracısında yedi gün kalır; böylece VM geri geldiğinde anlık görüntüsü yine kaldırılır (aracı 0.63 ve sonrası).</li>
 </ul>
 
 <h2>Bir VM'yi geri yükleme</h2>
